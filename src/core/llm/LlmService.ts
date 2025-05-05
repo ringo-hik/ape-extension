@@ -580,6 +580,10 @@ export class LlmService {
       console.log('일반 모드(비스트리밍)로 요청 전송');
       
       // SSL 인증서 검증 오류 회피를 위해 fetch API 직접 사용
+      console.log(`OpenRouter 요청 URL: ${apiUrl}`);
+      console.log(`OpenRouter 요청 모델: ${requestModel}`);
+      console.log(`OpenRouter API 키: ${apiKey ? apiKey.substring(0, 10) + '...' : 'undefined'}`);
+      
       const fetchResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -1065,6 +1069,30 @@ export class LlmService {
    * 환경 변수 또는 설정에서 API 키 가져오기
    */
   private getApiKey(provider: ModelProvider): string | undefined {
+    // 환경 변수에서 먼저 확인
+    try {
+      // extension.env.js 파일에서 환경 변수 가져오기 시도
+      let envApiKey;
+      
+      if (provider === 'openrouter') {
+        try {
+          // 환경 변수를 동적으로 로드
+          const envModule = require('../../../extension.env.js');
+          envApiKey = envModule.OPENROUTER_API_KEY;
+          
+          if (envApiKey && envApiKey !== 'your_openrouter_api_key_here') {
+            console.log('extension.env.js에서 OpenRouter API 키를 로드했습니다.');
+            return envApiKey;
+          }
+        } catch (envError) {
+          console.warn('extension.env.js 로드 실패:', envError);
+        }
+      }
+    } catch (e) {
+      console.warn(`환경 변수에서 ${provider} API 키를 가져오는 중 오류 발생:`, e);
+    }
+    
+    // VS Code 설정에서 확인
     const config = vscode.workspace.getConfiguration('ape.llm');
     return config.get<string>(`${provider}ApiKey`);
   }
