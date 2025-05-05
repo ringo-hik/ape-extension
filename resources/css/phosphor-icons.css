@@ -1,0 +1,139 @@
+/**
+ * Phosphor Icons CSS
+ * Custom implementation for APE Extension
+ */
+
+/* Icon Base Styles */
+.ph {
+  display: inline-block;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  vertical-align: middle;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Common Icons Used in APE UI */
+.ph-lightning:before { content: "\ea47"; }
+.ph-trash:before { content: "\eb69"; }
+.ph-scanner:before { content: "\eb06"; }
+.ph-terminal:before { content: "\eb55"; }
+.ph-paper-plane-right:before { content: "\ea9c"; }
+.ph-command:before { content: "\e92c"; }
+.ph-chat-text:before { content: "\e8ff"; }
+.ph-puzzle-piece:before { content: "\eacd"; }
+.ph-git-fork:before { content: "\ea05"; }
+.ph-lightbulb:before { content: "\ea46"; }
+.ph-layout:before { content: "\ea40"; }
+.ph-book-open:before { content: "\e863"; }
+.ph-eye-closed:before { content: "\e9eb"; }
+.ph-kanban:before { content: "\ea37"; }
+.ph-git-branch:before { content: "\ea04"; }
+.ph-infinity:before { content: "\ea30"; }
+.ph-hammer:before { content: "\ea17"; }
+.ph-question:before { content: "\ead0"; }
+.ph-gear-six:before { content: "\e9fb"; }
+.ph-magnifying-glass:before { content: "\ea4e"; }
+.ph-robot:before { content: "\eaef"; }
+.ph-bug:before { content: "\e87d"; }
+.ph-code:before { content: "\e915"; }
+.ph-git-commit:before { content: "\ea06"; }
+.ph-git-pull-request:before { content: "\ea0a"; }
+.ph-arrow-up:before { content: "\e82d"; }
+.ph-git-merge:before { content: "\ea08"; }
+.ph-cloud-arrow-up:before { content: "\e910"; }
+.ph-test-tube:before { content: "\eb56"; }
+.ph-note-pencil:before { content: "\ea8b"; }
+.ph-clipboard-text:before { content: "\e90b"; }
+.ph-file-text:before { content: "\e9fa"; }
+.ph-floppy-disk:before { content: "\e9ff"; }
+.ph-sliders:before { content: "\eb25"; }
+.ph-play:before { content: "\eaa9"; }
+.ph-chat-dots:before { content: "\e8fb"; }
+.ph-star:before { content: "\eb36"; }
+.ph-star-fill:before { content: "\eb37"; }
+.ph-x:before { content: "\ebba"; }
+.ph-arrows-clockwise:before { content: "\e825"; }
+.ph-archive-box:before { content: "\e81b"; }
+.ph-dots-three:before { content: "\e9b4"; }
+.ph-caret-down:before { content: "\e8d4"; }
+.ph-list:before { content: "\ea49"; }
+.ph-check:before { content: "\e8fe"; }
+.ph-warning:before { content: "\eba4"; }
+.ph-copy:before { content: "\e942"; }
+.ph-arrow-down:before { content: "\e828"; }
+.ph-wrench:before { content: "\ebbc"; }
+.ph-database:before { content: "\e967"; }
+.ph-scales:before { content: "\eb08"; }
+
+/* Fill icons */
+.ph-fill.ph-star:before { content: "\eb37"; }
+.ph-fill.ph-heart:before { content: "\ea1e"; }
+.ph-fill.ph-bookmark:before { content: "\e869"; }
+.ph-fill.ph-circle:before { content: "\e904"; }
+
+/* Classes for Toolbar and Button Icons */
+.toolbar-button .ph {
+  font-size: 16px;
+  margin-right: 4px;
+}
+
+.send-button .ph {
+  font-size: 18px;
+}
+
+/* Icon Colors */
+.icon-primary {
+  color: var(--ape-accent, #FF9900);
+}
+
+.icon-success {
+  color: var(--ape-success, #28a745);
+}
+
+.icon-warning {
+  color: var(--ape-warning, #ffc107);
+}
+
+.icon-error {
+  color: var(--ape-error, #dc3545);
+}
+
+/* Domain-specific colors */
+.icon-git {
+  color: var(--ape-git, #F14E32);
+}
+
+.icon-jira {
+  color: var(--ape-jira, #0052CC);
+}
+
+.icon-swdp {
+  color: var(--ape-swdp, #6554C0);
+}
+
+/* Size Variants */
+.ph-sm {
+  font-size: 14px;
+}
+
+.ph-lg {
+  font-size: 20px;
+}
+
+.ph-xl {
+  font-size: 24px;
+}
+
+/* Animation - Loading Spinner */
+@keyframes ph-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ph-spin {
+  animation: ph-spin 2s linear infinite;
+}

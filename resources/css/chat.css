@@ -35,6 +35,14 @@ body {
 .logo {
   font-size: 16px;
   margin-right: 8px;
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
 }
 
 /* 모델 선택 컴포넌트 스타일 */
@@ -257,6 +265,14 @@ body {
 .empty-state-icon {
   font-size: 36px;
   margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.empty-state-logo {
+  width: 48px;
+  height: 48px;
+  opacity: 0.8;
 }
 
 .empty-state-title {

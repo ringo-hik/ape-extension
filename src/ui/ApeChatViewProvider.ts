@@ -91,6 +91,25 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             this._executeCommand(message.commandId);
           }
           return;
+          
+        case 'copyToClipboard':
+          // 클립보드에 텍스트 복사
+          if (message.text) {
+            vscode.env.clipboard.writeText(message.text)
+              .then(() => {
+                // 복사 성공 알림
+                console.log('클립보드에 복사됨:', message.text);
+              })
+              .catch(err => {
+                console.error('클립보드 복사 오류:', err);
+              });
+          }
+          return;
+          
+        case 'treeViewAction':
+          // TreeView와 연동된 작업 처리
+          this._handleTreeViewAction(message);
+          return;
       }
     });
     
@@ -187,6 +206,13 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             
             // 명령어 응답 표시
             this._sendResponse(responseContent, responseType);
+            
+            // 명령어 실행 결과 알림 (명령어 패널에서 시각적 피드백을 위함)
+            this._view.webview.postMessage({
+              command: 'commandExecuted',
+              commandId: text, // text 변수에는 명령어 전체 문자열이 포함되어 있음
+              success: !commandResponse.error
+            });
           }
         }
         
@@ -349,18 +375,33 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       // 모든 명령어 사용법 가져오기
       const allUsages = commandRegistry.getAllCommandUsages();
       
-      // 명령어 목록 생성
+      // 명령어 목록 생성 (확장된 구조)
       const commands = allUsages.map(usage => {
-        // 명령어 타입 결정
+        // 명령어 타입 및 도메인 결정
         const isAtCommand = usage.syntax.startsWith('@');
         const isSlashCommand = usage.syntax.startsWith('/');
+        
+        // 명령어 도메인 추출
+        let domain = '';
+        if (isAtCommand && usage.domain) {
+          domain = usage.domain;
+        } else if (isSlashCommand) {
+          domain = 'system';
+        }
+        
+        // 즐겨찾기 명령어 결정 (기본 자주 사용하는 명령어)
+        const isFavorite = ['help', 'model', 'debug', 'clear'].includes(usage.command);
         
         return {
           id: usage.syntax,
           label: usage.command,
           description: usage.description,
+          syntax: usage.syntax,
+          examples: usage.examples || [],
           type: isAtCommand ? 'at' : (isSlashCommand ? 'slash' : 'other'),
-          frequent: ['help', 'model', 'debug', 'clear'].includes(usage.command)
+          domain: domain,
+          frequent: isFavorite,
+          iconName: this._getIconForCommand(usage.command, domain)
         };
       });
       
@@ -503,6 +544,156 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   /**
+   * TreeView 액션 처리
+   * @param message 트리뷰 액션 메시지
+   */
+  private _handleTreeViewAction(message: any) {
+    console.log('TreeView 액션 처리:', message);
+    
+    const actionType = message.actionType;
+    const item = message.item;
+    
+    if (!actionType || !item) {
+      return;
+    }
+    
+    switch (actionType) {
+      case 'select':
+        // 트리 아이템 선택 처리
+        this._handleTreeItemSelection(item);
+        break;
+        
+      case 'execute':
+        // 트리 아이템 명령어 실행
+        if (item.type === 'command' && item.id) {
+          this._executeCommand(item.id);
+        }
+        break;
+        
+      case 'showDetails':
+        // 트리 아이템 세부 정보 표시
+        if (item.type === 'command') {
+          this._showCommandDetails(item);
+        }
+        break;
+    }
+  }
+  
+  /**
+   * TreeView 아이템 선택 처리
+   * @param item 선택된 트리 아이템
+   */
+  private _handleTreeItemSelection(item: any) {
+    console.log('TreeView 아이템 선택:', item);
+    
+    // 아이템 타입에 따른 처리
+    switch (item.type) {
+      case 'command':
+        // 명령어 아이템 선택 시 명령어 패널에 해당 명령어 표시
+        if (this._view && item.id) {
+          this._view.webview.postMessage({
+            command: 'highlightCommand',
+            commandId: item.id
+          });
+        }
+        break;
+        
+      case 'chat-session':
+        // 채팅 세션 선택 시 해당 세션 로드
+        if (this._view && item.id) {
+          // 여기에서는 채팅 세션 ID로 세션 로드 로직 구현
+          console.log('채팅 세션 로드:', item.id);
+        }
+        break;
+    }
+  }
+  
+  /**
+   * 명령어 세부 정보 표시
+   * @param item 명령어 아이템
+   */
+  private _showCommandDetails(item: any) {
+    if (!this._view) {
+      return;
+    }
+    
+    console.log('명령어 세부 정보 표시:', item);
+    
+    // 명령어 세부 정보가 있는 경우 웹뷰에 전달
+    this._view.webview.postMessage({
+      command: 'showCommandDetail',
+      commandItem: item
+    });
+  }
+  
+  /**
+   * 명령어에 적합한 아이콘 결정
+   * @param command 명령어 이름
+   * @param domain 명령어 도메인
+   * @returns 아이콘 객체 {icon: string, source: string}
+   */
+  private _getIconForCommand(command: string, domain: string): any {
+    // 도메인별 기본 아이콘
+    const domainIcons: {[key: string]: {icon: string, source: string}} = {
+      'system': { icon: 'gear-six', source: 'phosphor' },
+      'git': { icon: 'git-branch', source: 'phosphor' },
+      'doc': { icon: 'file-text', source: 'phosphor' },
+      'jira': { icon: 'kanban', source: 'phosphor' },
+      'pocket': { icon: 'archive-box', source: 'phosphor' },
+      'vault': { icon: 'database', source: 'phosphor' },
+      'rules': { icon: 'scales', source: 'phosphor' },
+      'swdp': { icon: 'infinity', source: 'phosphor' }
+    };
+    
+    // 명령어별 아이콘
+    const commandIcons: {[key: string]: {icon: string, source: string}} = {
+      // Git 관련
+      'commit': { icon: 'git-commit', source: 'phosphor' },
+      'push': { icon: 'arrow-up', source: 'phosphor' },
+      'pull': { icon: 'git-pull-request', source: 'phosphor' },
+      'branch': { icon: 'git-branch', source: 'phosphor' },
+      'merge': { icon: 'git-merge', source: 'phosphor' },
+      'clone': { icon: 'copy', source: 'phosphor' },
+      
+      // Jira 관련
+      'issue': { icon: 'note-pencil', source: 'phosphor' },
+      'ticket': { icon: 'note-pencil', source: 'phosphor' },
+      'bug': { icon: 'bug', source: 'phosphor' },
+      'task': { icon: 'clipboard-text', source: 'phosphor' },
+      
+      // 일반 명령어
+      'help': { icon: 'question', source: 'phosphor' },
+      'model': { icon: 'robot', source: 'phosphor' },
+      'debug': { icon: 'bug', source: 'phosphor' },
+      'clear': { icon: 'trash', source: 'phosphor' },
+      'settings': { icon: 'gear-six', source: 'phosphor' },
+      'config': { icon: 'sliders', source: 'phosphor' },
+      'search': { icon: 'magnifying-glass', source: 'phosphor' },
+      'list': { icon: 'list', source: 'phosphor' },
+      'build': { icon: 'hammer', source: 'phosphor' },
+      'deploy': { icon: 'cloud-arrow-up', source: 'phosphor' },
+      'test': { icon: 'test-tube', source: 'phosphor' },
+      'document': { icon: 'file-text', source: 'phosphor' },
+      'save': { icon: 'floppy-disk', source: 'phosphor' },
+    };
+    
+    // 명령어 이름으로 직접 매칭
+    if (commandIcons[command]) {
+      return commandIcons[command];
+    }
+    
+    // 명령어 이름에 특정 키워드 포함 여부 확인
+    for (const [keyword, icon] of Object.entries(commandIcons)) {
+      if (command.includes(keyword)) {
+        return icon;
+      }
+    }
+    
+    // 도메인별 기본 아이콘 반환
+    return domainIcons[domain] || { icon: 'terminal', source: 'phosphor' };
+  }
+
+  /**
    * 명령어 실행
    */
   private async _executeCommand(commandId: string) {
@@ -535,15 +726,26 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           }
           
           // 결과 형식에 따른 처리
+          let isError = false;
           if (typeof result === 'object') {
             if (result.content) {
               const responseType = result.error ? 'system' : 'assistant';
+              isError = !!result.error;
               this._sendResponse(result.content, responseType);
             } else {
               this._sendResponse(JSON.stringify(result, null, 2), 'assistant');
             }
           } else {
             this._sendResponse(result, 'assistant');
+          }
+          
+          // 명령어 실행 결과 알림 (명령어 패널 피드백용)
+          if (this._view && this._view.visible) {
+            this._view.webview.postMessage({
+              command: 'commandExecuted',
+              commandId: commandId,
+              success: !isError
+            });
           }
         }
       } else {
@@ -615,17 +817,33 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     // 리소스 경로 가져오기
     const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'resources', 'html', 'chat.html');
     
+    // 웹뷰 리소스 기본 URI (아이콘, 폰트 등의 기본 경로)
+    const webviewResourceBaseUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources'));
+    
     // CSS 및 JS 경로 설정
     const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'chat.css'));
+    const claudeStyleCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'claude-style.css'));
     const codeBlocksCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'code-blocks.css'));
     const commandAutocompleteCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'command-autocomplete.css'));
+    const contextSuggestionsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'context-suggestions.css'));
+    const apeIconsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'icons', 'ape-icons.css'));
+    const phosphorIconsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'phosphor-icons.css'));
+    const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'codicons', 'codicon.css'));
+    
+    // JS 파일 경로
     const modelSelectorUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'model-selector.js'));
     const codeBlocksJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'code-blocks.js'));
+    const commandIconsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'command-icons.js'));
     const commandAutocompleteJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'command-autocomplete.js'));
-    const commandsHtmlUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'html', 'command-buttons.html'));
-    const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'codicons', 'codicon.css'));
+    const iconManagerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'icon-manager.js'));
     const commandButtonsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'command-buttons.js'));
-    const apeUiJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'ape-ui.js'));
+    const improvedApeUiJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'improved-ape-ui.js'));
+    const improvedContextHandlerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'improved-context-handler.js'));
+    const workflowAnalyzerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'workflow-analyzer.js'));
+    const hybridApeUiJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'hybrid-ape-ui.js'));
+    
+    // HTML 리소스
+    const commandsHtmlUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'html', 'command-buttons.html'));
     
     try {
       // HTML 파일이 존재하는지 확인
@@ -640,18 +858,27 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       // CSP 소스 및 리소스 경로 설정
       const cspSource = webview.cspSource;
       htmlContent = htmlContent.replace(/\$\{cspSource\}/g, cspSource);
+      htmlContent = htmlContent.replace(/\$\{webviewResourceBaseUri\}/g, webviewResourceBaseUri.toString());
       htmlContent = htmlContent.replace(/\$\{cssUri\}/g, cssUri.toString());
+      htmlContent = htmlContent.replace(/\$\{claudeStyleCssUri\}/g, claudeStyleCssUri.toString());
       htmlContent = htmlContent.replace(/\$\{codeBlocksCssUri\}/g, codeBlocksCssUri.toString());
       htmlContent = htmlContent.replace(/\$\{commandAutocompleteCssUri\}/g, commandAutocompleteCssUri.toString());
+      htmlContent = htmlContent.replace(/\$\{contextSuggestionsCssUri\}/g, contextSuggestionsCssUri.toString());
+      htmlContent = htmlContent.replace(/\$\{apeIconsCssUri\}/g, apeIconsCssUri.toString());
+      htmlContent = htmlContent.replace(/\$\{codiconsUri\}/g, codiconsUri.toString());
       htmlContent = htmlContent.replace(/\$\{modelSelectorUri\}/g, modelSelectorUri.toString());
       htmlContent = htmlContent.replace(/\$\{codeBlocksJsUri\}/g, codeBlocksJsUri.toString());
+      htmlContent = htmlContent.replace(/\$\{commandIconsJsUri\}/g, commandIconsJsUri.toString());
       htmlContent = htmlContent.replace(/\$\{commandAutocompleteJsUri\}/g, commandAutocompleteJsUri.toString());
       htmlContent = htmlContent.replace(/\$\{commandsHtmlUri\}/g, commandsHtmlUri.toString());
-      htmlContent = htmlContent.replace(/\$\{codiconsUri\}/g, codiconsUri.toString());
       htmlContent = htmlContent.replace(/\$\{commandButtonsJsUri\}/g, commandButtonsJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{apeUiJsUri\}/g, apeUiJsUri.toString());
+      htmlContent = htmlContent.replace(/\$\{improvedApeUiJsUri\}/g, improvedApeUiJsUri.toString());
+      htmlContent = htmlContent.replace(/\$\{improvedContextHandlerJsUri\}/g, improvedContextHandlerJsUri.toString());
+      htmlContent = htmlContent.replace(/\$\{workflowAnalyzerJsUri\}/g, workflowAnalyzerJsUri.toString());
+      htmlContent = htmlContent.replace(/\$\{hybridApeUiJsUri\}/g, hybridApeUiJsUri.toString());
       
       console.log('HTML 파일 로드 성공:', htmlPath.fsPath);
+      console.log('기본 리소스 경로:', webviewResourceBaseUri.toString());
       console.log('CSS URI:', cssUri.toString());
       console.log('JS URI:', modelSelectorUri.toString());
       

@@ -1,14 +1,41 @@
 /**
- * 명령어 버튼 스타일링
+ * APE 명령어 패널 스타일링 (Claude 스타일 적용)
  */
 
 :root {
-  --container-padding: 12px;
-  --button-margin: 6px;
-  --section-margin: 16px;
+  /* 색상 변수 */
+  --command-primary: var(--claude-primary, #5436da);
+  --command-primary-light: var(--claude-primary-light, #7b68ee);
+  --command-primary-dark: var(--claude-primary-dark, #4520c9);
+  
+  /* 도메인별 색상 */
+  --command-system-color: var(--vscode-button-background, #0e639c);
+  --command-git-color: #F14E32;
+  --command-doc-color: #0078d4;
+  --command-jira-color: #0052CC;
+  --command-pocket-color: #5A3096;
+  --command-vault-color: #118752;
+  --command-rules-color: #6554C0;
+  
+  /* 레이아웃 변수 */
+  --command-container-padding: 14px;
+  --command-section-margin: 18px;
+  --command-button-gap: 10px;
+  --command-border-radius: 6px;
+  
+  /* 애니메이션 및 전환 */
+  --command-transition-fast: 150ms;
+  --command-transition-normal: 250ms;
+  --command-transition-slow: 350ms;
+  
+  /* 섀도우 */
+  --command-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --command-shadow-md: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  --command-shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
 }
 
-body {
+/* 기본 스타일 */
+.command-panel-body {
   padding: 0;
   margin: 0;
   color: var(--vscode-foreground);
@@ -16,13 +43,120 @@ body {
   font-size: var(--vscode-font-size);
   font-weight: var(--vscode-font-weight);
   background-color: var(--vscode-sideBar-background);
+  overflow-x: hidden;
 }
 
-.container {
-  padding: var(--container-padding);
+.command-panel-container {
+  padding: var(--command-container-padding);
   display: flex;
   flex-direction: column;
-  gap: var(--section-margin);
+  gap: var(--command-section-margin);
+}
+
+/* 명령어 패널 헤더 */
+.command-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.35));
+}
+
+.command-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--command-primary);
+}
+
+.command-panel-title i {
+  font-size: 18px;
+}
+
+.command-panel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.command-panel-action {
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.command-panel-action:hover {
+  background-color: var(--vscode-list-hoverBackground);
+  color: var(--command-primary);
+}
+
+.command-panel-action i {
+  font-size: 16px;
+}
+
+/* 검색 컨테이너 */
+.command-search-container {
+  margin-bottom: 16px;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--vscode-input-placeholderForeground);
+}
+
+.command-search-input {
+  width: 100%;
+  padding: 8px 32px 8px 36px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--command-border-radius);
+  font-size: 14px;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.command-search-input:focus {
+  outline: none;
+  border-color: var(--command-primary);
+  box-shadow: 0 0 0 2px rgba(84, 54, 218, 0.25);
+}
+
+.clear-search-button {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-input-placeholderForeground);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.clear-search-button:hover {
+  background-color: rgba(128, 128, 128, 0.2);
+  color: var(--vscode-input-foreground);
 }
 
 /* 명령어 섹션 */
@@ -30,7 +164,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
+  animation: fadeIn 0.3s ease-out;
+  animation-fill-mode: both;
 }
 
 .command-section-header {
@@ -38,13 +174,25 @@ body {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  transition: background-color 0.2s;
+  padding: 8px 10px;
+  border-radius: var(--command-border-radius);
+  transition: background-color var(--command-transition-fast) ease;
+  user-select: none;
 }
 
 .command-section-header:hover {
   background-color: var(--vscode-list-hoverBackground);
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-icon {
+  font-size: 16px;
+  opacity: 0.8;
 }
 
 .command-section h3 {
@@ -52,142 +200,395 @@ body {
   font-size: 14px;
   font-weight: 600;
   color: var(--vscode-foreground);
-  opacity: 0.8;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--vscode-panel-border);
 }
 
-.commands-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  transition: opacity 0.2s, max-height 0.3s;
-  overflow: hidden;
-  max-height: 1000px;
-}
-
-.commands-container.collapsed {
-  max-height: 0;
-  opacity: 0;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-}
-
-/* 명령어 버튼 */
-.command-button {
-  margin: 0;
-}
-
-.button-content {
+.header-controls {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border: none;
-  border-radius: 2px;
-  cursor: pointer;
+  gap: 8px;
+}
+
+.command-count {
   font-size: 12px;
-  transition: all 0.2s;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
+  background-color: var(--vscode-badge-background, rgba(128, 128, 128, 0.3));
+  color: var(--vscode-badge-foreground, var(--vscode-foreground));
+  padding: 2px 6px;
+  border-radius: 10px;
+  min-width: 14px;
+  text-align: center;
 }
 
-.button-content:hover {
-  background-color: var(--vscode-button-hoverBackground);
-}
-
-.button-content:active {
-  transform: translateY(1px);
-}
-
-.button-content i {
-  font-size: 14px;
-}
-
-/* 토글 아이콘 */
 .toggle-icon {
-  font-size: 12px;
-  transition: transform 0.2s;
+  font-size: 14px;
+  transition: transform var(--command-transition-fast) ease;
 }
 
 .toggle-icon.collapsed {
   transform: rotate(-90deg);
 }
 
-/* 검색 필터 */
-.search-filter {
-  margin-bottom: 16px;
+.commands-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px;
+  transition: all var(--command-transition-normal) ease;
+  overflow: hidden;
+  max-height: 1000px;
+  opacity: 1;
 }
 
-.search-input {
-  width: 100%;
-  padding: 6px 8px;
-  background-color: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 2px;
-  font-size: 13px;
+.commands-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
 }
 
-.search-input:focus {
-  outline: 1px solid var(--vscode-focusBorder);
+/* 명령어 버튼 */
+.command-button {
+  margin: 0;
+  transition: transform var(--command-transition-fast) ease;
 }
 
-/* 그룹별 색상 스타일 */
-.command-group-jira .button-content {
-  background-color: #0052CC;
-}
-
-.command-group-jira .button-content:hover {
-  background-color: #0065ff;
-}
-
-.command-group-git .button-content {
-  background-color: #F14E32;
-}
-
-.command-group-git .button-content:hover {
-  background-color: #ff6347;
-}
-
-.command-group-swdp .button-content {
-  background-color: #6554C0;
-}
-
-.command-group-swdp .button-content:hover {
-  background-color: #8777D9;
-}
-
-.command-group-pocket .button-content {
-  background-color: #5A3096;
-}
-
-.command-group-pocket .button-content:hover {
-  background-color: #7B4EC9;
-}
-
-.command-group-system .button-content {
+.button-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
   background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: var(--command-border-radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--command-transition-fast) ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  box-shadow: var(--command-shadow-sm);
+}
+
+.button-content:hover {
+  background-color: var(--vscode-button-hoverBackground);
+  transform: translateY(-2px);
+  box-shadow: var(--command-shadow-md);
+}
+
+.button-content:active {
+  transform: translateY(0);
+  box-shadow: var(--command-shadow-sm);
+}
+
+.button-content i {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* 도메인별 버튼 스타일 */
+/* 시스템 명령어 */
+.command-group-system .button-content {
+  background-color: var(--command-system-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
 }
 
 .command-group-system .button-content:hover {
-  background-color: var(--vscode-button-hoverBackground);
+  background-color: color-mix(in srgb, var(--command-system-color) 90%, white);
 }
 
-/* 명령어 영역 확장 */
+/* Git 명령어 */
+.command-group-git .button-content {
+  background-color: var(--command-git-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.command-group-git .button-content:hover {
+  background-color: color-mix(in srgb, var(--command-git-color) 90%, white);
+}
+
+/* 문서 명령어 */
+.command-group-doc .button-content {
+  background-color: var(--command-doc-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.command-group-doc .button-content:hover {
+  background-color: color-mix(in srgb, var(--command-doc-color) 90%, white);
+}
+
+/* Jira 명령어 */
+.command-group-jira .button-content {
+  background-color: var(--command-jira-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.command-group-jira .button-content:hover {
+  background-color: color-mix(in srgb, var(--command-jira-color) 90%, white);
+}
+
+/* Pocket 명령어 */
+.command-group-pocket .button-content {
+  background-color: var(--command-pocket-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.command-group-pocket .button-content:hover {
+  background-color: color-mix(in srgb, var(--command-pocket-color) 90%, white);
+}
+
+/* Vault 명령어 */
+.command-group-vault .button-content {
+  background-color: var(--command-vault-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.command-group-vault .button-content:hover {
+  background-color: color-mix(in srgb, var(--command-vault-color) 90%, white);
+}
+
+/* Rules 명령어 */
+.command-group-rules .button-content {
+  background-color: var(--command-rules-color);
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.command-group-rules .button-content:hover {
+  background-color: color-mix(in srgb, var(--command-rules-color) 90%, white);
+}
+
+/* 즐겨찾기 명령어 */
+.command-favorite .button-content {
+  border-left: 3px solid gold;
+}
+
+/* 빈 상태 메시지 */
 .empty-commands {
   color: var(--vscode-descriptionForeground);
-  font-size: 12px;
+  font-size: 13px;
   font-style: italic;
-  padding: 8px 4px;
+  padding: 10px;
   text-align: center;
   width: 100%;
+  border-radius: var(--command-border-radius);
+  background-color: rgba(128, 128, 128, 0.05);
 }
+
+/* 명령어 세부 정보 모달 */
+.command-detail-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity var(--command-transition-normal) ease;
+}
+
+.command-detail-modal.visible {
+  display: flex;
+  opacity: 1;
+}
+
+.command-detail-content {
+  background-color: var(--vscode-editor-background);
+  border-radius: var(--command-border-radius);
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--command-shadow-lg);
+  transform: translateY(20px);
+  transition: transform var(--command-transition-normal) ease;
+  overflow: hidden;
+}
+
+.command-detail-modal.visible .command-detail-content {
+  transform: translateY(0);
+}
+
+.command-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-editorGroupHeader-tabsBackground);
+}
+
+.command-detail-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--command-primary);
+}
+
+.command-detail-close {
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color var(--command-transition-fast) ease;
+}
+
+.command-detail-close:hover {
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.command-detail-body {
+  padding: 16px;
+  overflow-y: auto;
+  max-height: calc(80vh - 120px);
+}
+
+.command-detail-section {
+  margin-bottom: 16px;
+}
+
+.command-detail-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--vscode-foreground);
+  opacity: 0.9;
+}
+
+.command-detail-description {
+  font-size: 14px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+  color: var(--vscode-foreground);
+}
+
+.command-detail-syntax {
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  margin-bottom: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.command-detail-examples {
+  margin-bottom: 16px;
+}
+
+.command-detail-example {
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  margin-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.command-detail-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-editorGroupHeader-tabsBackground);
+}
+
+.command-detail-execute {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background-color: var(--command-primary);
+  color: white;
+  border: none;
+  border-radius: var(--command-border-radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.command-detail-execute:hover {
+  background-color: var(--command-primary-dark);
+  transform: translateY(-2px);
+}
+
+.command-detail-execute:active {
+  transform: translateY(0);
+}
+
+.command-detail-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  border-radius: var(--command-border-radius);
+  cursor: pointer;
+  font-size: 13px;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.command-detail-copy:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.command-detail-star {
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.command-detail-star:hover {
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.command-detail-star i {
+  font-size: 16px;
+  transition: all var(--command-transition-fast) ease;
+}
+
+.command-detail-star.favorite i {
+  color: gold;
+  transform: scale(1.2);
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.command-section:nth-child(2) { animation-delay: 0.05s; }
+.command-section:nth-child(3) { animation-delay: 0.1s; }
+.command-section:nth-child(4) { animation-delay: 0.15s; }
+.command-section:nth-child(5) { animation-delay: 0.2s; }
+.command-section:nth-child(6) { animation-delay: 0.25s; }
+.command-section:nth-child(7) { animation-delay: 0.3s; }
+.command-section:nth-child(8) { animation-delay: 0.35s; }
+.command-section:nth-child(9) { animation-delay: 0.4s; }
 
 /* 반응형 디자인 */
 @media (max-width: 480px) {
@@ -202,30 +603,19 @@ body {
   .button-content {
     max-width: 100%;
   }
-}
-
-/* 애니메이션 */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.command-section {
-  animation: fadeIn 0.3s ease-out;
-  animation-fill-mode: both;
-}
-
-.command-section:nth-child(2) { animation-delay: 0.05s; }
-.command-section:nth-child(3) { animation-delay: 0.1s; }
-.command-section:nth-child(4) { animation-delay: 0.15s; }
-.command-section:nth-child(5) { animation-delay: 0.2s; }
-.command-section:nth-child(6) { animation-delay: 0.25s; }
-
-/* VS Code 테마 변수에 대한 대체 스타일 (테마 변수가 없는 경우 폴백) */
-.vscode-dark .command-section h3 {
-  border-bottom-color: rgba(255, 255, 255, 0.1);
-}
-
-.vscode-light .command-section h3 {
-  border-bottom-color: rgba(0, 0, 0, 0.1);
+  
+  .command-detail-content {
+    width: 95%;
+  }
+  
+  .command-detail-footer {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .command-detail-execute,
+  .command-detail-copy {
+    width: 100%;
+    justify-content: center;
+  }
 }

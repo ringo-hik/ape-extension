@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' {{codiconsPath}} {{mediaDirPath}}; font-src {{codiconsPath}} {{mediaDirPath}}; script-src 'unsafe-inline'; img-src {{mediaDirPath}};">
+    <title>APE 확장 프로그램 시작하기</title>
+    <link rel="stylesheet" href="{{cssPath}}/ape-ui.css">
+    <link rel="stylesheet" href="{{cssPath}}/claude-style.css">
+    <link rel="stylesheet" href="{{codiconsPath}}/codicon.css">
+    <link rel="stylesheet" href="{{cssPath}}/icons/ape-icons.css">
+    <link rel="stylesheet" href="{{cssPath}}/phosphor-icons.css">
+    <style>
+        :root {
+            --primary-color: #5436da;
+            --primary-light: #7b68ee;
+            --primary-dark: #4520c9;
+        }
+        
+        body {
+            font-family: var(--vscode-font-family);
+            padding: 20px;
+            color: var(--vscode-foreground);
+            background-color: var(--vscode-editor-background);
+            line-height: 1.6;
+        }
+        
+        .welcome-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 24px;
+            background-color: var(--vscode-editor-background);
+            border-radius: 10px;
+            border: 1px solid var(--vscode-panel-border);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        
+        .welcome-header {
+            text-align: center;
+            margin-bottom: 32px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            padding-bottom: 24px;
+        }
+        
+        .mascot-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .mascot {
+            width: 200px;
+            height: auto;
+            margin-bottom: 16px;
+            transition: transform 0.3s ease;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+        }
+        
+        .mascot:hover {
+            transform: scale(1.05);
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            color: var(--primary-light);
+            margin: 0;
+        }
+        
+        h2 {
+            font-size: 1.4rem;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            padding-bottom: 8px;
+            color: var(--primary-light);
+        }
+        
+        h3 {
+            font-size: 1.2rem;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            color: var(--vscode-foreground);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        h3 i {
+            font-size: 18px;
+            color: var(--primary-color);
+        }
+        
+        p {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 16px;
+        }
+        
+        .version {
+            font-size: 0.9rem;
+            color: var(--vscode-descriptionForeground);
+            margin-top: 4px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+        
+        .feature-card {
+            background-color: var(--vscode-editor-background);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-color: var(--primary-color);
+        }
+        
+        .feature-icon {
+            font-size: 24px;
+            color: var(--primary-light);
+            margin-bottom: 12px;
+            display: block;
+        }
+        
+        .feature-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--primary-light);
+        }
+        
+        .feature-description {
+            font-size: 0.9rem;
+            color: var(--vscode-foreground);
+            opacity: 0.9;
+        }
+        
+        .command-example {
+            background-color: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.2));
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 4px;
+            padding: 12px;
+            margin: 16px 0;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .command-example-title {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-bottom-left-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .command-type {
+            color: var(--primary-light);
+            font-weight: bold;
+        }
+        
+        .welcome-actions {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--vscode-panel-border);
+            flex-wrap: wrap;
+        }
+        
+        .welcome-button {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .welcome-button i {
+            font-size: 16px;
+        }
+        
+        .welcome-button:hover {
+            background-color: var(--vscode-button-hoverBackground);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .welcome-button.secondary {
+            background-color: transparent;
+            border: 1px solid var(--vscode-button-background);
+            color: var(--vscode-button-background);
+        }
+        
+        .welcome-button.secondary:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            box-shadow: none;
+        }
+        
+        .disclaimer {
+            margin-top: 32px;
+            font-size: 0.8rem;
+            color: var(--vscode-descriptionForeground);
+            text-align: center;
+        }
+        
+        ul {
+            padding-left: 20px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <div class="welcome-header">
+            <div class="mascot-container">
+                <img src="{{mediaDirPath}}/ape_logo.svg" alt="APE 로고" class="mascot">
+            </div>
+            <h1>Agentic Pipeline Engine</h1>
+            <p class="version">v0.0.1</p>
+        </div>
+        
+        <h2>환영합니다!</h2>
+        <p>
+            APE(Agentic Pipeline Engine)는 개발자가 VS Code 내에서 전체 DevOps 파이프라인에 접근할 수 있는 강력한 확장 프로그램입니다. 
+            인공지능 기능과 다양한 개발 도구들을 통합하여 개발 작업부터 배포까지 전체 워크플로우를 단일 환경에서 관리할 수 있습니다.
+        </p>
+        
+        <div class="feature-grid">
+            <div class="feature-card">
+                <span class="feature-icon"><i class="ph ph-chat-text"></i></span>
+                <div class="feature-title">통합 채팅 인터페이스</div>
+                <div class="feature-description">다양한 AI 모델과 상호작용하며 코드 작성부터 디버깅까지 지원받으세요.</div>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon"><i class="ph ph-terminal"></i></span>
+                <div class="feature-title">명령어 시스템</div>
+                <div class="feature-description">@ 및 / 명령어를 통해 직관적으로 필요한 작업을 수행하세요.</div>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon"><i class="ph ph-puzzle-piece"></i></span>
+                <div class="feature-title">플러그인 아키텍처</div>
+                <div class="feature-description">Jira, Git, SWDP 등 외부 시스템과 쉽게 연동할 수 있습니다.</div>
+            </div>
+            
+            <div class="feature-card">
+                <span class="feature-icon"><i class="ph ph-git-fork"></i></span>
+                <div class="feature-title">DevOps 워크플로우</div>
+                <div class="feature-description">코드 개발부터 배포까지 전체 사이클을 단일 환경에서 관리합니다.</div>
+            </div>
+        </div>
+        
+        <h2>시작하기</h2>
+        <p>
+            APE는 채팅 인터페이스와 명령어 시스템을 통해 작동합니다. 
+            메시지를 입력하거나 특별한 접두사를 사용하여 특정 작업을 수행할 수 있습니다.
+        </p>
+        
+        <h3><i class="ph ph-command"></i> 주요 명령어</h3>
+        
+        <div class="command-example">
+            <div class="command-example-title">시스템 명령어</div>
+            <p><span class="command-type">/help</span> - 도움말 정보 표시</p>
+            <p><span class="command-type">/settings</span> - 설정 메뉴 열기</p>
+            <p><span class="command-type">/clear</span> - 채팅 내역 지우기</p>
+        </div>
+        
+        <div class="command-example">
+            <div class="command-example-title">외부 시스템 명령어</div>
+            <p><span class="command-type">@git:commit</span> - Git 커밋 생성</p>
+            <p><span class="command-type">@jira:issue</span> - JIRA 이슈 생성 및 관리</p>
+            <p><span class="command-type">@swdp:build</span> - SWDP 플랫폼에서 빌드 실행</p>
+        </div>
+        
+        <h3><i class="ph ph-lightbulb"></i> 사용 팁</h3>
+        <ul>
+            <li>트리뷰를 통해 명령어와 채팅 세션을 관리할 수 있습니다.</li>
+            <li>명령어 패널(명령어 버튼)을 사용하여 사용 가능한 모든 명령어를 탐색하세요.</li>
+            <li>자동완성 기능을 활용하여 명령어를 빠르게 입력하세요. (@, / 입력 시 자동으로 표시)</li>
+            <li>심층 분석 모드를 통해 더 자세한 데이터 분석과 프롬프트 엔지니어링을 사용할 수 있습니다.</li>
+            <li><strong>하이브리드 UI 모드</strong>를 사용하여 자연어 인터페이스와 명령어 기반 도구를 동시에 활용하세요.</li>
+        </ul>
+
+        <h3><i class="ph ph-layout"></i> UI 모드</h3>
+        <p>
+            APE는 두 가지 UI 모드를 제공합니다:
+        </p>
+        <ul>
+            <li><strong>표준 모드</strong>: 기본 채팅 인터페이스와 명령어 패널을 제공합니다.</li>
+            <li><strong>하이브리드 모드</strong>: 자연어 인터페이스와 명령어 기반 도구가 통합된 향상된 UI를 제공합니다.
+              <ul>
+                <li>컨텍스트 패널: 현재 작업 환경에 맞는 추천 명령어와 정보 제공</li>
+                <li>제안 바: 현재 대화에 관련된 명령어 제안</li>
+                <li>도메인 도구바: 도메인별 도구 빠른 접근</li>
+              </ul>
+            </li>
+        </ul>
+        <p>
+            UI 모드는 <code>ape.toggleUIMode</code> 명령 또는 채팅 뷰 상단의 전환 버튼을 통해 언제든지 변경할 수 있습니다.
+        </p>
+        
+        <div class="welcome-actions">
+            <button class="welcome-button" id="startButton">
+                <i class="ph ph-chat-text"></i> 시작하기 (표준 모드)
+            </button>
+            <button class="welcome-button" id="startHybridButton">
+                <i class="ph ph-chat-dots"></i> 시작하기 (하이브리드 모드)
+            </button>
+            <button class="welcome-button secondary" id="docsButton">
+                <i class="ph ph-book-open"></i> 문서 보기
+            </button>
+            <button class="welcome-button secondary" id="dontShowButton">
+                <i class="ph ph-eye-closed"></i> 다시 보지 않기
+            </button>
+        </div>
+        
+        <div class="disclaimer">
+            APE(Agentic Pipeline Engine) v0.0.1 - 개발자를 위한 인공지능 기반 VS Code 확장 프로그램
+        </div>
+    </div>
+    
+    <script>
+        const vscode = acquireVsCodeApi();
+        
+        // 버튼 이벤트 리스너
+        document.getElementById('startButton').addEventListener('click', () => {
+            vscode.postMessage({
+                command: 'openChat'
+            });
+        });
+        
+        document.getElementById('startHybridButton').addEventListener('click', () => {
+            vscode.postMessage({
+                command: 'setHybridMode',
+                command2: 'openHybridChat'
+            });
+        });
+        
+        document.getElementById('docsButton').addEventListener('click', () => {
+            vscode.postMessage({
+                command: 'openDocumentation'
+            });
+        });
+        
+        document.getElementById('dontShowButton').addEventListener('click', () => {
+            vscode.postMessage({
+                command: 'dontShowWelcome'
+            });
+        });
+    </script>
+</body>
+</html>

@@ -146,6 +146,9 @@ ape-extension/
 - `APE_PLUGIN_SYSTEM.md` - 플러그인 시스템 설계 및 사용 방법
 - `APE_CHANGELOG.md` - 버전별 변경 사항
 - `APE_DEV_GUIDE.md` - 개발자 가이드
+- `APE_COMMAND_PANEL_IMPLEMENTATION.md` - 명령어 패널 구현 및 사용 가이드
+- `COMMAND_SYSTEM_IMPLEMENTATION.md` - 명령어 시스템 구현 세부 사항
+- `COMMAND_SYSTEM_PROPOSAL.md` - 명령어 시스템 설계 제안서
 
 ## 라이선스
 

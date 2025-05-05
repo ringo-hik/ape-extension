@@ -44,7 +44,7 @@ class ModelSelector {
     this.container.innerHTML = `
       <div class="model-selector-header">
         <span class="model-selector-title">모델 선택</span>
-        <span class="model-selector-icon">▼</span>
+        <span class="model-selector-icon"></span>
       </div>
       <div class="model-selector-dropdown"></div>
     `;

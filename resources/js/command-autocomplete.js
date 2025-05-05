@@ -302,6 +302,17 @@ class CommandAutocomplete {
       return;
     }
     
+    // @ 또는 / 입력시 자동으로 카테고리 목록 표시
+    if (e && e.data && this.options.triggerCharacters.includes(e.data)) {
+      console.log('트리거 문자 입력 감지:', e.data);
+      if (e.data === '@') {
+        this._showCategories('@');
+      } else if (e.data === '/') {
+        this._showCategories('/');
+      }
+      return;
+    }
+    
     // 조건에 맞지 않고 현재 입력 중인 문자가 명령어 시작 문자가 아닌 경우만 숨김
     // 이는 @ 입력 직후에 자동완성이 사라지는 것을 방지하기 위함
     if (e && e.data && !this.options.triggerCharacters.includes(e.data) && e.data !== '@') {
@@ -658,9 +669,25 @@ class CommandAutocomplete {
     // 이름으로 필터링 (쿼리가 없으면 모든 해당 타입 명령어 표시)
     const filteredCommands = this.commands
       .filter(cmd => cmd.type === prefixType)
-      .filter(cmd => query.length === 0 || 
-        cmd.id.toLowerCase().includes(query.toLowerCase()) || 
-        (cmd.description && cmd.description.toLowerCase().includes(query.toLowerCase())));
+      .filter(cmd => {
+        // 쿼리가 비어있으면 모든 해당 타입 명령어 표시
+        if (query.length === 0) return true;
+        
+        // ID에서 검색
+        if (cmd.id.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        // 라벨에서 검색
+        if (cmd.label && cmd.label.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        // 설명에서 검색
+        if (cmd.description && cmd.description.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        // 도메인 검색 (git:, jira: 등)
+        const domainPart = cmd.id.split(':')[0].replace(/^[@/]/, '');
+        if (domainPart.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        return false;
+      });
 
     // 결과가 없으면 "명령어 없음" 메시지 표시
     if (filteredCommands.length === 0) {

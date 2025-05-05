@@ -1,0 +1,99 @@
+/* APE 툴바 아이콘 스타일
+ * VS Code의 Codicons와 Phosphor Icons 기반 툴바 아이콘
+ */
+
+/* 툴바 버튼 베이스 스타일 */
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  background-color: transparent;
+  border: none;
+  color: var(--vscode-editor-foreground);
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.toolbar-button:hover {
+  background-color: var(--vscode-button-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.toolbar-button.active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+/* Phosphor 아이콘 스타일 */
+.toolbar-button i.ph {
+  font-size: 16px;
+  display: inline-block;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 특정 아이콘 스타일 */
+.toolbar-button .ph-trash:before {
+  content: "\eb69";
+}
+
+.toolbar-button .ph-scanner:before {
+  content: "\eb06";
+}
+
+.toolbar-button .ph-terminal:before {
+  content: "\eb55";
+}
+
+.toolbar-button .ph-lightning:before {
+  content: "\ea47";
+}
+
+.toolbar-button .ph-paper-plane-right:before {
+  content: "\ea9c";
+}
+
+/* 토글 버튼 스타일 */
+.toggle-button {
+  position: relative;
+}
+
+.toggle-button::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  background-color: transparent;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.toggle-button.active::after {
+  background-color: var(--vscode-activityBarBadge-background, #007ACC);
+}
+
+/* 비활성화된 전송 버튼 */
+.send-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 아이콘 회전 애니메이션 */
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.icon-rotate {
+  animation: rotate 1.5s linear infinite;
+}

@@ -1,0 +1,903 @@
+/* Claude 스타일 채팅 인터페이스 - 개선된 버전 (codicon 기반) */
+:root {
+  /* 기본 색상 */
+  --claude-primary: #5436da; /* Claude 브랜드 색상으로 변경 */
+  --claude-primary-light: #7b68ee;
+  --claude-primary-dark: #4520c9;
+  
+  /* VS Code 테마와 통합 */
+  --claude-background: var(--vscode-editor-background);
+  --claude-foreground: var(--vscode-editor-foreground);
+  --claude-border: var(--vscode-input-border, #3c3c3c);
+  --claude-border-light: var(--vscode-input-border, #555555);
+  
+  /* 메시지 색상 테마 */
+  --claude-message-user-bg: var(--vscode-editorSuggestWidget-selectedBackground, #2d3748);
+  --claude-message-user-fg: var(--vscode-editor-foreground, #ffffff);
+  --claude-message-user-border: var(--vscode-button-background, #4d4d4d);
+  --claude-message-assistant-bg: var(--vscode-editor-background, #1e1e1e);
+  --claude-message-assistant-fg: var(--vscode-editor-foreground, #d4d4d4);
+  --claude-message-assistant-border: var(--vscode-input-border, #3c3c3c);
+  --claude-message-system-bg: var(--vscode-notificationCenterHeader-background, #303031);
+  --claude-message-system-fg: var(--vscode-notificationCenterHeader-foreground, #cccccc);
+  
+  /* 입력 요소 */
+  --claude-input-bg: var(--vscode-input-background, #3c3c3c);
+  --claude-input-fg: var(--vscode-input-foreground, #cccccc);
+  --claude-header-bg: var(--vscode-sideBarSectionHeader-background, #252526);
+  
+  /* UI 요소 */
+  --claude-scrollbar-thumb: rgba(255, 255, 255, 0.1);
+  --claude-scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  --claude-shadow: rgba(0, 0, 0, 0.3);
+  --claude-hr-color: rgba(255, 255, 255, 0.08);
+  --claude-code-bg: rgba(0, 0, 0, 0.2);
+  --claude-hover-bg: rgba(255, 255, 255, 0.1);
+  
+  /* 애니메이션 및 전환 효과 */
+  --claude-transition-fast: 0.15s;
+  --claude-transition-normal: 0.25s;
+  --claude-transition-slow: 0.4s;
+}
+
+/* 기본 스타일 */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  color: var(--claude-foreground);
+  background-color: var(--claude-background);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  font-size: 14px;
+}
+
+/* 스크롤바 스타일링 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--claude-scrollbar-thumb);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--claude-scrollbar-thumb-hover);
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 100%;
+}
+
+/* 헤더 영역 */
+.chat-header {
+  padding: 12px 16px;
+  background-color: var(--claude-header-bg);
+  border-bottom: 1px solid var(--claude-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px var(--claude-shadow);
+  z-index: 100;
+}
+
+.chat-header h1 {
+  font-size: 16px;
+  margin: 0;
+  color: var(--claude-foreground);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  font-size: 18px;
+  margin-right: 10px;
+  color: var(--claude-primary);
+}
+
+/* 모델 선택기 */
+.model-selector {
+  position: relative;
+  display: inline-block;
+  min-width: 140px;
+}
+
+.model-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 6px 10px;
+  background-color: var(--claude-input-bg);
+  color: var(--claude-input-fg);
+  border: 1px solid var(--claude-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.model-selector-header:hover {
+  background-color: var(--claude-hover-bg);
+  border-color: var(--claude-primary-light);
+}
+
+.model-selector-title {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80%;
+}
+
+.model-selector-icon {
+  margin-left: 6px;
+  transition: transform 0.2s ease;
+  font-family: codicon;
+  font-style: normal;
+}
+
+.model-selector-icon::before {
+  content: '\eab4'; /* codicon-chevron-down */
+  font-size: 12px;
+}
+
+.model-selector.open .model-selector-icon {
+  transform: rotate(180deg);
+}
+
+.model-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 240px;
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: var(--claude-input-bg);
+  border: 1px solid var(--claude-border);
+  border-radius: 4px;
+  z-index: 1000;
+  margin-top: 4px;
+  box-shadow: 0 4px 8px var(--claude-shadow);
+  display: none;
+}
+
+.model-selector-dropdown.open {
+  display: block;
+}
+
+.model-category-header {
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--claude-foreground);
+  background-color: var(--claude-header-bg);
+  border-top: 1px solid var(--claude-border);
+  border-bottom: 1px solid var(--claude-border);
+}
+
+.model-option {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--claude-input-fg);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.model-option:hover {
+  background-color: var(--claude-hover-bg);
+  transform: translateX(2px);
+  transition: all 0.2s ease;
+}
+
+.model-option.selected {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: var(--claude-primary-light);
+}
+
+/* 메시지 영역 */
+.chat-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  position: relative;
+  margin-bottom: 16px;
+  max-width: 90%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  word-wrap: break-word;
+  box-shadow: 0 1px 3px var(--claude-shadow);
+  animation: fadeIn var(--claude-transition-normal) ease;
+  transition: transform var(--claude-transition-fast) ease, box-shadow var(--claude-transition-fast) ease;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.message:hover {
+  box-shadow: 0 3px 8px var(--claude-shadow);
+  transform: translateY(-1px);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.message-user {
+  align-self: flex-end;
+  background-color: var(--claude-message-user-bg);
+  color: var(--claude-message-user-fg);
+  border-bottom-right-radius: 0;
+  border-left: 3px solid var(--claude-message-user-border);
+  margin-left: 20%;
+}
+
+.message-assistant {
+  align-self: flex-start;
+  background-color: var(--claude-message-assistant-bg);
+  color: var(--claude-message-assistant-fg);
+  border: 1px solid var(--claude-message-assistant-border);
+  border-bottom-left-radius: 0;
+  border-left: 3px solid var(--claude-primary);
+  margin-right: 20%;
+}
+
+.message-system {
+  align-self: center;
+  background-color: var(--claude-message-system-bg);
+  color: var(--claude-message-system-fg);
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 6px;
+  max-width: 80%;
+  text-align: center;
+  border-left: 2px solid var(--claude-hr-color);
+  font-style: italic;
+}
+
+/* 스트리밍 효과 - 개선된 버전 */
+@keyframes blinkCursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}
+
+.streaming::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  margin-right: 2px;
+  background-color: var(--claude-primary-light);
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: pulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 5px var(--claude-primary-light);
+}
+
+/* 입력 영역 - 개선된 버전 */
+.chat-input-container {
+  padding: 16px;
+  background-color: var(--claude-background);
+  border-top: 1px solid var(--claude-border);
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--claude-transition-normal) ease-out;
+}
+
+.input-wrapper {
+  display: flex;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--claude-shadow);
+  border: 1px solid var(--claude-border);
+  transition: all var(--claude-transition-normal) ease;
+  background-color: var(--claude-input-bg);
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--claude-primary);
+  box-shadow: 0 0 0 2px rgba(84, 54, 218, 0.25), 0 2px 10px var(--claude-shadow);
+  transform: translateY(-2px);
+}
+
+.chat-input {
+  flex: 1;
+  padding: 14px 48px 14px 16px;
+  background-color: transparent;
+  color: var(--claude-input-fg);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  border: none;
+  outline: none;
+  min-height: 24px;
+  max-height: 200px;
+  transition: height var(--claude-transition-fast) ease;
+}
+
+.chat-input::placeholder {
+  color: rgba(204, 204, 204, 0.6);
+  font-style: italic;
+}
+
+.send-button {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: var(--claude-primary);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--claude-transition-normal) ease;
+  box-shadow: 0 2px 4px var(--claude-shadow);
+  transform-origin: center;
+}
+
+.send-button i {
+  font-size: 16px;
+}
+
+.send-button:hover {
+  background-color: var(--claude-primary-dark);
+  transform: scale(1.05) rotate(5deg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.send-button:active {
+  transform: scale(0.95);
+}
+
+.send-button:disabled {
+  background-color: var(--claude-border);
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 툴바 - 개선된 버전 */
+.toolbar {
+  display: flex;
+  margin-bottom: 16px;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.toolbar-button {
+  background: var(--claude-input-bg);
+  border: 1px solid var(--claude-border);
+  color: var(--claude-input-fg);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  transition: all var(--claude-transition-fast) ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.toolbar-button i {
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-button:hover {
+  background-color: var(--claude-hover-bg);
+  border-color: var(--claude-border-light);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px var(--claude-shadow);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.toolbar-button:active {
+  transform: translateY(0px);
+}
+
+.toolbar-button.active {
+  background-color: rgba(84, 54, 218, 0.2);
+  color: var(--claude-primary-light);
+  border-color: var(--claude-primary);
+  box-shadow: 0 0 0 1px rgba(84, 54, 218, 0.25);
+}
+
+.toolbar-button.active i {
+  color: var(--claude-primary);
+}
+
+@media (max-width: 600px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .toolbar-left, .toolbar-right {
+    justify-content: center;
+  }
+  
+  .toolbar-button {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+/* 명령어 패널 */
+.commands-panel-container {
+  margin-bottom: 12px;
+  border: 1px solid var(--claude-border);
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--claude-message-assistant-bg);
+  box-shadow: 0 2px 6px var(--claude-shadow);
+}
+
+.commands-panel {
+  width: 100%;
+  height: 300px;
+  border: none;
+  overflow: auto;
+}
+
+/* 빈 상태 메시지 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--claude-message-system-fg);
+  text-align: center;
+  padding: 20px;
+  opacity: 0.8;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  color: var(--claude-primary);
+}
+
+.empty-state-icon i {
+  font-size: 48px;
+}
+
+.empty-state-title {
+  font-size: 18px;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.empty-state-text {
+  font-size: 14px;
+  max-width: 320px;
+  line-height: 1.6;
+}
+
+/* 마크다운 및 코드 블록 스타일 */
+.message-assistant h1,
+.message-assistant h2,
+.message-assistant h3,
+.message-assistant h4,
+.message-assistant h5,
+.message-assistant h6 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.message-assistant h1 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--claude-hr-color);
+  padding-bottom: 4px;
+}
+
+.message-assistant h2 {
+  font-size: 1.3em;
+}
+
+.message-assistant h3 {
+  font-size: 1.2em;
+}
+
+.message-assistant p {
+  margin: 8px 0;
+}
+
+.message-assistant ul,
+.message-assistant ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.message-assistant li {
+  margin: 4px 0;
+}
+
+.message-assistant a {
+  color: var(--claude-primary-light);
+  text-decoration: none;
+}
+
+.message-assistant a:hover {
+  text-decoration: underline;
+}
+
+.message-assistant pre {
+  background-color: var(--claude-code-bg);
+  border-radius: 4px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+  position: relative;
+}
+
+.message-assistant code {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.message-assistant p code {
+  background-color: var(--claude-code-bg);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+/* 코드 블록 스타일링 - 개선된 버전 */
+.code-block {
+  position: relative;
+  border-radius: 6px;
+  margin: 14px 0;
+  background-color: var(--claude-code-bg);
+  border: 1px solid var(--claude-border);
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: hidden;
+  transition: all var(--claude-transition-normal) ease;
+}
+
+.code-block:hover {
+  box-shadow: 0 3px 10px var(--claude-shadow);
+  border-color: var(--claude-border-light);
+}
+
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  border-radius: 5px 5px 0 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--claude-border);
+}
+
+.code-block-language {
+  color: var(--claude-primary-light);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.code-block-language::before {
+  font-family: codicon;
+  content: '\eba4'; /* codicon-code */
+  font-size: 14px;
+  opacity: 0.8;
+  margin-right: 4px;
+}
+
+.code-block-copy {
+  background: rgba(84, 54, 218, 0.1);
+  border: 1px solid rgba(84, 54, 218, 0.2);
+  color: var(--claude-primary-light);
+  cursor: pointer;
+  padding: 3px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  transition: all var(--claude-transition-fast) ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.code-block-copy i {
+  font-size: 14px;
+}
+
+.code-block-copy:hover {
+  background-color: rgba(84, 54, 218, 0.2);
+  transform: translateY(-1px);
+}
+
+.code-block-copy:active {
+  transform: translateY(0);
+}
+
+.code-block-copy.copied {
+  background-color: rgba(72, 187, 120, 0.2);
+  color: #48bb78;
+  border-color: rgba(72, 187, 120, 0.3);
+}
+
+
+.code-block-content {
+  padding: 12px 16px;
+  overflow-x: auto;
+  position: relative;
+}
+
+.code-block pre {
+  margin: 0;
+  white-space: pre;
+}
+
+/* 인라인 코드 */
+.message-assistant code:not(pre code) {
+  background-color: rgba(0, 0, 0, 0.2);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: var(--claude-primary-light);
+  border: 1px solid rgba(84, 54, 218, 0.15);
+}
+
+/* 트리뷰 통합 및 명령어 패널 효과 */
+.highlighted-command {
+  background-color: rgba(84, 54, 218, 0.15) !important;
+  border-left: 3px solid var(--claude-primary) !important;
+  transform: translateX(2px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+@keyframes highlight-pulse {
+  0% { background-color: rgba(84, 54, 218, 0.15); }
+  50% { background-color: rgba(84, 54, 218, 0.3); }
+  100% { background-color: rgba(84, 54, 218, 0.15); }
+}
+
+.command-executed-success {
+  animation: success-feedback 2s ease-in-out;
+}
+
+.command-executed-error {
+  animation: error-feedback 2s ease-in-out;
+}
+
+@keyframes success-feedback {
+  0% { background-color: inherit; }
+  25% { background-color: rgba(72, 187, 120, 0.3); }
+  100% { background-color: inherit; }
+}
+
+@keyframes error-feedback {
+  0% { background-color: inherit; }
+  25% { background-color: rgba(229, 62, 62, 0.3); }
+  100% { background-color: inherit; }
+}
+
+/* 명령어 모달 */
+.command-detail-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  background-color: var(--claude-background);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+  padding: 0;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--claude-border);
+  overflow: hidden;
+}
+
+.command-detail-modal.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.modal-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--claude-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--claude-header-bg);
+}
+
+.modal-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--claude-foreground);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.close-modal-btn {
+  background: transparent;
+  border: none;
+  color: var(--claude-foreground);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+  transition: all 0.2s ease;
+}
+
+.close-modal-btn:hover {
+  transform: scale(1.1);
+  color: var(--claude-primary);
+}
+
+.modal-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-description {
+  margin-bottom: 16px;
+  color: var(--claude-foreground);
+  opacity: 0.8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.modal-section {
+  margin-bottom: 20px;
+}
+
+.modal-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--claude-primary-light);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.modal-section-title i {
+  font-size: 16px;
+}
+
+.syntax-content, .examples-content {
+  background-color: var(--claude-code-bg);
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 16px;
+  border: 1px solid var(--claude-border);
+  color: var(--claude-foreground);
+}
+
+.examples-content ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.examples-content li {
+  margin-bottom: 8px;
+}
+
+.modal-footer {
+  padding: 16px;
+  border-top: 1px solid var(--claude-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background-color: var(--claude-header-bg);
+}
+
+.copy-command-btn, .execute-command-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.copy-command-btn {
+  background-color: var(--claude-input-bg);
+  color: var(--claude-foreground);
+  border: 1px solid var(--claude-border);
+}
+
+.copy-command-btn:hover {
+  background-color: var(--claude-hover-bg);
+  transform: translateY(-2px);
+}
+
+.execute-command-btn {
+  background-color: var(--claude-primary);
+  color: white;
+  border: none;
+}
+
+.execute-command-btn:hover {
+  background-color: var(--claude-primary-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* 반응형 조정 */
+@media (max-width: 600px) {
+  .message {
+    max-width: 92%;
+  }
+  
+  .toolbar-button {
+    padding: 4px 8px;
+  }
+  
+  .command-detail-modal {
+    width: 95%;
+  }
+}

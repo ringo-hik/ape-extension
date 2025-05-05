@@ -1,0 +1,60 @@
+/* Phosphor Icons - Fill Style */
+@font-face {
+  font-family: "Phosphor Fill";
+  src: url("../phosphor.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Base icon styles for filled version */
+.ph-fill {
+  display: inline-block;
+  font-family: "Phosphor Fill";
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Include common Phosphor fill icon classes */
+.ph-fill.ph-lightning:before { content: "\ea47"; }
+.ph-fill.ph-trash:before { content: "\eb69"; }
+.ph-fill.ph-scanner:before { content: "\eb06"; }
+.ph-fill.ph-terminal:before { content: "\eb55"; }
+.ph-fill.ph-paper-plane-right:before { content: "\ea9c"; }
+.ph-fill.ph-command:before { content: "\e92c"; }
+.ph-fill.ph-chat-text:before { content: "\e8ff"; }
+.ph-fill.ph-puzzle-piece:before { content: "\eacd"; }
+.ph-fill.ph-git-fork:before { content: "\ea05"; }
+.ph-fill.ph-lightbulb:before { content: "\ea46"; }
+.ph-fill.ph-layout:before { content: "\ea40"; }
+.ph-fill.ph-book-open:before { content: "\e863"; }
+.ph-fill.ph-eye-closed:before { content: "\e9eb"; }
+.ph-fill.ph-kanban:before { content: "\ea37"; }
+.ph-fill.ph-git-branch:before { content: "\ea04"; }
+.ph-fill.ph-infinity:before { content: "\ea30"; }
+.ph-fill.ph-hammer:before { content: "\ea17"; }
+.ph-fill.ph-question:before { content: "\ead0"; }
+.ph-fill.ph-gear-six:before { content: "\e9fb"; }
+.ph-fill.ph-magnifying-glass:before { content: "\ea4e"; }
+.ph-fill.ph-robot:before { content: "\eaef"; }
+.ph-fill.ph-bug:before { content: "\e87d"; }
+.ph-fill.ph-code:before { content: "\e915"; }
+.ph-fill.ph-git-commit:before { content: "\ea06"; }
+.ph-fill.ph-git-pull-request:before { content: "\ea0a"; }
+.ph-fill.ph-arrow-up:before { content: "\e82d"; }
+.ph-fill.ph-git-merge:before { content: "\ea08"; }
+.ph-fill.ph-cloud-arrow-up:before { content: "\e910"; }
+.ph-fill.ph-test-tube:before { content: "\eb56"; }
+.ph-fill.ph-note-pencil:before { content: "\ea8b"; }
+.ph-fill.ph-clipboard-text:before { content: "\e90b"; }
+.ph-fill.ph-file-text:before { content: "\e9fa"; }
+.ph-fill.ph-floppy-disk:before { content: "\e9ff"; }
+.ph-fill.ph-sliders:before { content: "\eb25"; }
+.ph-fill.ph-play:before { content: "\eaa9"; }
+.ph-fill.ph-chat-dots:before { content: "\e8fb"; }

@@ -1,8 +1,8 @@
 /**
- * SWDP 플러그인
+ * SWDP 플러그인 서비스
  * 
- * SWDP 빌드 파이프라인 기능을 제공하는 내부 플러그인
- * 빌드, 테스트, 배포 등의 기능 지원
+ * SWDP Agent를 통해 DevOps 포털 기능에 접근하는 내부 플러그인
+ * APE Core 연동을 통한 빌드, 테스트, 문서 관리 지원
  */
 
 import { PluginBaseService } from '../../../core/plugin-system/PluginBaseService';
@@ -12,8 +12,8 @@ import { IConfigLoader } from '../../../types/ConfigTypes';
 import { SwdpClientService, SwdpBuildType, SwdpBuildOptions, SwdpTestOptions, SwdpTROptions } from './SwdpClientService';
 
 /**
- * SWDP 플러그인 클래스
- * SWDP 빌드 파이프라인 관리 기능 제공
+ * SWDP 플러그인 서비스 클래스
+ * SWDP를 통한 DevOps 포털 기능 제공
  */
 export class SwdpPluginService extends PluginBaseService {
   /**
@@ -24,7 +24,7 @@ export class SwdpPluginService extends PluginBaseService {
   /**
    * 플러그인 이름
    */
-  name = 'SWDP 빌드 관리';
+  name = 'SWDP 포털 통합';
   
   /**
    * SWDP 클라이언트 서비스
@@ -35,6 +35,11 @@ export class SwdpPluginService extends PluginBaseService {
    * 초기화 완료 여부
    */
   private initialized: boolean = false;
+  
+  /**
+   * 현재 프로젝트 코드
+   */
+  private currentProject?: string;
   
   /**
    * SwdpPluginService 생성자
@@ -56,32 +61,52 @@ export class SwdpPluginService extends PluginBaseService {
    * 플러그인 초기화
    */
   async initialize(): Promise<void> {
-    // 설정에서 SWDP 정보 로드
-    const pluginConfig = this.configLoader?.getPluginConfig();
-    // SWDP 관련 설정 가져오기 - 타입 안전성 확보
-    const swdpConfig = pluginConfig && typeof pluginConfig === 'object' && 'swdp' in pluginConfig 
-      ? (pluginConfig as Record<string, any>).swdp 
-      : null;
-    
-    if (!swdpConfig) {
-      console.warn('SWDP 설정이 없습니다. 기본 설정을 사용합니다.');
-      return;
-    }
-    
     try {
-      // SWDP 클라이언트 초기화
-      this.swdpClient = new SwdpClientService(
-        swdpConfig.baseUrl || 'http://localhost:8080',
-        swdpConfig.bypassSsl !== false
-      );
+      // 설정에서 APE Core 및 SWDP 관련 정보 로드
+      const pluginConfig = this.configLoader?.getPluginConfig();
       
-      // 인증 설정
-      await this.swdpClient.initialize({
-        apiKey: swdpConfig.apiKey,
-        userId: swdpConfig.userId,
-        password: swdpConfig.password,
-        token: swdpConfig.token
-      });
+      // 설정 객체 안전하게 접근
+      const swdpConfig = pluginConfig && typeof pluginConfig === 'object' && 'swdp' in pluginConfig 
+        ? (pluginConfig as Record<string, any>).swdp 
+        : null;
+      
+      // APE Core 엔드포인트 URL
+      const apeCoreUrl = swdpConfig?.apeCoreUrl || 'http://localhost:8001';
+      
+      // SSL 우회 여부 설정
+      const bypassSsl = swdpConfig?.bypassSsl !== false;
+      
+      // SWDP 클라이언트 초기화
+      this.swdpClient = new SwdpClientService(apeCoreUrl, bypassSsl);
+      
+      // 사용자 정보 준비
+      const credentials = {
+        userId: swdpConfig?.userId,
+        token: swdpConfig?.token,
+        gitUsername: swdpConfig?.gitUsername,
+        gitEmail: swdpConfig?.gitEmail
+      };
+      
+      // 사용자 정보가 없으면 Git에서 자동으로 가져오기 시도
+      if (!credentials.gitUsername || !credentials.gitEmail) {
+        try {
+          // Git 사용자 정보 추출 로직 필요 (향후 구현)
+          // 일단은 기본값으로 진행
+          if (!credentials.gitUsername) credentials.gitUsername = 'unknown';
+          if (!credentials.gitEmail) credentials.gitEmail = 'unknown@example.com';
+        } catch (error) {
+          console.warn('Git 사용자 정보를 가져오는데 실패했습니다:', error);
+        }
+      }
+      
+      // SWDP 클라이언트 인증 설정
+      await this.swdpClient.initialize(credentials);
+      
+      // 현재 프로젝트 설정 로드 (설정되어 있는 경우)
+      if (swdpConfig?.currentProject) {
+        this.currentProject = swdpConfig.currentProject;
+        console.log(`현재 프로젝트가 설정되었습니다: ${this.currentProject}`);
+      }
       
       this.initialized = true;
       console.log('SWDP 플러그인 초기화 완료');
@@ -118,6 +143,266 @@ export class SwdpPluginService extends PluginBaseService {
    */
   protected registerCommands(customCommands?: PluginCommand[]): boolean {
     this.commands = [
+      // 프로젝트 관련 명령어
+      {
+        id: 'projects',
+        name: 'projects',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '프로젝트 목록 조회',
+        syntax: '@swdp:projects',
+        examples: ['@swdp:projects'],
+        execute: async () => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            const result = await this.getClient().getProjects();
+            
+            return {
+              content: `프로젝트 목록:\n${this.formatProjects(result.projects)}`,
+              data: result,
+              type: 'info'
+            };
+          } catch (error) {
+            return {
+              content: `프로젝트 목록 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
+      // 프로젝트 세부 정보 명령어
+      {
+        id: 'project',
+        name: 'project',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '프로젝트 세부 정보 조회',
+        syntax: '@swdp:project <project_code>',
+        examples: ['@swdp:project PRJ001'],
+        execute: async (args) => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            if (args.length === 0) {
+              throw new Error('프로젝트 코드가 필요합니다.');
+            }
+            
+            const projectCode = args[0].toString();
+            const result = await this.getClient().getProjectDetails(projectCode);
+            
+            return {
+              content: `프로젝트 세부 정보:\n${this.formatProjectDetails(result.project)}`,
+              data: result,
+              type: 'info'
+            };
+          } catch (error) {
+            return {
+              content: `프로젝트 세부 정보 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
+      // 현재 프로젝트 설정 명령어
+      {
+        id: 'set-project',
+        name: 'set-project',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '현재 작업 프로젝트 설정',
+        syntax: '@swdp:set-project <project_code>',
+        examples: ['@swdp:set-project PRJ001'],
+        execute: async (args) => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            if (args.length === 0) {
+              throw new Error('프로젝트 코드가 필요합니다.');
+            }
+            
+            const projectCode = args[0].toString();
+            const result = await this.getClient().setCurrentProject(projectCode);
+            
+            // 현재 프로젝트 업데이트
+            this.currentProject = projectCode;
+            
+            return {
+              content: `현재 프로젝트가 '${projectCode}'(으)로 설정되었습니다.`,
+              data: result,
+              type: 'success'
+            };
+          } catch (error) {
+            return {
+              content: `프로젝트 설정 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
+      // 작업 목록 조회 명령어
+      {
+        id: 'tasks',
+        name: 'tasks',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '작업 목록 조회',
+        syntax: '@swdp:tasks [project_code]',
+        examples: ['@swdp:tasks', '@swdp:tasks PRJ001'],
+        execute: async (args) => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            const projectCode = args.length > 0 ? args[0].toString() : this.currentProject;
+            
+            if (!projectCode) {
+              throw new Error('프로젝트가 설정되지 않았습니다. @swdp:set-project 명령어로 프로젝트를 설정하거나 프로젝트 코드를 지정하세요.');
+            }
+            
+            const result = await this.getClient().getTasks(projectCode);
+            
+            return {
+              content: `작업 목록 (${projectCode}):\n${this.formatTasks(result.tasks)}`,
+              data: result,
+              type: 'info'
+            };
+          } catch (error) {
+            return {
+              content: `작업 목록 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
+      // 작업 세부 정보 조회 명령어
+      {
+        id: 'task',
+        name: 'task',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '작업 세부 정보 조회',
+        syntax: '@swdp:task <task_id>',
+        examples: ['@swdp:task TASK001'],
+        execute: async (args) => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            if (args.length === 0) {
+              throw new Error('작업 ID가 필요합니다.');
+            }
+            
+            const taskId = args[0].toString();
+            const result = await this.getClient().getTaskDetails(taskId);
+            
+            return {
+              content: `작업 세부 정보:\n${this.formatTaskDetails(result.task)}`,
+              data: result,
+              type: 'info'
+            };
+          } catch (error) {
+            return {
+              content: `작업 세부 정보 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
+      // 작업 생성 명령어
+      {
+        id: 'create-task',
+        name: 'create-task',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '새 작업 생성',
+        syntax: '@swdp:create-task <title> <description> [project_code]',
+        examples: ['@swdp:create-task "새 기능 개발" "사용자 인증 기능 구현" PRJ001'],
+        execute: async (args) => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            if (args.length < 2) {
+              throw new Error('작업 제목과 설명이 필요합니다.');
+            }
+            
+            const title = args[0].toString();
+            const description = args[1].toString();
+            const projectCode = args.length > 2 ? args[2].toString() : this.currentProject;
+            
+            if (!projectCode) {
+              throw new Error('프로젝트가 설정되지 않았습니다. @swdp:set-project 명령어로 프로젝트를 설정하거나 프로젝트 코드를 지정하세요.');
+            }
+            
+            const result = await this.getClient().createTask(title, description, projectCode);
+            
+            return {
+              content: `작업이 생성되었습니다. 작업 ID: ${result.taskId}`,
+              data: result,
+              type: 'success'
+            };
+          } catch (error) {
+            return {
+              content: `작업 생성 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
+      // 작업 상태 업데이트 명령어
+      {
+        id: 'update-task',
+        name: 'update-task',
+        type: CommandType.AT,
+        prefix: CommandPrefix.AT,
+        description: '작업 상태 업데이트',
+        syntax: '@swdp:update-task <task_id> <status>',
+        examples: ['@swdp:update-task TASK001 in_progress', '@swdp:update-task TASK001 completed'],
+        execute: async (args) => {
+          try {
+            if (!this.isInitialized()) {
+              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
+            }
+            
+            if (args.length < 2) {
+              throw new Error('작업 ID와 상태가 필요합니다.');
+            }
+            
+            const taskId = args[0].toString();
+            const status = args[1].toString();
+            
+            const result = await this.getClient().updateTaskStatus(taskId, status);
+            
+            return {
+              content: `작업 상태가 '${status}'(으)로 업데이트되었습니다. 작업 ID: ${taskId}`,
+              data: result,
+              type: 'success'
+            };
+          } catch (error) {
+            return {
+              content: `작업 상태 업데이트 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              type: 'error'
+            };
+          }
+        }
+      },
+      
       // 빌드 시작 명령어
       {
         id: 'build',
@@ -136,7 +421,7 @@ export class SwdpPluginService extends PluginBaseService {
             // 빌드 타입 처리
             let buildType = SwdpBuildType.LOCAL;
             if (args.length > 0) {
-              const type = args[0].toString().toUpperCase();
+              const type = args[0].toString().toLowerCase();
               if (Object.values(SwdpBuildType).includes(type as SwdpBuildType)) {
                 buildType = type as SwdpBuildType;
               }
@@ -210,51 +495,52 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 빌드 로그 확인 명령어
+      // 문서 목록 조회 명령어
       {
-        id: 'build-logs',
-        name: 'build:logs',
+        id: 'documents',
+        name: 'documents',
         type: CommandType.AT,
         prefix: CommandPrefix.AT,
-        description: 'SWDP 빌드 로그 확인',
-        syntax: '@swdp:build:logs <buildId>',
-        examples: ['@swdp:build:logs 12345'],
+        description: '문서 목록 조회',
+        syntax: '@swdp:documents [project_code]',
+        examples: ['@swdp:documents', '@swdp:documents PRJ001'],
         execute: async (args) => {
           try {
             if (!this.isInitialized()) {
               throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
             }
             
-            if (args.length === 0) {
-              throw new Error('빌드 ID가 필요합니다.');
+            const projectCode = args.length > 0 ? args[0].toString() : this.currentProject;
+            
+            if (!projectCode) {
+              throw new Error('프로젝트가 설정되지 않았습니다. @swdp:set-project 명령어로 프로젝트를 설정하거나 프로젝트 코드를 지정하세요.');
             }
             
-            const buildId = args[0].toString();
-            const logs = await this.getClient().getBuildLogs(buildId);
+            const result = await this.getClient().getDocuments(projectCode);
             
             return {
-              content: `빌드 로그:\n${logs.logs || '(로그 없음)'}`,
-              data: logs,
+              content: `문서 목록 (${projectCode}):\n${this.formatDocuments(result.documents)}`,
+              data: result,
               type: 'info'
             };
           } catch (error) {
             return {
-              content: `빌드 로그 확인 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              content: `문서 목록 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
               type: 'error'
             };
           }
         }
       },
       
-      // 빌드 취소 명령어
+      // 문서 세부 정보 조회 명령어
       {
-        id: 'build-cancel',
-        name: 'build:cancel',
+        id: 'document',
+        name: 'document',
         type: CommandType.AT,
         prefix: CommandPrefix.AT,
-        description: 'SWDP 빌드 취소',
-        syntax: '@swdp:build:cancel <buildId>',
-        examples: ['@swdp:build:cancel 12345'],
+        description: '문서 세부 정보 조회',
+        syntax: '@swdp:document <doc_id>',
+        examples: ['@swdp:document DOC001'],
         execute: async (args) => {
           try {
             if (!this.isInitialized()) {
@@ -262,128 +548,35 @@ export class SwdpPluginService extends PluginBaseService {
             }
             
             if (args.length === 0) {
-              throw new Error('빌드 ID가 필요합니다.');
+              throw new Error('문서 ID가 필요합니다.');
             }
             
-            const buildId = args[0].toString();
-            const result = await this.getClient().cancelBuild(buildId);
+            const docId = args[0].toString();
+            const result = await this.getClient().getDocumentDetails(docId);
             
             return {
-              content: `빌드가 취소되었습니다. 빌드 ID: ${buildId}`,
+              content: `문서 세부 정보:\n${this.formatDocumentDetails(result.document)}`,
               data: result,
-              type: 'success'
-            };
-          } catch (error) {
-            return {
-              content: `빌드 취소 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-              type: 'error'
-            };
-          }
-        }
-      },
-      
-      // 테스트 실행 명령어
-      {
-        id: 'test',
-        name: 'test',
-        type: CommandType.AT,
-        prefix: CommandPrefix.AT,
-        description: 'SWDP 테스트 실행',
-        syntax: '@swdp:test <type> [target]',
-        examples: ['@swdp:test unit', '@swdp:test integration user-service'],
-        execute: async (args) => {
-          try {
-            if (!this.isInitialized()) {
-              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
-            }
-            
-            if (args.length === 0) {
-              throw new Error('테스트 유형이 필요합니다.');
-            }
-            
-            const type = args[0].toString();
-            if (!['unit', 'integration', 'system'].includes(type)) {
-              throw new Error('유효한 테스트 유형이 아닙니다. unit, integration, system 중 하나여야 합니다.');
-            }
-            
-            const options: SwdpTestOptions = {
-              type: type as 'unit' | 'integration' | 'system',
-              target: args.length > 1 ? args[1].toString() : undefined,
-              params: {}
-            };
-            
-            // 파라미터 처리
-            for (let i = 2; i < args.length; i++) {
-              const arg = args[i];
-              if (typeof arg === 'string' && arg.startsWith('--') && arg.includes('=')) {
-                const [key, value] = arg.substring(2).split('=');
-                if (key && value) {
-                  options.params![key] = value;
-                }
-              }
-            }
-            
-            const result = await this.getClient().runTest(options);
-            
-            return {
-              content: `테스트가 시작되었습니다. 테스트 ID: ${result.testId}`,
-              data: result,
-              type: 'success'
-            };
-          } catch (error) {
-            return {
-              content: `테스트 실행 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-              type: 'error'
-            };
-          }
-        }
-      },
-      
-      // 테스트 결과 확인 명령어
-      {
-        id: 'test-results',
-        name: 'test:results',
-        type: CommandType.AT,
-        prefix: CommandPrefix.AT,
-        description: 'SWDP 테스트 결과 확인',
-        syntax: '@swdp:test:results <testId>',
-        examples: ['@swdp:test:results 12345'],
-        execute: async (args) => {
-          try {
-            if (!this.isInitialized()) {
-              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
-            }
-            
-            if (args.length === 0) {
-              throw new Error('테스트 ID가 필요합니다.');
-            }
-            
-            const testId = args[0].toString();
-            const results = await this.getClient().getTestResults(testId);
-            
-            return {
-              content: `테스트 결과:\n통과: ${results.passed || 0}\n실패: ${results.failed || 0}\n총 테스트: ${results.total || 0}`,
-              data: results,
               type: 'info'
             };
           } catch (error) {
             return {
-              content: `테스트 결과 확인 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              content: `문서 세부 정보 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
               type: 'error'
             };
           }
         }
       },
       
-      // TR 생성 명령어
+      // 문서 생성 명령어
       {
-        id: 'tr-create',
-        name: 'tr:create',
+        id: 'create-document',
+        name: 'create-document',
         type: CommandType.AT,
         prefix: CommandPrefix.AT,
-        description: 'SWDP TR(Test Request) 생성',
-        syntax: '@swdp:tr:create <title> <description> <type> [--priority=<priority>] [--assignee=<assignee>]',
-        examples: ['@swdp:tr:create "신규 기능 테스트" "로그인 기능 테스트" "functional" --priority=high --assignee=user1'],
+        description: '새 문서 생성',
+        syntax: '@swdp:create-document <title> <type> <content> [project_code]',
+        examples: ['@swdp:create-document "API 문서" "technical" "# API 문서\\n\\n이 문서는..." PRJ001'],
         execute: async (args) => {
           try {
             if (!this.isInitialized()) {
@@ -391,161 +584,59 @@ export class SwdpPluginService extends PluginBaseService {
             }
             
             if (args.length < 3) {
-              throw new Error('제목, 설명, 유형이 필요합니다.');
+              throw new Error('문서 제목, 유형, 내용이 필요합니다.');
             }
             
-            const options: SwdpTROptions = {
-              title: args[0].toString(),
-              description: args[1].toString(),
-              type: args[2].toString(),
-              priority: 'medium' as 'high' | 'medium' | 'low'
-            };
+            const title = args[0].toString();
+            const type = args[1].toString();
+            const content = args[2].toString();
+            const projectCode = args.length > 3 ? args[3].toString() : this.currentProject;
             
-            // 옵션 처리
-            for (let i = 3; i < args.length; i++) {
-              const arg = args[i];
-              if (typeof arg === 'string' && arg.startsWith('--') && arg.includes('=')) {
-                const [key, value] = arg.substring(2).split('=');
-                if (key === 'priority' && ['high', 'medium', 'low'].includes(value)) {
-                  options.priority = value as 'high' | 'medium' | 'low';
-                } else if (key === 'assignee') {
-                  options.assignee = value;
-                }
-              }
+            if (!projectCode) {
+              throw new Error('프로젝트가 설정되지 않았습니다. @swdp:set-project 명령어로 프로젝트를 설정하거나 프로젝트 코드를 지정하세요.');
             }
             
-            const result = await this.getClient().createTR(options);
+            const result = await this.getClient().createDocument(title, type, content, projectCode);
             
             return {
-              content: `TR이 생성되었습니다. TR ID: ${result.trId}`,
+              content: `문서가 생성되었습니다. 문서 ID: ${result.docId}`,
               data: result,
               type: 'success'
             };
           } catch (error) {
             return {
-              content: `TR 생성 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              content: `문서 생성 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
               type: 'error'
             };
           }
         }
       },
       
-      // TR 상태 확인 명령어
+      // Git 사용자 정보 조회 명령어
       {
-        id: 'tr-status',
-        name: 'tr:status',
+        id: 'git-user-info',
+        name: 'git:user-info',
         type: CommandType.AT,
         prefix: CommandPrefix.AT,
-        description: 'SWDP TR(Test Request) 상태 확인',
-        syntax: '@swdp:tr:status <trId>',
-        examples: ['@swdp:tr:status 12345'],
-        execute: async (args) => {
+        description: 'Git 저장소에서 사용자 정보 가져오기',
+        syntax: '@swdp:git:user-info',
+        examples: ['@swdp:git:user-info'],
+        execute: async () => {
           try {
             if (!this.isInitialized()) {
               throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
             }
             
-            if (args.length === 0) {
-              throw new Error('TR ID가 필요합니다.');
-            }
-            
-            const trId = args[0].toString();
-            const status = await this.getClient().getTRStatus(trId);
+            const result = await this.getClient().getUserInfoFromGit();
             
             return {
-              content: `TR 상태: ${status.status}`,
-              data: status,
-              type: 'info'
-            };
-          } catch (error) {
-            return {
-              content: `TR 상태 확인 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-              type: 'error'
-            };
-          }
-        }
-      },
-      
-      // 배포 시작 명령어
-      {
-        id: 'deploy',
-        name: 'deploy',
-        type: CommandType.AT,
-        prefix: CommandPrefix.AT,
-        description: 'SWDP 배포 시작',
-        syntax: '@swdp:deploy <environment> <buildId> [--param1=value1 --param2=value2]',
-        examples: ['@swdp:deploy dev 12345', '@swdp:deploy prod 12345 --skipTests=true'],
-        execute: async (args) => {
-          try {
-            if (!this.isInitialized()) {
-              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
-            }
-            
-            if (args.length < 2) {
-              throw new Error('환경과 빌드 ID가 필요합니다.');
-            }
-            
-            const environment = args[0].toString();
-            const buildId = args[1].toString();
-            const params: Record<string, any> = {};
-            
-            // 파라미터 처리
-            for (let i = 2; i < args.length; i++) {
-              const arg = args[i];
-              if (typeof arg === 'string' && arg.startsWith('--') && arg.includes('=')) {
-                const [key, value] = arg.substring(2).split('=');
-                if (key && value) {
-                  params[key] = value;
-                }
-              }
-            }
-            
-            const result = await this.getClient().startDeployment(environment, buildId, params);
-            
-            return {
-              content: `배포가 시작되었습니다. 배포 ID: ${result.deploymentId}`,
+              content: `Git 사용자 정보:\n이름: ${result.username}\n이메일: ${result.email}`,
               data: result,
-              type: 'success'
-            };
-          } catch (error) {
-            return {
-              content: `배포 시작 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
-              type: 'error'
-            };
-          }
-        }
-      },
-      
-      // 배포 상태 확인 명령어
-      {
-        id: 'deploy-status',
-        name: 'deploy:status',
-        type: CommandType.AT,
-        prefix: CommandPrefix.AT,
-        description: 'SWDP 배포 상태 확인',
-        syntax: '@swdp:deploy:status <deploymentId>',
-        examples: ['@swdp:deploy:status 12345'],
-        execute: async (args) => {
-          try {
-            if (!this.isInitialized()) {
-              throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
-            }
-            
-            if (args.length === 0) {
-              throw new Error('배포 ID가 필요합니다.');
-            }
-            
-            const deploymentId = args[0].toString();
-            const status = await this.getClient().getDeploymentStatus(deploymentId);
-            
-            return {
-              content: `배포 상태: ${status.status}`,
-              data: status,
               type: 'info'
             };
           } catch (error) {
             return {
-              content: `배포 상태 확인 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+              content: `Git 사용자 정보 조회 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
               type: 'error'
             };
           }
@@ -554,5 +645,107 @@ export class SwdpPluginService extends PluginBaseService {
     ];
     
     return true;
+  }
+  
+  /**
+   * 프로젝트 목록 포맷팅
+   * @param projects 프로젝트 목록
+   * @returns 포맷팅된 문자열
+   */
+  private formatProjects(projects: any[]): string {
+    if (!projects || projects.length === 0) {
+      return '(프로젝트 없음)';
+    }
+    
+    return projects.map(p => `- ${p.code}: ${p.name} (${p.status})`).join('\n');
+  }
+  
+  /**
+   * 프로젝트 세부 정보 포맷팅
+   * @param project 프로젝트 정보
+   * @returns 포맷팅된 문자열
+   */
+  private formatProjectDetails(project: any): string {
+    if (!project) {
+      return '(프로젝트 정보 없음)';
+    }
+    
+    return [
+      `코드: ${project.code}`,
+      `이름: ${project.name}`,
+      `상태: ${project.status}`,
+      `설명: ${project.description || '(설명 없음)'}`,
+      `시작일: ${project.startDate || '(미정)'}`,
+      `종료일: ${project.endDate || '(미정)'}`,
+      `담당자: ${project.manager || '(미지정)'}`
+    ].join('\n');
+  }
+  
+  /**
+   * 작업 목록 포맷팅
+   * @param tasks 작업 목록
+   * @returns 포맷팅된 문자열
+   */
+  private formatTasks(tasks: any[]): string {
+    if (!tasks || tasks.length === 0) {
+      return '(작업 없음)';
+    }
+    
+    return tasks.map(t => `- ${t.id}: ${t.title} (${t.status})`).join('\n');
+  }
+  
+  /**
+   * 작업 세부 정보 포맷팅
+   * @param task 작업 정보
+   * @returns 포맷팅된 문자열
+   */
+  private formatTaskDetails(task: any): string {
+    if (!task) {
+      return '(작업 정보 없음)';
+    }
+    
+    return [
+      `ID: ${task.id}`,
+      `제목: ${task.title}`,
+      `상태: ${task.status}`,
+      `설명: ${task.description || '(설명 없음)'}`,
+      `담당자: ${task.assignee || '(미지정)'}`,
+      `생성일: ${task.createdAt || '(정보 없음)'}`,
+      `마감일: ${task.dueDate || '(미정)'}`
+    ].join('\n');
+  }
+  
+  /**
+   * 문서 목록 포맷팅
+   * @param documents 문서 목록
+   * @returns 포맷팅된 문자열
+   */
+  private formatDocuments(documents: any[]): string {
+    if (!documents || documents.length === 0) {
+      return '(문서 없음)';
+    }
+    
+    return documents.map(d => `- ${d.id}: ${d.title} (${d.type})`).join('\n');
+  }
+  
+  /**
+   * 문서 세부 정보 포맷팅
+   * @param document 문서 정보
+   * @returns 포맷팅된 문자열
+   */
+  private formatDocumentDetails(document: any): string {
+    if (!document) {
+      return '(문서 정보 없음)';
+    }
+    
+    return [
+      `ID: ${document.id}`,
+      `제목: ${document.title}`,
+      `유형: ${document.type}`,
+      `작성자: ${document.author || '(미지정)'}`,
+      `생성일: ${document.createdAt || '(정보 없음)'}`,
+      `마지막 수정일: ${document.updatedAt || '(정보 없음)'}`,
+      `내용:\n${document.content || '(내용 없음)'}`
+    ].join('\n');
   }
 }

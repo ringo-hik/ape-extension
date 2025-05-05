@@ -1,22 +1,40 @@
 // 명령어 버튼 UI를 위한 추가 자바스크립트
 
 /**
- * 명령어 그룹별 아이콘 매핑
+ * 명령어 그룹별 아이콘 매핑 (Phosphor Icons 기반)
  */
 const COMMAND_ICONS = {
-  'jira': 'issue-opened',
-  'git': 'git-branch',
-  'swdp': 'package',
-  'build': 'terminal',
-  'help': 'question',
-  'settings': 'gear',
-  'search': 'search',
-  'chat': 'comment',
-  'code': 'code',
-  'model': 'hubot',
-  'debug': 'bug',
-  'clear': 'trash',
-  'default': 'play'
+  // 도메인별 아이콘
+  'jira': { icon: 'kanban', source: 'phosphor' },
+  'git': { icon: 'git-branch', source: 'phosphor' },
+  'swdp': { icon: 'infinity', source: 'phosphor' },
+  'build': { icon: 'hammer', source: 'phosphor' },
+  'help': { icon: 'question', source: 'phosphor' },
+  'settings': { icon: 'gear-six', source: 'phosphor' },
+  'search': { icon: 'magnifying-glass', source: 'phosphor' },
+  'chat': { icon: 'chat-text', source: 'phosphor' },
+  'code': { icon: 'code', source: 'phosphor' },
+  'model': { icon: 'robot', source: 'phosphor' },
+  'debug': { icon: 'bug', source: 'phosphor' },
+  'clear': { icon: 'trash', source: 'phosphor' },
+  
+  // 작업별 아이콘
+  'commit': { icon: 'git-commit', source: 'phosphor' },
+  'pull': { icon: 'git-pull-request', source: 'phosphor' },
+  'push': { icon: 'arrow-up', source: 'phosphor' },
+  'branch': { icon: 'git-branch', source: 'phosphor' },
+  'merge': { icon: 'git-merge', source: 'phosphor' },
+  'deploy': { icon: 'cloud-arrow-up', source: 'phosphor' },
+  'test': { icon: 'test-tube', source: 'phosphor' },
+  'issue': { icon: 'note-pencil', source: 'phosphor' },
+  'task': { icon: 'clipboard-text', source: 'phosphor' },
+  'bug': { icon: 'bug', source: 'phosphor' },
+  'document': { icon: 'file-text', source: 'phosphor' },
+  'save': { icon: 'floppy-disk', source: 'phosphor' },
+  'config': { icon: 'sliders', source: 'phosphor' },
+  
+  // 기본 아이콘
+  'default': { icon: 'play', source: 'phosphor' }
 };
 
 /**
@@ -95,9 +113,28 @@ function createCommandButton(command) {
   };
   
   // 아이콘 자동 결정 또는 명시적 아이콘 사용
-  const iconName = command.iconName || getIconForCommand(command.id);
-  const icon = document.createElement('i');
-  icon.className = `codicon codicon-${iconName}`;
+  const iconInfo = command.iconName ? 
+    (typeof command.iconName === 'string' ? { icon: command.iconName, source: 'codicon' } : command.iconName) : 
+    getIconForCommand(command.id);
+  
+  let icon;
+  
+  // IconManager를 사용해 아이콘 생성 (가능한 경우)
+  if (window.iconManager) {
+    icon = window.iconManager.createIcon(iconInfo.icon, {
+      source: iconInfo.source || 'phosphor',
+      size: 'default'
+    });
+  } else {
+    // 폴백: 기존 방식으로 코디콘 아이콘 생성
+    icon = document.createElement('i');
+    if (iconInfo.source === 'phosphor') {
+      icon.className = `ph ph-${iconInfo.icon}`;
+    } else {
+      icon.className = `codicon codicon-${iconInfo.icon}`;
+    }
+  }
+  
   button.appendChild(icon);
   
   // 레이블 추가

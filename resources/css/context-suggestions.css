@@ -1,0 +1,326 @@
+/**
+ * 컨텍스트 기반 명령어 제안 스타일
+ * 컨텍스트 분석 및 추천 시스템 UI를 위한 스타일 정의
+ */
+
+/* 제안 바 스타일 */
+.suggestion-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-height: 24px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.suggestion-bar.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.suggestion-placeholder {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+/* 제안 칩 스타일 */
+.suggestion-chip {
+  display: flex;
+  align-items: center;
+  background-color: var(--vscode-button-secondaryBackground, #2b2b2b);
+  color: var(--vscode-button-secondaryForeground, #ffffff);
+  border-radius: 16px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid transparent;
+}
+
+.suggestion-chip:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, #3c3c3c);
+  border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+.suggestion-chip:active {
+  transform: translateY(1px);
+}
+
+.suggestion-chip .codicon {
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+.suggestion-chip.source-client {
+  background-color: #2c5282;
+}
+
+.suggestion-chip.source-server {
+  background-color: #2d3748;
+}
+
+/* 태그 스타일 */
+.suggestion-tag {
+  font-size: 10px;
+  background-color: var(--vscode-badge-background, #4d4d4d);
+  color: var(--vscode-badge-foreground, #ffffff);
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-left: 4px;
+}
+
+/* 도메인별 색상 */
+.suggestion-chip.domain-git {
+  background-color: #F14E32;
+}
+
+.suggestion-chip.domain-jira {
+  background-color: #0052CC;
+}
+
+.suggestion-chip.domain-pocket {
+  background-color: #5A3096;
+}
+
+.suggestion-chip.domain-swdp {
+  background-color: #6554C0;
+}
+
+.suggestion-chip.domain-system {
+  background-color: #333333;
+}
+
+/* 컨텍스트 패널 스타일 */
+.context-panel {
+  width: 250px;
+  background-color: var(--vscode-sideBar-background, #252526);
+  border-left: 1px solid var(--vscode-panel-border, #444444);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease, opacity 0.3s ease;
+  overflow: hidden;
+}
+
+.context-panel.collapsed {
+  width: 40px;
+  opacity: 0.7;
+}
+
+.context-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panelSection-border, #444444);
+}
+
+.context-panel-header h3 {
+  font-size: 13px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+.context-panel-header .codicon {
+  margin-right: 6px;
+}
+
+.context-panel-toggle {
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+}
+
+.context-panel-toggle:hover {
+  background-color: var(--vscode-toolbar-hoverBackground, #3c3c3c);
+}
+
+.context-panel-toggle .codicon {
+  transition: transform 0.2s ease;
+}
+
+.context-panel-toggle .codicon.flipped {
+  transform: rotate(180deg);
+}
+
+.context-panel-content {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.context-section {
+  margin-bottom: 16px;
+}
+
+.context-section h4 {
+  font-size: 12px;
+  margin: 0 0 8px 0;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.context-info {
+  font-size: 12px;
+  color: var(--vscode-foreground);
+}
+
+.context-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.context-item .codicon {
+  margin-right: 6px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.context-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.context-suggestion {
+  display: flex;
+  align-items: center;
+  background-color: var(--vscode-button-secondaryBackground, #2b2b2b);
+  color: var(--vscode-button-secondaryForeground, #ffffff);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.context-suggestion:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground, #3c3c3c);
+}
+
+.context-suggestion .codicon {
+  margin-right: 6px;
+}
+
+.context-help {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.help-item .codicon {
+  margin-right: 6px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.help-link {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.help-link:hover {
+  text-decoration: underline;
+}
+
+/* 도메인 상태 아이콘 */
+.domain-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.domain-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-right: 8px;
+}
+
+.domain-indicator.active {
+  color: var(--vscode-editor-foreground);
+}
+
+.domain-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--vscode-disabledForeground, #6c6c6c);
+}
+
+.domain-dot.active {
+  background-color: var(--vscode-statusBarItem-prominentBackground, #388a34);
+}
+
+/* 컬랩스 시 인터페이스 조정 */
+.context-panel.collapsed .context-panel-content,
+.context-panel.collapsed .context-panel-header h3 span {
+  display: none;
+}
+
+.context-panel.collapsed .context-panel-header {
+  padding: 8px 4px;
+  justify-content: center;
+}
+
+.chat-container.context-collapsed {
+  grid-template-columns: 1fr 40px;
+}
+
+/* 명령어 컨텍스트 태그 */
+.command-category {
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cat-git {
+  background-color: #F14E32;
+  color: white;
+}
+
+.cat-jira {
+  background-color: #0052CC;
+  color: white;
+}
+
+.cat-pocket {
+  background-color: #5A3096;
+  color: white;
+}
+
+.cat-swdp {
+  background-color: #6554C0;
+  color: white;
+}
+
+.cat-doc {
+  background-color: #0077B5;
+  color: white;
+}

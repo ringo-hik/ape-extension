@@ -3,12 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:; connect-src ${cspSource};">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} https://unpkg.com 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:; connect-src ${cspSource}; font-src ${cspSource} https://unpkg.com;">
   <title>APE 채팅</title>
   <link href="${cssUri}" rel="stylesheet">
+  <link href="${claudeStyleCssUri}" rel="stylesheet">
   <link href="${codeBlocksCssUri}" rel="stylesheet">
   <link href="${commandAutocompleteCssUri}" rel="stylesheet">
+  <link href="${contextSuggestionsCssUri}" rel="stylesheet">
   <link href="${codiconsUri}" rel="stylesheet">
+  <link href="${apeIconsCssUri}" rel="stylesheet">
+  <!-- 아이콘용 CSS -->
+  <link href="${phosphorIconsCssUri}" rel="stylesheet">
+  <link href="${webviewResourceBaseUri}/css/toolbar-icons.css" rel="stylesheet">
   <script>
     // 디버깅 헬퍼
     window.apeDebug = {
@@ -29,14 +35,14 @@
 <body>
   <div class="chat-container">
     <div class="chat-header">
-      <h1><span class="logo">⚡</span> APE 채팅</h1>
+      <h1><span class="logo"><img src="${cspSource}/resources/ape_logo.svg" alt="APE Logo" class="header-logo"></span> APE 채팅</h1>
       <div id="modelSelector" class="model-selector"></div>
     </div>
     
     <div class="chat-messages" id="messages">
       <!-- 빈 상태 메시지 -->
       <div class="empty-state" id="emptyState">
-        <div class="empty-state-icon">⚡</div>
+        <div class="empty-state-icon"><img src="${cspSource}/resources/ape_logo.svg" alt="APE Logo" class="empty-state-logo"></div>
         <div class="empty-state-title">APE와 대화를 시작하세요</div>
         <div class="empty-state-text">질문이나 명령어를 입력하여 대화를 시작할 수 있습니다.</div>
       </div>
@@ -47,13 +53,16 @@
     <div class="chat-input-container">
       <div class="toolbar">
         <button class="toolbar-button" id="clearButton" title="대화 내용 지우기">
-          🧹 지우기
+          <i class="ph ph-trash"></i> 지우기
         </button>
         <button class="toolbar-button" id="embedDevButton" title="심층 분석 모드 켜기/끄기">
-          🔍 심층 분석
+          <i class="ph ph-scanner"></i> 심층 분석
         </button>
         <button class="toolbar-button" id="commandsButton" title="명령어 패널 열기/닫기">
-          🛠️ 명령어
+          <i class="ph ph-terminal"></i> 명령어
+        </button>
+        <button class="toolbar-button toggle-button" id="apeToggleButton" title="APE 모드 켜기/끄기">
+          <i class="ph ph-lightning"></i> APE 모드
         </button>
       </div>
       
@@ -64,7 +73,7 @@
       
       <div class="input-wrapper">
         <textarea id="chatInput" class="chat-input" placeholder="메시지 입력..." rows="1"></textarea>
-        <button id="sendButton" class="send-button" disabled>↑</button>
+        <button id="sendButton" class="send-button" disabled><i class="ph ph-paper-plane-right"></i></button>
       </div>
     </div>
   </div>
@@ -73,427 +82,15 @@
   <script src="${codeBlocksJsUri}"></script>
   <script src="${commandIconsJsUri}"></script>
   <script src="${commandAutocompleteJsUri}"></script>
-  <script src="${apeUiJsUri}"></script>
+  <!-- 개선된 컨텍스트 핸들러 -->
+  <script src="${improvedContextHandlerJsUri}"></script>
+  <!-- 워크플로우 분석기 -->
+  <script src="${workflowAnalyzerJsUri}"></script>
+  <script src="${hybridApeUiJsUri}"></script>
+  <!-- 내장 JS 코드는 제거하고 hybrid-ape-ui.js를 사용 -->
   <script>
-    (function() {
-      // VS Code API
-      const vscode = acquireVsCodeApi();
-      
-      // DOM 요소
-      const messagesContainer = document.getElementById('messages');
-      const chatInput = document.getElementById('chatInput');
-      const sendButton = document.getElementById('sendButton');
-      const clearButton = document.getElementById('clearButton');
-      const embedDevButton = document.getElementById('embedDevButton');
-      const commandsButton = document.getElementById('commandsButton');
-      const commandsPanelContainer = document.getElementById('commandsPanelContainer');
-      const commandsPanel = document.getElementById('commandsPanel');
-      const emptyState = document.getElementById('emptyState');
-      
-      // 모델 선택기 인스턴스
-      let modelSelector;
-      
-      // 명령어 자동완성 인스턴스
-      let commandAutocomplete;
-      
-      // 메시지 상태 관리
-      let messageState = vscode.getState() || { messages: [] };
-      
-      // 스트리밍 상태 관리
-      let streamingState = {
-        activeStreams: {},
-        isStreaming: false
-      };
-      
-      // 심층 분석 모드 상태
-      let embedDevMode = false;
-      
-      // 텍스트 영역 자동 크기 조절
-      function autoResizeTextarea() {
-        chatInput.style.height = 'auto';
-        chatInput.style.height = (chatInput.scrollHeight) + 'px';
-      }
-      
-      // 스크롤을 최하단으로 이동
-      function scrollToBottom() {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
-      
-      // 메시지 표시 업데이트
-      function updateMessageDisplay() {
-        if (messageState.messages.length > 0) {
-          emptyState.style.display = 'none';
-        } else {
-          emptyState.style.display = 'flex';
-        }
-      }
-      
-      // 초기 메시지 렌더링
-      function renderMessages() {
-        if (messageState.messages.length > 0) {
-          emptyState.style.display = 'none';
-          
-          messageState.messages.forEach(msg => {
-            addMessageToDOM(msg);
-          });
-          
-          scrollToBottom();
-        }
-      }
-      
-      // DOM에 메시지 추가
-      function addMessageToDOM(message) {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
-        
-        if (message.type === 'user') {
-          messageElement.classList.add('message-user');
-          // User messages don't need code block processing
-          messageElement.textContent = message.content;
-        } else if (message.type === 'assistant') {
-          messageElement.classList.add('message-assistant');
-          // Process assistant messages for code blocks
-          messageElement.innerHTML = codeBlockProcessor.processContent(message.content);
-          // Initialize code block functionality
-          codeBlockProcessor.initializeCopyButtons(messageElement);
-          codeBlockProcessor.applySyntaxHighlighting(messageElement);
-        } else if (message.type === 'system') {
-          messageElement.classList.add('message-system');
-          // System messages don't need code block processing
-          messageElement.textContent = message.content;
-        }
-        
-        // ID 설정 (스트리밍용)
-        if (message.id) {
-          messageElement.setAttribute('id', message.id);
-        }
-        
-        messagesContainer.appendChild(messageElement);
-        return messageElement;
-      }
-      
-      // 스트리밍 메시지 요소 생성
-      function createStreamingMessageElement(responseId, type) {
-        // 이미 존재하는 스트리밍 요소가 있는지 확인
-        const existingElement = document.getElementById(responseId);
-        if (existingElement) {
-          return existingElement;
-        }
-        
-        // 새 요소 생성
-        const message = { 
-          type: type, 
-          content: '', 
-          id: responseId,
-          timestamp: Date.now() 
-        };
-        
-        // 상태에 메시지 추가하지 않음 (스트리밍 완료 후 추가)
-        const element = addMessageToDOM(message);
-        
-        // 스트리밍 상태 업데이트
-        streamingState.activeStreams[responseId] = {
-          element: element,
-          content: ''
-        };
-        
-        streamingState.isStreaming = true;
-        
-        return element;
-      }
-      
-      // 메시지 추가
-      function addMessage(type, content) {
-        const message = { type, content, timestamp: Date.now() };
-        
-        // 상태에 추가
-        messageState.messages.push(message);
-        vscode.setState(messageState);
-        
-        // DOM에 추가
-        addMessageToDOM(message);
-        updateMessageDisplay();
-        scrollToBottom();
-      }
-      
-      // 메시지 전송
-      function sendMessage() {
-        const text = chatInput.value.trim();
-        if (text) {
-          // 사용자 메시지 추가
-          addMessage('user', text);
-          
-          // 선택된 모델 가져오기
-          const selectedModel = modelSelector ? modelSelector.getCurrentModelId() : null;
-          
-          // VS Code에 메시지 전송
-          vscode.postMessage({
-            command: 'sendMessage',
-            text: text,
-            model: selectedModel,
-            embedDevMode: embedDevMode // 심층 분석 모드 상태 전달
-          });
-          
-          // 입력 필드 초기화
-          chatInput.value = '';
-          chatInput.style.height = 'auto';
-          sendButton.disabled = true;
-        }
-      }
-      
-      // 채팅 초기화
-      function clearChat() {
-        messagesContainer.innerHTML = '';
-        messagesContainer.appendChild(emptyState);
-        emptyState.style.display = 'flex';
-        
-        messageState.messages = [];
-        vscode.setState(messageState);
-        
-        // 웹뷰 초기화 시에만 서버에 알림 (외부에서 호출된 경우는 제외)
-        if (!clearingFromServer) {
-          vscode.postMessage({
-            command: 'clearChat'
-          });
-        }
-      }
-      
-      // 서버에서 초기화 요청 시 플래그
-      let clearingFromServer = false;
-      
-      // 이벤트 리스너 설정
-      chatInput.addEventListener('input', () => {
-        sendButton.disabled = chatInput.value.trim() === '';
-        autoResizeTextarea();
-      });
-      
-      chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          if (!sendButton.disabled) {
-            sendMessage();
-          }
-        }
-      });
-      
-      sendButton.addEventListener('click', sendMessage);
-      clearButton.addEventListener('click', clearChat);
-      
-      // 심층 분석 모드 토글
-      embedDevButton.addEventListener('click', () => {
-        embedDevMode = !embedDevMode;
-        
-        if (embedDevMode) {
-          // 심층 분석 모드 활성화
-          embedDevButton.classList.add('active');
-          addMessage('system', '심층 분석 모드가 활성화되었습니다. 프롬프트 엔지니어링 고도화 및 내부망 데이터 분석 기능이 적용됩니다.');
-        } else {
-          // 심층 분석 모드 비활성화
-          embedDevButton.classList.remove('active');
-          addMessage('system', '심층 분석 모드가 비활성화되었습니다.');
-        }
-        
-        // VS Code에 모드 변경 알림
-        vscode.postMessage({
-          command: 'toggleEmbedDevMode',
-          enabled: embedDevMode
-        });
-      });
-      
-      // 명령어 패널 토글
-      commandsButton.addEventListener('click', () => {
-        if (commandsPanelContainer.style.display === 'none') {
-          commandsPanelContainer.style.display = 'block';
-          commandsButton.style.opacity = '1';
-          
-          // 명령어 목록 요청
-          vscode.postMessage({
-            command: 'getCommands'
-          });
-        } else {
-          commandsPanelContainer.style.display = 'none';
-          commandsButton.style.opacity = '0.7';
-        }
-      });
-      
-      // 모델 목록 업데이트
-      function updateModelList(models) {
-        if (!models || !Array.isArray(models)) {
-          console.warn('유효하지 않은 모델 목록:', models);
-          return;
-        }
-        
-        // 모델 선택기가 초기화되지 않은 경우 초기화
-        if (!modelSelector) {
-          modelSelector = new ModelSelector('modelSelector', {
-            models: models,
-            onChange: (modelId) => {
-              // 모델 변경 이벤트 처리
-              vscode.postMessage({
-                command: 'changeModel',
-                model: modelId
-              });
-              
-              // 모델 변경시 시스템 메시지 표시
-              const selectedModel = models.find(model => model.id === modelId);
-              if (selectedModel) {
-                addMessage('system', `모델이 ${selectedModel.name}(으)로 변경되었습니다.`);
-              }
-            }
-          });
-        } else {
-          // 기존 선택기의 모델 목록 업데이트
-          modelSelector.options.models = models;
-          modelSelector.updateModels(models);
-        }
-      }
-      
-      // 현재 모델 설정
-      function setCurrentModel(modelId) {
-        if (modelSelector && modelId) {
-          modelSelector.setModelById(modelId);
-        }
-      }
-
-      // VS Code로부터 메시지 수신
-      window.addEventListener('message', event => {
-        const message = event.data;
-        
-        console.log('VS Code에서 메시지 수신:', message.command);
-        
-        switch (message.command) {
-          case 'initialized':
-            console.log('VS Code 확장에서 초기화 완료 메시지 수신');
-            addMessage('system', '채팅 인터페이스가 초기화되었습니다.');
-            break;
-            
-          case 'addMessage':
-            addMessage(message.type, message.content);
-            break;
-            
-          case 'clearChat':
-            clearingFromServer = true;
-            clearChat();
-            clearingFromServer = false;
-            break;
-            
-          case 'updateModels':
-            console.log('모델 목록 업데이트 요청 수신:', message.models);
-            updateModelList(message.models);
-            break;
-            
-          case 'updateCommands':
-            console.log('명령어 목록 업데이트 요청 수신:', message.commands);
-            // 명령어 자동완성 초기화 또는 업데이트
-            if (message.commands && Array.isArray(message.commands)) {
-              if (!commandAutocomplete) {
-                // 자동완성 인스턴스 생성
-                commandAutocomplete = new CommandAutocomplete(chatInput, {
-                  onSelect: (commandId) => {
-                    console.log('명령어 선택됨:', commandId);
-                  }
-                });
-              }
-              // 명령어 목록 및 동적 데이터 설정 (Git 브랜치 정보 등)
-              commandAutocomplete.setCommands(message.commands, message.dynamicData);
-              
-              // 동적 데이터 로그
-              if (message.dynamicData && message.dynamicData.gitBranches) {
-                console.log(`Git 브랜치 정보 로드: ${message.dynamicData.gitBranches.length}개 브랜치`);
-              }
-            }
-            break;
-            
-          case 'setCurrentModel':
-            console.log('현재 모델 설정 요청 수신:', message.modelId);
-            setCurrentModel(message.modelId);
-            break;
-            
-          case 'removeSystemMessage':
-            console.log('시스템 메시지 제거 요청 수신:', message.content);
-            // 시스템 메시지 제거 로직 (필요시 구현)
-            break;
-            
-          // 스트리밍 관련 명령어
-          case 'startStreaming':
-            console.log('스트리밍 시작:', message.responseId);
-            createStreamingMessageElement(message.responseId, message.type);
-            updateMessageDisplay();
-            scrollToBottom();
-            break;
-            
-          case 'appendStreamChunk':
-            // 스트리밍 청크 추가
-            if (streamingState.activeStreams[message.responseId]) {
-              const stream = streamingState.activeStreams[message.responseId];
-              stream.content += message.content;
-              
-              // 스트리밍 중에는 코드 블록 처리를 하지 않고 단순 텍스트로 표시
-              // 스트리밍이 완료된 후에 코드 블록 처리를 수행
-              stream.element.textContent = stream.content;
-              stream.element.classList.add('streaming');
-              scrollToBottom();
-            } else {
-              console.warn('존재하지 않는 스트림에 청크 추가 시도:', message.responseId);
-            }
-            break;
-            
-          case 'endStreaming':
-            console.log('스트리밍 종료:', message.responseId);
-            if (streamingState.activeStreams[message.responseId]) {
-              // 스트림 콘텐츠를 메시지 상태에 저장
-              const stream = streamingState.activeStreams[message.responseId];
-              const element = stream.element;
-              const type = element.classList.contains('message-assistant') ? 'assistant' : 
-                           element.classList.contains('message-system') ? 'system' : 'assistant';
-              
-              // 스트리밍 애니메이션 제거
-              element.classList.remove('streaming');
-              
-              // 메시지 상태에 추가
-              messageState.messages.push({
-                type: type,
-                content: stream.content,
-                timestamp: Date.now()
-              });
-              vscode.setState(messageState);
-              
-              // 스트리밍이 완료된 후 code block 처리 적용
-              if (type === 'assistant') {
-                // 코드 블록 처리 적용
-                element.innerHTML = codeBlockProcessor.processContent(stream.content);
-                // 코드 블록 기능 초기화
-                codeBlockProcessor.initializeCopyButtons(element);
-                codeBlockProcessor.applySyntaxHighlighting(element);
-              }
-              
-              // 스트리밍 상태에서 제거
-              delete streamingState.activeStreams[message.responseId];
-              if (Object.keys(streamingState.activeStreams).length === 0) {
-                streamingState.isStreaming = false;
-              }
-            }
-            break;
-            
-          default:
-            console.log('처리되지 않은 메시지 타입:', message.command);
-        }
-      });
-      
-      // 초기화 함수
-      function initialize() {
-        // 메시지 렌더링
-        renderMessages();
-        
-        // 명령어 목록 요청
-        vscode.postMessage({
-          command: 'getCommands'
-        });
-      }
-      
-      // 초기 렌더링
-      initialize();
-    })();
+    // 콘솔에 초기화 상태만 표시
+    console.log('APE 하이브리드 채팅 UI 초기화: hybrid-ape-ui.js, improved-context-handler.js, workflow-analyzer.js를 사용합니다.');
   </script>
 </body>
 </html>

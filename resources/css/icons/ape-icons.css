@@ -1,14 +1,20 @@
 /* APE 아이콘 시스템
- * VS Code의 Codicons 기반 아이콘 확장 세트
+ * VS Code의 Codicons와 Phosphor Icons 기반 통합 아이콘 시스템
  */
 
 /* 기본 Codicon 폰트 임포트 */
 /* Webview에서는 불필요한 임포트 - Codicon CSS는 HTML에서 직접 로드됩니다 */
 /* @import url('../../../resources/codicons/codicon.css'); */
 
+/* Phosphor 웹 폰트 로드 (로컬 폴백 및 CDN 동시 지원) */
+@import url('${webviewResourceBaseUri}/fonts/phosphor/css/regular.css');
+@import url('${webviewResourceBaseUri}/fonts/phosphor/css/fill.css');
+/* CDN 백업 (로컬 폰트 로드 실패 시 사용) */
+@import url('https://unpkg.com/@phosphor-icons/web@2.0.3/src/regular/style.css');
+@import url('https://unpkg.com/@phosphor-icons/web@2.0.3/src/fill/style.css');
+
 /* APE 아이콘 기본 스타일 */
 .ape-icon {
-  font-family: 'codicon';
   font-size: 16px;
   display: inline-block;
   text-decoration: none;
@@ -17,6 +23,41 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   vertical-align: middle;
+}
+
+/* Codicon 기반 아이콘 */
+.ape-icon.codicon {
+  font-family: 'codicon';
+}
+
+/* Phosphor Icons 기반 아이콘 */
+.ape-icon.ph {
+  font-family: "Phosphor";
+}
+
+/* Phosphor 아이콘 두께 변형 */
+.ph[data-weight="thin"] {
+  --phosphor-weight: thin;
+}
+
+.ph[data-weight="light"] {
+  --phosphor-weight: light;
+}
+
+.ph[data-weight="regular"] {
+  --phosphor-weight: regular;
+}
+
+.ph[data-weight="bold"] {
+  --phosphor-weight: bold;
+}
+
+.ph[data-weight="fill"] {
+  --phosphor-weight: fill;
+}
+
+.ph[data-weight="duotone"] {
+  --phosphor-weight: duotone;
 }
 
 /* 아이콘 크기 변형 */

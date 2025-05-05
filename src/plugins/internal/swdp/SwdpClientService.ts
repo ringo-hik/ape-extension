@@ -1,8 +1,8 @@
 /**
  * SWDP 클라이언트 서비스
  * 
- * SWDP API 호출 및 결과 처리 기능 제공
- * 빌드, 배포, 테스트 관련 기능 지원
+ * APE Core의 SWDP Agent와 통신하여 빌드 파이프라인 기능을 제공
+ * localhost:8001 엔드포인트를 통해 요청 전달
  */
 
 import { HttpClientService } from '../../../core/http/HttpClientService';
@@ -113,22 +113,22 @@ export interface SwdpTROptions {
  */
 interface SwdpCredentials {
   /**
-   * API 키
-   */
-  apiKey?: string;
-  
-  /**
    * 사용자 ID
    */
   userId?: string;
   
   /**
-   * 비밀번호
+   * Git 이메일
    */
-  password?: string;
+  gitEmail?: string;
   
   /**
-   * 토큰
+   * Git 사용자명
+   */
+  gitUsername?: string;
+  
+  /**
+   * API 토큰
    */
   token?: string;
 }
@@ -143,7 +143,7 @@ export class SwdpClientService {
   private httpClient: HttpClientService;
   
   /**
-   * API 엔드포인트 기본 URL
+   * APE Core 엔드포인트 기본 URL
    */
   private baseUrl: string;
   
@@ -159,10 +159,10 @@ export class SwdpClientService {
   
   /**
    * SwdpClientService 생성자
-   * @param baseUrl API 엔드포인트 기본 URL
+   * @param baseUrl APE Core 엔드포인트 기본 URL (기본값: http://localhost:8001)
    * @param bypassSsl SSL 인증서 검증 우회 여부
    */
-  constructor(baseUrl: string, bypassSsl: boolean = false) {
+  constructor(baseUrl: string = 'http://localhost:8001', bypassSsl: boolean = false) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     this.httpClient = new HttpClientService();
     
@@ -178,48 +178,33 @@ export class SwdpClientService {
    */
   async initialize(credentials: SwdpCredentials): Promise<void> {
     try {
-      // 인증 설정
-      if (credentials.apiKey) {
-        // API 키 인증
-        this.authHeaders = {
-          'Authorization': `Bearer ${credentials.apiKey}`
-        };
-        
-        if (credentials.userId) {
-          this.authHeaders['User-ID'] = credentials.userId;
-        }
-      } else if (credentials.token) {
-        // 토큰 인증
-        this.authHeaders = {
-          'Authorization': `Bearer ${credentials.token}`
-        };
-      } else if (credentials.userId && credentials.password) {
-        // 사용자 ID/비밀번호 인증
-        // 로그인 API 호출하여 토큰 획득
-        const loginResponse = await this.httpClient.post(
-          `${this.baseUrl}api/v1/auth/login`,
-          {
-            userId: credentials.userId,
-            password: credentials.password
-          },
-          { 'Content-Type': 'application/json' }
-        );
-        
-        if (!loginResponse.ok || !loginResponse.data.token) {
-          throw new Error('로그인 실패: 유효하지 않은 사용자 ID 또는 비밀번호');
-        }
-        
-        this.authHeaders = {
-          'Authorization': `Bearer ${loginResponse.data.token}`
-        };
-      } else {
-        throw new Error('유효한 인증 정보를 제공해야 합니다 (API 키, 토큰 또는 사용자 ID/비밀번호)');
+      // 기본 헤더 설정
+      this.authHeaders = {
+        'Content-Type': 'application/json'
+      };
+      
+      // 인증 정보 설정
+      if (credentials.userId) {
+        this.authHeaders['User-ID'] = credentials.userId;
+      }
+      
+      if (credentials.token) {
+        this.authHeaders['Authorization'] = `Bearer ${credentials.token}`;
+      }
+      
+      if (credentials.gitUsername) {
+        this.authHeaders['Git-Username'] = credentials.gitUsername;
+      }
+      
+      if (credentials.gitEmail) {
+        this.authHeaders['Git-Email'] = credentials.gitEmail;
       }
       
       // 연결 테스트
       await this.testConnection();
       
       this.initialized = true;
+      console.log('SWDP 클라이언트 초기화 완료');
     } catch (error) {
       console.error('SWDP 클라이언트 초기화 중 오류 발생:', error);
       throw error;
@@ -232,17 +217,17 @@ export class SwdpClientService {
   private async testConnection(): Promise<void> {
     try {
       const response = await this.httpClient.get(
-        `${this.baseUrl}api/v1/system/status`,
+        `${this.baseUrl}api/status`,
         this.authHeaders
       );
       
       if (!response.ok) {
-        throw new Error(`SWDP 연결 테스트 실패: ${response.statusCode} ${response.statusText}`);
+        throw new Error(`APE Core 연결 테스트 실패: ${response.statusCode} ${response.statusText}`);
       }
       
-      console.log('SWDP 연결 테스트 성공:', response.data.status);
+      console.log('APE Core 연결 테스트 성공:', response.data.status);
     } catch (error) {
-      console.error('SWDP 연결 테스트 중 오류 발생:', error);
+      console.error('APE Core 연결 테스트 중 오류 발생:', error);
       throw error;
     }
   }
@@ -257,42 +242,54 @@ export class SwdpClientService {
   }
   
   /**
-   * 빌드 시작
-   * @param options 빌드 옵션
-   * @returns 빌드 결과
+   * SWDP Agent에 명령 전송
+   * @param route API 라우트
+   * @param data 요청 데이터
+   * @returns 응답 데이터
    */
-  async startBuild(options: SwdpBuildOptions): Promise<any> {
+  private async sendSwdpCommand(route: string, data: any): Promise<any> {
     this.checkInitialized();
     
     try {
-      // 빌드 요청 데이터 구성
+      // SWDP Agent 라우트 구성
+      const apiUrl = `${this.baseUrl}api/swdp/${route}`;
+      
+      // 요청 데이터에 타임스탬프 추가
       const requestData = {
-        type: options.type,
-        watchMode: options.watchMode || false,
-        createPr: options.createPr || false,
-        params: options.params || {},
+        ...data,
         timestamp: new Date().toISOString()
       };
       
-      // 빌드 API 호출
+      // API 호출
       const response = await this.httpClient.post(
-        `${this.baseUrl}api/v1/builds`,
+        apiUrl,
         requestData,
-        {
-          ...this.authHeaders,
-          'Content-Type': 'application/json'
-        }
+        this.authHeaders
       );
       
       if (!response.ok) {
-        throw new Error(`빌드 시작 실패: ${response.statusCode} ${response.statusText}`);
+        throw new Error(`SWDP 요청 실패 (${route}): ${response.statusCode} ${response.statusText}`);
       }
       
       return response.data;
     } catch (error) {
-      console.error('SWDP 빌드 시작 중 오류 발생:', error);
+      console.error(`SWDP 요청 중 오류 발생 (${route}):`, error);
       throw error;
     }
+  }
+  
+  /**
+   * SWDP 빌드 시작
+   * @param options 빌드 옵션
+   * @returns 빌드 결과
+   */
+  async startBuild(options: SwdpBuildOptions): Promise<any> {
+    return this.sendSwdpCommand('builds/start', {
+      type: options.type,
+      watchMode: options.watchMode || false,
+      createPr: options.createPr || false,
+      params: options.params || {}
+    });
   }
   
   /**
@@ -301,25 +298,9 @@ export class SwdpClientService {
    * @returns 빌드 상태
    */
   async getBuildStatus(buildId?: string): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      // 빌드 ID가 있으면 해당 빌드 상태 조회, 없으면 최근 빌드 상태 조회
-      const url = buildId 
-        ? `${this.baseUrl}api/v1/builds/${buildId}/status` 
-        : `${this.baseUrl}api/v1/builds/recent/status`;
-      
-      const response = await this.httpClient.get(url, this.authHeaders);
-      
-      if (!response.ok) {
-        throw new Error(`빌드 상태 조회 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 빌드 상태 조회 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('builds/status', {
+      buildId: buildId
+    });
   }
   
   /**
@@ -328,23 +309,9 @@ export class SwdpClientService {
    * @returns 빌드 로그
    */
   async getBuildLogs(buildId: string): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      const response = await this.httpClient.get(
-        `${this.baseUrl}api/v1/builds/${buildId}/logs`,
-        this.authHeaders
-      );
-      
-      if (!response.ok) {
-        throw new Error(`빌드 로그 조회 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 빌드 로그 조회 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('builds/logs', {
+      buildId
+    });
   }
   
   /**
@@ -353,24 +320,9 @@ export class SwdpClientService {
    * @returns 취소 결과
    */
   async cancelBuild(buildId: string): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      const response = await this.httpClient.post(
-        `${this.baseUrl}api/v1/builds/${buildId}/cancel`,
-        {},
-        this.authHeaders
-      );
-      
-      if (!response.ok) {
-        throw new Error(`빌드 취소 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 빌드 취소 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('builds/cancel', {
+      buildId
+    });
   }
   
   /**
@@ -379,36 +331,11 @@ export class SwdpClientService {
    * @returns 테스트 결과
    */
   async runTest(options: SwdpTestOptions): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      // 테스트 요청 데이터 구성
-      const requestData = {
-        type: options.type,
-        target: options.target,
-        params: options.params || {},
-        timestamp: new Date().toISOString()
-      };
-      
-      // 테스트 API 호출
-      const response = await this.httpClient.post(
-        `${this.baseUrl}api/v1/tests`,
-        requestData,
-        {
-          ...this.authHeaders,
-          'Content-Type': 'application/json'
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`테스트 실행 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 테스트 실행 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('tests/run', {
+      type: options.type,
+      target: options.target,
+      params: options.params || {}
+    });
   }
   
   /**
@@ -417,23 +344,9 @@ export class SwdpClientService {
    * @returns 테스트 결과
    */
   async getTestResults(testId: string): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      const response = await this.httpClient.get(
-        `${this.baseUrl}api/v1/tests/${testId}/results`,
-        this.authHeaders
-      );
-      
-      if (!response.ok) {
-        throw new Error(`테스트 결과 조회 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 테스트 결과 조회 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('tests/results', {
+      testId
+    });
   }
   
   /**
@@ -442,38 +355,13 @@ export class SwdpClientService {
    * @returns TR 정보
    */
   async createTR(options: SwdpTROptions): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      // TR 요청 데이터 구성
-      const requestData = {
-        title: options.title,
-        description: options.description,
-        type: options.type,
-        priority: options.priority || 'medium',
-        assignee: options.assignee,
-        timestamp: new Date().toISOString()
-      };
-      
-      // TR 생성 API 호출
-      const response = await this.httpClient.post(
-        `${this.baseUrl}api/v1/tr`,
-        requestData,
-        {
-          ...this.authHeaders,
-          'Content-Type': 'application/json'
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`TR 생성 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP TR 생성 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('tr/create', {
+      title: options.title,
+      description: options.description,
+      type: options.type,
+      priority: options.priority || 'medium',
+      assignee: options.assignee
+    });
   }
   
   /**
@@ -482,23 +370,9 @@ export class SwdpClientService {
    * @returns TR 상태
    */
   async getTRStatus(trId: string): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      const response = await this.httpClient.get(
-        `${this.baseUrl}api/v1/tr/${trId}`,
-        this.authHeaders
-      );
-      
-      if (!response.ok) {
-        throw new Error(`TR 상태 조회 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP TR 상태 조회 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('tr/status', {
+      trId
+    });
   }
   
   /**
@@ -509,36 +383,11 @@ export class SwdpClientService {
    * @returns 배포 결과
    */
   async startDeployment(environment: string, buildId: string, params?: Record<string, any>): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      // 배포 요청 데이터 구성
-      const requestData = {
-        environment,
-        buildId,
-        params: params || {},
-        timestamp: new Date().toISOString()
-      };
-      
-      // 배포 API 호출
-      const response = await this.httpClient.post(
-        `${this.baseUrl}api/v1/deployments`,
-        requestData,
-        {
-          ...this.authHeaders,
-          'Content-Type': 'application/json'
-        }
-      );
-      
-      if (!response.ok) {
-        throw new Error(`배포 시작 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 배포 시작 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('deployments/start', {
+      environment,
+      buildId,
+      params: params || {}
+    });
   }
   
   /**
@@ -547,22 +396,137 @@ export class SwdpClientService {
    * @returns 배포 상태
    */
   async getDeploymentStatus(deploymentId: string): Promise<any> {
-    this.checkInitialized();
-    
-    try {
-      const response = await this.httpClient.get(
-        `${this.baseUrl}api/v1/deployments/${deploymentId}/status`,
-        this.authHeaders
-      );
-      
-      if (!response.ok) {
-        throw new Error(`배포 상태 조회 실패: ${response.statusCode} ${response.statusText}`);
-      }
-      
-      return response.data;
-    } catch (error) {
-      console.error('SWDP 배포 상태 조회 중 오류 발생:', error);
-      throw error;
-    }
+    return this.sendSwdpCommand('deployments/status', {
+      deploymentId
+    });
+  }
+  
+  /**
+   * 프로젝트 목록 조회
+   * @returns 프로젝트 목록
+   */
+  async getProjects(): Promise<any> {
+    return this.sendSwdpCommand('projects/list', {});
+  }
+  
+  /**
+   * 프로젝트 세부 정보 조회
+   * @param projectCode 프로젝트 코드
+   * @returns 프로젝트 세부 정보
+   */
+  async getProjectDetails(projectCode: string): Promise<any> {
+    return this.sendSwdpCommand('projects/details', {
+      projectCode
+    });
+  }
+  
+  /**
+   * 현재 작업 프로젝트 설정
+   * @param projectCode 프로젝트 코드
+   * @returns 설정 결과
+   */
+  async setCurrentProject(projectCode: string): Promise<any> {
+    return this.sendSwdpCommand('projects/set-current', {
+      projectCode
+    });
+  }
+  
+  /**
+   * 작업 목록 조회
+   * @param projectCode 프로젝트 코드 (생략 시 현재 프로젝트)
+   * @returns 작업 목록
+   */
+  async getTasks(projectCode?: string): Promise<any> {
+    return this.sendSwdpCommand('tasks/list', {
+      projectCode
+    });
+  }
+  
+  /**
+   * 작업 세부 정보 조회
+   * @param taskId 작업 ID
+   * @returns 작업 세부 정보
+   */
+  async getTaskDetails(taskId: string): Promise<any> {
+    return this.sendSwdpCommand('tasks/details', {
+      taskId
+    });
+  }
+  
+  /**
+   * 작업 생성
+   * @param title 작업 제목
+   * @param description 작업 설명
+   * @param projectCode 프로젝트 코드 (생략 시 현재 프로젝트)
+   * @param params 추가 파라미터
+   * @returns 생성된 작업 정보
+   */
+  async createTask(title: string, description: string, projectCode?: string, params?: Record<string, any>): Promise<any> {
+    return this.sendSwdpCommand('tasks/create', {
+      title,
+      description,
+      projectCode,
+      params: params || {}
+    });
+  }
+  
+  /**
+   * 작업 상태 업데이트
+   * @param taskId 작업 ID
+   * @param status 새 상태
+   * @returns 업데이트 결과
+   */
+  async updateTaskStatus(taskId: string, status: string): Promise<any> {
+    return this.sendSwdpCommand('tasks/update-status', {
+      taskId,
+      status
+    });
+  }
+  
+  /**
+   * 문서 목록 조회
+   * @param projectCode 프로젝트 코드 (생략 시 현재 프로젝트)
+   * @returns 문서 목록
+   */
+  async getDocuments(projectCode?: string): Promise<any> {
+    return this.sendSwdpCommand('documents/list', {
+      projectCode
+    });
+  }
+  
+  /**
+   * 문서 세부 정보 조회
+   * @param docId 문서 ID
+   * @returns 문서 세부 정보
+   */
+  async getDocumentDetails(docId: string): Promise<any> {
+    return this.sendSwdpCommand('documents/details', {
+      docId
+    });
+  }
+  
+  /**
+   * 문서 생성
+   * @param title 문서 제목
+   * @param type 문서 유형
+   * @param content 문서 내용
+   * @param projectCode 프로젝트 코드 (생략 시 현재 프로젝트)
+   * @returns 생성된 문서 정보
+   */
+  async createDocument(title: string, type: string, content: string, projectCode?: string): Promise<any> {
+    return this.sendSwdpCommand('documents/create', {
+      title,
+      type,
+      content,
+      projectCode
+    });
+  }
+  
+  /**
+   * Git 저장소에서 사용자 정보 가져오기
+   * @returns 사용자 정보
+   */
+  async getUserInfoFromGit(): Promise<any> {
+    return this.sendSwdpCommand('git/user-info', {});
   }
 }

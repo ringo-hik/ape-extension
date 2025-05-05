@@ -1,0 +1,65 @@
+/* Phosphor Icons - Regular Style */
+@font-face {
+  font-family: "Phosphor";
+  src: url("../phosphor.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Base icon styles */
+.ph {
+  display: inline-block;
+  font-family: "Phosphor";
+  speak: never;
+  font-style: normal;
+  font-weight: normal;
+  font-variant: normal;
+  text-transform: none;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Weight variations */
+.ph[data-weight="regular"] {
+  font-weight: normal;
+}
+
+/* Include common Phosphor icon classes */
+.ph-lightning:before { content: "\ea47"; }
+.ph-trash:before { content: "\eb69"; }
+.ph-scanner:before { content: "\eb06"; }
+.ph-terminal:before { content: "\eb55"; }
+.ph-paper-plane-right:before { content: "\ea9c"; }
+.ph-command:before { content: "\e92c"; }
+.ph-chat-text:before { content: "\e8ff"; }
+.ph-puzzle-piece:before { content: "\eacd"; }
+.ph-git-fork:before { content: "\ea05"; }
+.ph-lightbulb:before { content: "\ea46"; }
+.ph-layout:before { content: "\ea40"; }
+.ph-book-open:before { content: "\e863"; }
+.ph-eye-closed:before { content: "\e9eb"; }
+.ph-kanban:before { content: "\ea37"; }
+.ph-git-branch:before { content: "\ea04"; }
+.ph-infinity:before { content: "\ea30"; }
+.ph-hammer:before { content: "\ea17"; }
+.ph-question:before { content: "\ead0"; }
+.ph-gear-six:before { content: "\e9fb"; }
+.ph-magnifying-glass:before { content: "\ea4e"; }
+.ph-robot:before { content: "\eaef"; }
+.ph-bug:before { content: "\e87d"; }
+.ph-code:before { content: "\e915"; }
+.ph-git-commit:before { content: "\ea06"; }
+.ph-git-pull-request:before { content: "\ea0a"; }
+.ph-arrow-up:before { content: "\e82d"; }
+.ph-git-merge:before { content: "\ea08"; }
+.ph-cloud-arrow-up:before { content: "\e910"; }
+.ph-test-tube:before { content: "\eb56"; }
+.ph-note-pencil:before { content: "\ea8b"; }
+.ph-clipboard-text:before { content: "\e90b"; }
+.ph-file-text:before { content: "\e9fa"; }
+.ph-floppy-disk:before { content: "\e9ff"; }
+.ph-sliders:before { content: "\eb25"; }
+.ph-play:before { content: "\eaa9"; }
+.ph-chat-dots:before { content: "\e8fb"; }

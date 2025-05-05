@@ -248,18 +248,23 @@ export class PluginRegistryService implements IPluginRegistry {
   
   /**
    * 외부 플러그인 로드
+   * 참고: 실제 구현은 ExternalPluginLoader 클래스에서 처리
    * @returns 로드된 플러그인 수
    */
   async loadExternalPlugins(): Promise<number> {
     try {
-      this._externalPlugins.clear();
+      // ExternalPluginLoader 클래스에서 실제 로직 구현
+      // 이 메서드는 호환성을 위해 유지
+      // this._externalPlugins.clear()는 ExternalPluginLoader에서 처리
       
       const pluginsConfig = this.configLoader.getPluginConfig();
       if (!pluginsConfig) {
+        console.log('외부 플러그인 설정을 찾을 수 없습니다.');
         return 0;
       }
       
-      // TODO: 설정에서 외부 플러그인 로드 로직 구현
+      // 외부 플러그인 로더가 이 클래스를 참조하고 로드 프로세스를 처리함
+      // src/plugins/external/ExternalPluginLoader.ts 참조
       
       return this._externalPlugins.size;
     } catch (error) {
