@@ -1,0 +1,231 @@
+/**
+ * 명령어 버튼 스타일링
+ */
+
+:root {
+  --container-padding: 12px;
+  --button-margin: 6px;
+  --section-margin: 16px;
+}
+
+body {
+  padding: 0;
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  font-weight: var(--vscode-font-weight);
+  background-color: var(--vscode-sideBar-background);
+}
+
+.container {
+  padding: var(--container-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-margin);
+}
+
+/* 명령어 섹션 */
+.command-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.command-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.command-section-header:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.command-section h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  opacity: 0.8;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.commands-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  transition: opacity 0.2s, max-height 0.3s;
+  overflow: hidden;
+  max-height: 1000px;
+}
+
+.commands-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* 명령어 버튼 */
+.command-button {
+  margin: 0;
+}
+
+.button-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.button-content:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.button-content:active {
+  transform: translateY(1px);
+}
+
+.button-content i {
+  font-size: 14px;
+}
+
+/* 토글 아이콘 */
+.toggle-icon {
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.toggle-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* 검색 필터 */
+.search-filter {
+  margin-bottom: 16px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  font-size: 13px;
+}
+
+.search-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+}
+
+/* 그룹별 색상 스타일 */
+.command-group-jira .button-content {
+  background-color: #0052CC;
+}
+
+.command-group-jira .button-content:hover {
+  background-color: #0065ff;
+}
+
+.command-group-git .button-content {
+  background-color: #F14E32;
+}
+
+.command-group-git .button-content:hover {
+  background-color: #ff6347;
+}
+
+.command-group-swdp .button-content {
+  background-color: #6554C0;
+}
+
+.command-group-swdp .button-content:hover {
+  background-color: #8777D9;
+}
+
+.command-group-pocket .button-content {
+  background-color: #5A3096;
+}
+
+.command-group-pocket .button-content:hover {
+  background-color: #7B4EC9;
+}
+
+.command-group-system .button-content {
+  background-color: var(--vscode-button-background);
+}
+
+.command-group-system .button-content:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+/* 명령어 영역 확장 */
+.empty-commands {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-style: italic;
+  padding: 8px 4px;
+  text-align: center;
+  width: 100%;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 480px) {
+  .commands-container {
+    flex-direction: column;
+  }
+  
+  .command-button {
+    width: 100%;
+  }
+  
+  .button-content {
+    max-width: 100%;
+  }
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.command-section {
+  animation: fadeIn 0.3s ease-out;
+  animation-fill-mode: both;
+}
+
+.command-section:nth-child(2) { animation-delay: 0.05s; }
+.command-section:nth-child(3) { animation-delay: 0.1s; }
+.command-section:nth-child(4) { animation-delay: 0.15s; }
+.command-section:nth-child(5) { animation-delay: 0.2s; }
+.command-section:nth-child(6) { animation-delay: 0.25s; }
+
+/* VS Code 테마 변수에 대한 대체 스타일 (테마 변수가 없는 경우 폴백) */
+.vscode-dark .command-section h3 {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.vscode-light .command-section h3 {
+  border-bottom-color: rgba(0, 0, 0, 0.1);
+}

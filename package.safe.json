@@ -1,0 +1,134 @@
+{
+  "name": "ape",
+  "displayName": "APE (Agentic Pipeline Engine)",
+  "description": "VS Code용 통합 개발 워크플로우 허브",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ape.openSidebar",
+        "title": "APE: 사이드바 열기"
+      },
+      {
+        "command": "ape.openChat",
+        "title": "APE: 채팅 열기"
+      },
+      {
+        "command": "ape.clearChat",
+        "title": "APE: 채팅 지우기"
+      },
+      {
+        "command": "ape.debug",
+        "title": "APE: 디버그 정보 출력"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ape-sidebar",
+          "title": "APE",
+          "icon": "resources/ape.svg"
+        }
+      ]
+    },
+    "views": {
+      "ape-sidebar": [
+        {
+          "id": "ape.chatView",
+          "name": "APE 채팅",
+          "icon": "resources/ape.svg",
+          "contextualTitle": "APE 채팅"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "APE",
+      "properties": {
+        "ape.disableSSLVerify": {
+          "type": "boolean",
+          "default": false,
+          "description": "SSL 인증서 검증을 비활성화합니다. 내부망 개발 환경에서 사용하세요."
+        },
+        "ape.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "로그 레벨 설정"
+        },
+        "ape.models.defaultModel": {
+          "type": "string",
+          "default": "claude-3-sonnet-20240229",
+          "description": "기본 LLM 모델"
+        },
+        "ape.api.openrouter": {
+          "type": "string",
+          "default": "YOUR_OPENROUTER_API_KEY_HERE",
+          "description": "OpenRouter API 키"
+        },
+        "ape.api.internal": {
+          "type": "object",
+          "default": {
+            "enabled": false,
+            "url": "https://internal-llm-api.example.com",
+            "apiKey": "YOUR_INTERNAL_API_KEY_HERE"
+          },
+          "description": "내부망 API 설정"
+        },
+        "ape.environment": {
+          "type": "string",
+          "enum": [
+            "internal",
+            "external"
+          ],
+          "default": "external",
+          "description": "실행 환경 (내부망/외부망)"
+        }
+      }
+    }
+  },
+  "packageManager": "npm@8.19.2",
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
+    "package": "node esbuild.config.js --production",
+    "test": "node ./tests/runTest.js",
+    "build": "node esbuild.config.js",
+    "build:clean": "node esbuild.config.js --clean --build"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.1",
+    "@typescript-eslint/parser": "^5.59.1",
+    "@vscode/test-electron": "^2.3.0",
+    "esbuild": "^0.19.11",
+    "esbuild-node-externals": "^1.11.0",
+    "eslint": "^8.39.0",
+    "glob": "^8.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "date-fns": "^2.30.0",
+    "uuid": "^9.0.0"
+  }
+}

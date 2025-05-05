@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; font-src ${cspSource};">
+  <title>명령어 버튼</title>
+  <link href="${commandButtonsCssUri}" rel="stylesheet">
+  <link href="${codiconsUri}" rel="stylesheet">
+  <style>
+    /* 인라인 스타일 (기본 스타일만 제공) */
+    body {
+      padding: 0;
+      margin: 0;
+      background-color: var(--vscode-sideBar-background, #252526);
+      color: var(--vscode-foreground, #cccccc);
+      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif);
+    }
+    
+    .container {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .command-section {
+      margin-bottom: 16px;
+    }
+    
+    .command-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+    
+    .command-section h3 {
+      margin: 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--vscode-panel-border, #555);
+      font-size: 14px;
+    }
+    
+    .commands-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    
+    .command-button {
+      margin: 0;
+    }
+    
+    .button-content {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background-color: var(--vscode-button-background, #0e639c);
+      color: var(--vscode-button-foreground, #ffffff);
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background-color 0.2s;
+    }
+    
+    .button-content:hover {
+      background-color: var(--vscode-button-hoverBackground, #1177bb);
+    }
+    
+    .commands-container.collapsed {
+      display: none;
+    }
+    
+    .toggle-icon {
+      font-size: 12px;
+      transition: transform 0.2s;
+    }
+    
+    .toggle-icon.collapsed {
+      transform: rotate(-90deg);
+    }
+    
+    /* 그룹별 색상 */
+    .command-group-git .button-content {
+      background-color: #F14E32;
+    }
+    
+    .command-group-jira .button-content {
+      background-color: #0052CC;
+    }
+    
+    .command-group-swdp .button-content {
+      background-color: #6554C0;
+    }
+    
+    .command-group-pocket .button-content {
+      background-color: #5A3096;
+    }
+    
+    .empty-commands {
+      font-style: italic;
+      color: var(--vscode-descriptionForeground, #8a8a8a);
+      font-size: 12px;
+      padding: 8px 4px;
+    }
+    
+    .search-filter {
+      margin-bottom: 12px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 6px;
+      background-color: var(--vscode-input-background);
+      color: var(--vscode-input-foreground);
+      border: 1px solid var(--vscode-input-border);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 검색 필터 -->
+    <div class="search-filter">
+      <input type="text" id="commandSearch" placeholder="명령어 검색..." class="search-input">
+    </div>
+    
+    <!-- 내부 명령어 섹션 (/ 명령어) -->
+    <div class="command-section">
+      <div class="command-section-header" onclick="toggleCommandSection('internal-commands')">
+        <h3>내부 명령어</h3>
+        <span class="toggle-icon codicon codicon-chevron-down" id="internal-commands-toggle"></span>
+      </div>
+      <div class="commands-container" id="internal-commands">
+        <!-- 내부 명령어 버튼이 여기에 동적으로 추가됩니다 -->
+        <div class="empty-commands">명령어를 로드하는 중...</div>
+      </div>
+    </div>
+    
+    <!-- Git 플러그인 명령어 -->
+    <div class="command-section">
+      <div class="command-section-header" onclick="toggleCommandSection('git-commands')">
+        <h3>Git 명령어</h3>
+        <span class="toggle-icon codicon codicon-chevron-down" id="git-commands-toggle"></span>
+      </div>
+      <div class="commands-container" id="git-commands">
+        <!-- Git 명령어 버튼이 여기에 동적으로 추가됩니다 -->
+        <div class="empty-commands">명령어를 로드하는 중...</div>
+      </div>
+    </div>
+    
+    <!-- Jira 플러그인 명령어 -->
+    <div class="command-section">
+      <div class="command-section-header" onclick="toggleCommandSection('jira-commands')">
+        <h3>Jira 명령어</h3>
+        <span class="toggle-icon codicon codicon-chevron-down" id="jira-commands-toggle"></span>
+      </div>
+      <div class="commands-container" id="jira-commands">
+        <!-- Jira 명령어 버튼이 여기에 동적으로 추가됩니다 -->
+        <div class="empty-commands">명령어를 로드하는 중...</div>
+      </div>
+    </div>
+    
+    <!-- SWDP 플러그인 명령어 -->
+    <div class="command-section">
+      <div class="command-section-header" onclick="toggleCommandSection('swdp-commands')">
+        <h3>SWDP 명령어</h3>
+        <span class="toggle-icon codicon codicon-chevron-down" id="swdp-commands-toggle"></span>
+      </div>
+      <div class="commands-container" id="swdp-commands">
+        <!-- SWDP 명령어 버튼이 여기에 동적으로 추가됩니다 -->
+        <div class="empty-commands">명령어를 로드하는 중...</div>
+      </div>
+    </div>
+    
+    <!-- Pocket 플러그인 명령어 -->
+    <div class="command-section">
+      <div class="command-section-header" onclick="toggleCommandSection('pocket-commands')">
+        <h3>Pocket 명령어</h3>
+        <span class="toggle-icon codicon codicon-chevron-down" id="pocket-commands-toggle"></span>
+      </div>
+      <div class="commands-container" id="pocket-commands">
+        <!-- Pocket 명령어 버튼이 여기에 동적으로 추가됩니다 -->
+        <div class="empty-commands">명령어를 로드하는 중...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // VS Code API
+      const vscode = acquireVsCodeApi();
+      
+      // 상태 관리
+      let state = vscode.getState() || {
+        commands: {
+          internal: [],
+          git: [],
+          jira: [],
+          swdp: [],
+          pocket: []
+        }
+      };
+      
+      // 명령어 그룹별 아이콘 매핑
+      const COMMAND_ICONS = {
+        'jira': 'issue-opened',
+        'git': 'git-branch',
+        'swdp': 'package',
+        'pocket': 'archive',
+        'build': 'terminal',
+        'help': 'question',
+        'settings': 'gear',
+        'search': 'search',
+        'chat': 'comment',
+        'code': 'code',
+        'model': 'hubot',
+        'debug': 'bug',
+        'clear': 'trash',
+        'default': 'play'
+      };
+      
+      /**
+       * 명령어 ID로부터 적절한 아이콘을 결정합니다.
+       * @param {string} commandId 명령어 ID
+       * @returns {string} 코디콘 아이콘 이름
+       */
+      function getIconForCommand(commandId) {
+        if (!commandId) return COMMAND_ICONS.default;
+        
+        // 명령어 ID에서 주요 그룹 추출
+        const parts = commandId.split(':');
+        const mainGroup = parts[0].replace(/[@/]/g, ''); // @ 또는 / 접두사 제거
+        
+        // 명령어 이름은 콜론 이후 부분
+        const commandName = parts.length > 1 ? parts[1] : mainGroup;
+        
+        // 특정 명령어 패턴 매칭
+        if (commandName.includes('issue')) return 'issue-opened';
+        if (commandName.includes('pull') || commandName.includes('pr')) return 'git-pull-request';
+        if (commandName.includes('commit')) return 'git-commit';
+        if (commandName.includes('build')) return 'rocket';
+        if (commandName.includes('deploy')) return 'cloud-upload';
+        if (commandName.includes('test')) return 'beaker';
+        if (commandName.includes('help')) return 'question';
+        if (commandName.includes('settings')) return 'gear';
+        
+        // 명령어 이름에 따른 매핑
+        if (COMMAND_ICONS[commandName]) {
+          return COMMAND_ICONS[commandName];
+        }
+        
+        // 주요 그룹 매칭
+        return COMMAND_ICONS[mainGroup] || COMMAND_ICONS.default;
+      }
+      
+      /**
+       * 명령어 버튼 생성 함수
+       * @param {Object} command 명령어 객체
+       * @returns {HTMLElement} 버튼 컨테이너
+       */
+      function createCommandButton(command) {
+        const buttonContainer = document.createElement('div');
+        buttonContainer.className = `command-button`;
+        
+        // 그룹 클래스 추가
+        let groupName = '';
+        if (command.id.startsWith('@')) {
+          groupName = command.id.split(':')[0].substring(1);
+          buttonContainer.classList.add(`command-group-${groupName}`);
+        } else if (command.id.startsWith('/')) {
+          buttonContainer.classList.add('command-group-system');
+        }
+        
+        buttonContainer.title = command.description || '';
+        
+        const button = document.createElement('button');
+        button.className = 'button-content';
+        button.dataset.commandId = command.id;
+        button.onclick = function() {
+          vscode.postMessage({
+            command: 'executeCommand',
+            commandId: this.dataset.commandId
+          });
+        };
+        
+        // 아이콘 자동 결정 또는 명시적 아이콘 사용
+        const iconName = command.iconName || getIconForCommand(command.id);
+        const icon = document.createElement('i');
+        icon.className = `codicon codicon-${iconName}`;
+        button.appendChild(icon);
+        
+        // 레이블 추가
+        const label = document.createElement('span');
+        
+        // 표시명 생성 (간단한 형태로)
+        let displayName = command.id;
+        if (command.id.startsWith('@')) {
+          // '@git:commit' -> 'commit'
+          const parts = command.id.split(':');
+          if (parts.length > 1) {
+            displayName = parts[1];
+          }
+        } else if (command.id.startsWith('/')) {
+          // '/help' -> 'help'
+          displayName = command.id.substring(1);
+        }
+        
+        label.textContent = command.name || displayName;
+        button.appendChild(label);
+        
+        buttonContainer.appendChild(button);
+        return buttonContainer;
+      }
+      
+      /**
+       * 명령어 카테고리 토글
+       * @param {string} sectionId 카테고리 섹션 ID 
+       */
+      window.toggleCommandSection = function(sectionId) {
+        const container = document.getElementById(sectionId);
+        const toggleIcon = document.getElementById(`${sectionId}-toggle`);
+        
+        if (container.classList.contains('collapsed')) {
+          container.classList.remove('collapsed');
+          toggleIcon.classList.remove('collapsed');
+        } else {
+          container.classList.add('collapsed');
+          toggleIcon.classList.add('collapsed');
+        }
+      };
+      
+      /**
+       * 명령어 목록을 화면에 렌더링합니다.
+       */
+      function renderCommands() {
+        // 내부 명령어 렌더링
+        const internalContainer = document.getElementById('internal-commands');
+        internalContainer.innerHTML = '';
+        if (state.commands.internal.length > 0) {
+          state.commands.internal.forEach(cmd => {
+            internalContainer.appendChild(createCommandButton(cmd));
+          });
+        } else {
+          const emptyMsg = document.createElement('div');
+          emptyMsg.className = 'empty-commands';
+          emptyMsg.textContent = '내부 명령어가 없습니다.';
+          internalContainer.appendChild(emptyMsg);
+        }
+        
+        // Git 명령어 렌더링
+        const gitContainer = document.getElementById('git-commands');
+        gitContainer.innerHTML = '';
+        if (state.commands.git.length > 0) {
+          state.commands.git.forEach(cmd => {
+            gitContainer.appendChild(createCommandButton(cmd));
+          });
+        } else {
+          const emptyMsg = document.createElement('div');
+          emptyMsg.className = 'empty-commands';
+          emptyMsg.textContent = 'Git 명령어가 없습니다.';
+          gitContainer.appendChild(emptyMsg);
+        }
+        
+        // Jira 명령어 렌더링
+        const jiraContainer = document.getElementById('jira-commands');
+        jiraContainer.innerHTML = '';
+        if (state.commands.jira.length > 0) {
+          state.commands.jira.forEach(cmd => {
+            jiraContainer.appendChild(createCommandButton(cmd));
+          });
+        } else {
+          const emptyMsg = document.createElement('div');
+          emptyMsg.className = 'empty-commands';
+          emptyMsg.textContent = 'Jira 명령어가 없습니다.';
+          jiraContainer.appendChild(emptyMsg);
+        }
+        
+        // SWDP 명령어 렌더링
+        const swdpContainer = document.getElementById('swdp-commands');
+        swdpContainer.innerHTML = '';
+        if (state.commands.swdp.length > 0) {
+          state.commands.swdp.forEach(cmd => {
+            swdpContainer.appendChild(createCommandButton(cmd));
+          });
+        } else {
+          const emptyMsg = document.createElement('div');
+          emptyMsg.className = 'empty-commands';
+          emptyMsg.textContent = 'SWDP 명령어가 없습니다.';
+          swdpContainer.appendChild(emptyMsg);
+        }
+        
+        // Pocket 명령어 렌더링
+        const pocketContainer = document.getElementById('pocket-commands');
+        pocketContainer.innerHTML = '';
+        if (state.commands.pocket.length > 0) {
+          state.commands.pocket.forEach(cmd => {
+            pocketContainer.appendChild(createCommandButton(cmd));
+          });
+        } else {
+          const emptyMsg = document.createElement('div');
+          emptyMsg.className = 'empty-commands';
+          emptyMsg.textContent = 'Pocket 명령어가 없습니다.';
+          pocketContainer.appendChild(emptyMsg);
+        }
+      }
+      
+      /**
+       * 명령어 검색 필터링
+       * @param {Event} event 입력 이벤트 
+       */
+      function filterCommands(event) {
+        const searchText = event.target.value.toLowerCase();
+        const allButtons = document.querySelectorAll('.command-button');
+        
+        allButtons.forEach(button => {
+          const commandText = button.querySelector('button').dataset.commandId.toLowerCase();
+          const descriptionText = button.title.toLowerCase();
+          
+          if (commandText.includes(searchText) || descriptionText.includes(searchText)) {
+            button.style.display = 'block';
+          } else {
+            button.style.display = 'none';
+          }
+        });
+        
+        // 비어있는 섹션 처리
+        document.querySelectorAll('.commands-container').forEach(container => {
+          const visibleButtons = Array.from(container.querySelectorAll('.command-button')).filter(btn => 
+            btn.style.display !== 'none'
+          ).length;
+          
+          const emptyMessage = container.querySelector('.empty-commands');
+          
+          if (visibleButtons === 0) {
+            if (!emptyMessage) {
+              const newEmptyMsg = document.createElement('div');
+              newEmptyMsg.className = 'empty-commands';
+              newEmptyMsg.textContent = '일치하는 명령어가 없습니다.';
+              container.appendChild(newEmptyMsg);
+            }
+          } else if (emptyMessage) {
+            emptyMessage.remove();
+          }
+        });
+      }
+      
+      // 검색 필터 이벤트 설정
+      document.getElementById('commandSearch').addEventListener('input', filterCommands);
+      
+      // VS Code로부터 메시지 수신
+      window.addEventListener('message', event => {
+        const message = event.data;
+        
+        switch (message.command) {
+          case 'updateCommands':
+            // 명령어 목록을 업데이트 (전체)
+            if (message.commands && Array.isArray(message.commands)) {
+              // 명령어 그룹별 분류
+              const internalCommands = [];
+              const gitCommands = [];
+              const jiraCommands = [];
+              const swdpCommands = [];
+              const pocketCommands = [];
+              
+              message.commands.forEach(cmd => {
+                if (cmd.id.startsWith('/')) {
+                  internalCommands.push(cmd);
+                } else if (cmd.id.startsWith('@git:')) {
+                  gitCommands.push(cmd);
+                } else if (cmd.id.startsWith('@jira:')) {
+                  jiraCommands.push(cmd);
+                } else if (cmd.id.startsWith('@swdp:')) {
+                  swdpCommands.push(cmd);
+                } else if (cmd.id.startsWith('@pocket:')) {
+                  pocketCommands.push(cmd);
+                }
+              });
+              
+              // 명령어 저장 및 렌더링
+              state.commands = {
+                internal: internalCommands,
+                git: gitCommands,
+                jira: jiraCommands,
+                swdp: swdpCommands,
+                pocket: pocketCommands
+              };
+              
+              vscode.setState(state);
+              renderCommands();
+            }
+            break;
+            
+          case 'updatePluginCommands':
+            // 특정 플러그인 명령어만 업데이트
+            if (message.pluginId && message.commands && Array.isArray(message.commands)) {
+              switch (message.pluginId) {
+                case 'git':
+                  state.commands.git = message.commands;
+                  break;
+                case 'jira':
+                  state.commands.jira = message.commands;
+                  break;
+                case 'swdp':
+                  state.commands.swdp = message.commands;
+                  break;
+                case 'pocket':
+                  state.commands.pocket = message.commands;
+                  break;
+              }
+              
+              vscode.setState(state);
+              renderCommands();
+            }
+            break;
+            
+          default:
+            console.log('처리되지 않은 메시지 타입:', message.command);
+        }
+      });
+      
+      // 페이지 로드 시 명령어 요청
+      function initialize() {
+        // 기존 상태에 명령어가 있으면 렌더링
+        if (state.commands && (
+          state.commands.internal.length > 0 || 
+          state.commands.git.length > 0 || 
+          state.commands.jira.length > 0 || 
+          state.commands.swdp.length > 0 ||
+          state.commands.pocket.length > 0
+        )) {
+          renderCommands();
+        }
+        
+        // VS Code에 명령어 목록 요청
+        vscode.postMessage({
+          command: 'getCommands'
+        });
+      }
+      
+      // 초기화
+      initialize();
+    })();
+  </script>
+</body>
+</html>

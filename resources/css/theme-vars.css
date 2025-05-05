@@ -1,0 +1,313 @@
+/* 
+ * VSCode 테마에 따른 자동 스타일 적용 시스템
+ * 이 파일은 VS Code의 테마 변수를 CSS 변수로 매핑하여 일관된 테마 적용을 지원합니다.
+ */
+
+:root {
+  /* 
+   * 기본 색상 변수 - VS Code 테마에서 자동으로 가져옵니다
+   * 이 변수들은 VS Code 웹뷰 API에 의해 자동 주입됩니다
+   */
+
+  /* APE 고유 색상 매핑 */
+  --ape-accent: #FF9900;
+  --ape-accent-light: #FFB84D;
+  --ape-accent-dark: #CC7A00;
+  
+  /* 플러그인별 색상 */
+  --ape-git: #F14E32;
+  --ape-jira: #0052CC;
+  --ape-swdp: #6554C0;
+  
+  /* 상태 색상 */
+  --ape-success: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+  --ape-warning: var(--vscode-warningForeground, #cca700);
+  --ape-error: var(--vscode-errorForeground, #f48771);
+  --ape-info: var(--vscode-activityBarBadge-background, #007acc);
+
+  /* 구문 강조 색상 (코드 블록용) */
+  --ape-syntax-keyword: var(--vscode-symbolIcon-keywordForeground, #569cd6);
+  --ape-syntax-string: var(--vscode-symbolIcon-stringForeground, #ce9178);
+  --ape-syntax-number: var(--vscode-symbolIcon-numberForeground, #b5cea8);
+  --ape-syntax-comment: var(--vscode-symbolIcon-textForeground, #6a9955);
+  --ape-syntax-class: var(--vscode-symbolIcon-classForeground, #4ec9b0);
+  --ape-syntax-function: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --ape-syntax-variable: var(--vscode-symbolIcon-variableForeground, #9cdcfe);
+  
+  /* 간격 시스템 */
+  --ape-space-xs: 4px;
+  --ape-space-sm: 8px;
+  --ape-space-md: 12px;
+  --ape-space-lg: 16px;
+  --ape-space-xl: 24px;
+  
+  /* 글꼴 크기 */
+  --ape-font-xs: 11px;
+  --ape-font-sm: 12px;
+  --ape-font-md: 14px;
+  --ape-font-lg: 16px;
+  --ape-font-xl: 18px;
+  
+  /* 애니메이션 속도 */
+  --ape-animation-fast: 0.1s;
+  --ape-animation-normal: 0.2s;
+  --ape-animation-slow: 0.3s;
+  
+  /* 그림자 스타일 */
+  --ape-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --ape-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+  --ape-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+  
+  /* 테두리 반경 */
+  --ape-radius-sm: 2px;
+  --ape-radius-md: 4px;
+  --ape-radius-lg: 8px;
+  --ape-radius-xl: 12px;
+  
+  /* 테두리 스타일 */
+  --ape-border-width: 1px;
+  --ape-border-style: solid;
+  --ape-border-color: var(--vscode-sideBarSectionHeader-border);
+  
+  /* 커서 모양 */
+  --ape-cursor-hover: pointer;
+  --ape-cursor-disabled: not-allowed;
+  
+  /* 불투명도 */
+  --ape-opacity-disabled: 0.5;
+  --ape-opacity-hover: 0.8;
+  --ape-opacity-active: 1;
+}
+
+/* APE 컴포넌트 스타일 기본값 */
+.ape-component {
+  border-radius: var(--ape-radius-md);
+  padding: var(--ape-space-md);
+  margin-bottom: var(--ape-space-md);
+  background-color: var(--vscode-editor-background);
+  border: var(--ape-border-width) var(--ape-border-style) var(--ape-border-color);
+  transition: all var(--ape-animation-normal) ease;
+}
+
+/* 버튼 기본 스타일 */
+.ape-button {
+  padding: var(--ape-space-sm) var(--ape-space-md);
+  border-radius: var(--ape-radius-sm);
+  border: none;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: var(--ape-cursor-hover);
+  font-size: var(--ape-font-sm);
+  transition: background-color var(--ape-animation-normal) ease;
+}
+
+.ape-button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.ape-button:disabled {
+  opacity: var(--ape-opacity-disabled);
+  cursor: var(--ape-cursor-disabled);
+}
+
+/* 입력 필드 기본 스타일 */
+.ape-input {
+  padding: var(--ape-space-sm);
+  border-radius: var(--ape-radius-sm);
+  border: var(--ape-border-width) var(--ape-border-style) var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: var(--ape-font-sm);
+}
+
+.ape-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder, var(--ape-accent));
+}
+
+/* 배지 기본 스타일 */
+.ape-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--ape-radius-xl);
+  background-color: var(--vscode-activityBarBadge-background);
+  color: var(--vscode-activityBarBadge-foreground);
+  font-size: var(--ape-font-xs);
+  font-weight: bold;
+}
+
+/* 해더 기본 스타일 */
+.ape-header {
+  padding: var(--ape-space-sm);
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  border-bottom: var(--ape-border-width) var(--ape-border-style) var(--vscode-sideBarSectionHeader-border);
+}
+
+/* 상태별 색상 클래스 */
+.ape-success {
+  color: var(--ape-success);
+}
+
+.ape-warning {
+  color: var(--ape-warning);
+}
+
+.ape-error {
+  color: var(--ape-error);
+}
+
+.ape-info {
+  color: var(--ape-info);
+}
+
+/* 백그라운드 상태별 색상 클래스 */
+.ape-bg-success {
+  background-color: var(--ape-success);
+  color: #ffffff;
+}
+
+.ape-bg-warning {
+  background-color: var(--ape-warning);
+  color: #ffffff;
+}
+
+.ape-bg-error {
+  background-color: var(--ape-error);
+  color: #ffffff;
+}
+
+.ape-bg-info {
+  background-color: var(--ape-info);
+  color: #ffffff;
+}
+
+/* 플러그인별 버튼 스타일 */
+.ape-button-git {
+  background-color: var(--ape-git);
+  color: #ffffff;
+}
+
+.ape-button-git:hover {
+  background-color: color-mix(in srgb, var(--ape-git) 80%, white);
+}
+
+.ape-button-jira {
+  background-color: var(--ape-jira);
+  color: #ffffff;
+}
+
+.ape-button-jira:hover {
+  background-color: color-mix(in srgb, var(--ape-jira) 80%, white);
+}
+
+.ape-button-swdp {
+  background-color: var(--ape-swdp);
+  color: #ffffff;
+}
+
+.ape-button-swdp:hover {
+  background-color: color-mix(in srgb, var(--ape-swdp) 80%, white);
+}
+
+/* 유틸리티 클래스 */
+.ape-text-small {
+  font-size: var(--ape-font-xs);
+}
+
+.ape-text-muted {
+  color: var(--vscode-descriptionForeground);
+}
+
+.ape-text-center {
+  text-align: center;
+}
+
+.ape-flex {
+  display: flex;
+}
+
+.ape-flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.ape-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ape-flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ape-flex-grow {
+  flex-grow: 1;
+}
+
+.ape-mt {
+  margin-top: var(--ape-space-md);
+}
+
+.ape-mb {
+  margin-bottom: var(--ape-space-md);
+}
+
+.ape-ml {
+  margin-left: var(--ape-space-md);
+}
+
+.ape-mr {
+  margin-right: var(--ape-space-md);
+}
+
+.ape-p {
+  padding: var(--ape-space-md);
+}
+
+/* 애니메이션 클래스 */
+.ape-fade-in {
+  animation: ape-fade-in var(--ape-animation-normal) ease;
+}
+
+.ape-slide-up {
+  animation: ape-slide-up var(--ape-animation-normal) ease;
+}
+
+.ape-spin {
+  animation: ape-spin 1.5s linear infinite;
+}
+
+@keyframes ape-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ape-slide-up {
+  from { 
+    transform: translateY(20px);
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1; 
+  }
+}
+
+@keyframes ape-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 미디어 쿼리 - 작은 화면 대응 */
+@media (max-width: 480px) {
+  :root {
+    --ape-space-md: 8px;
+    --ape-space-lg: 12px;
+    --ape-font-md: 13px;
+    --ape-font-lg: 15px;
+  }
+}

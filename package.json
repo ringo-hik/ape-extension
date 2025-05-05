@@ -1,0 +1,262 @@
+{
+  "name": "ape",
+  "displayName": "APE - Agentic Pipeline Engine",
+  "description": "VS Code용 통합 개발 워크플로우 허브",
+  "version": "0.0.1",
+  "publisher": "ape-team",
+  "icon": "resources/icon/ape.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-repo/ape-extension.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=16.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ape.openSidebar",
+        "title": "사이드바 열기",
+        "category": "APE"
+      },
+      {
+        "command": "ape.openChat",
+        "title": "채팅 열기",
+        "category": "APE"
+      },
+      {
+        "command": "ape.clearChat",
+        "title": "채팅 지우기",
+        "category": "APE"
+      },
+      {
+        "command": "ape.debug",
+        "title": "디버그 정보 표시",
+        "category": "APE"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ape-sidebar",
+          "title": "APE",
+          "icon": "resources/icon/ape.svg"
+        }
+      ]
+    },
+    "views": {
+      "ape-sidebar": [
+        {
+          "id": "ape.chatView",
+          "name": "APE 채팅",
+          "type": "webview"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "APE",
+      "properties": {
+        "ape.core.sslBypass": {
+          "type": "boolean",
+          "default": false,
+          "description": "SSL 인증서 검증 우회 여부"
+        },
+        "ape.core.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "로그 레벨"
+        },
+        "ape.core.allow.all": {
+          "type": "boolean",
+          "default": true,
+          "description": "모든 권한 허용 여부"
+        },
+        "ape.llm.defaultModel": {
+          "type": "string",
+          "default": "gemini-2.5-flash",
+          "description": "기본 LLM 모델"
+        },
+        "ape.llm.supportsStreaming": {
+          "type": "boolean",
+          "default": true,
+          "description": "스트리밍 응답 지원 여부"
+        },
+        "ape.llm.openaiApiKey": {
+          "type": "string",
+          "description": "OpenAI API 키"
+        },
+        "ape.llm.anthropicApiKey": {
+          "type": "string",
+          "description": "Anthropic API 키"
+        },
+        "ape.llm.azureApiKey": {
+          "type": "string",
+          "description": "Azure OpenAI API 키"
+        },
+        "ape.llm.openrouterApiKey": {
+          "type": "string",
+          "description": "OpenRouter API 키 (환경 변수 APE_OPENROUTER_API_KEY를 통해 설정하는 것이 더 안전합니다)"
+        },
+        "ape.llm.models": {
+          "type": "object",
+          "description": "LLM 모델 설정",
+          "default": {
+            "gemini-2.5-flash": {
+              "name": "Google Gemini 2.5 Flash Preview",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 32000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "microsoft-phi-4": {
+              "name": "Microsoft Phi-4 Reasoning Plus",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 4096,
+              "maxTokens": 4096,
+              "temperature": 0.7,
+              "apiModel": "microsoft/phi-4-reasoning-plus",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "qwen3-30b-a3b": {
+              "name": "Qwen 3 30B A3B",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 32000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "apiModel": "qwen/qwen3-30b-a3b",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "deepseek-r1t-chimera": {
+              "name": "DeepSeek R1T Chimera",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 32000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "apiModel": "tngtech/deepseek-r1t-chimera:free",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "phi-4-reasoning-plus": {
+              "name": "Microsoft Phi-4 Reasoning Plus",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 32000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "apiModel": "microsoft/phi-4-reasoning-plus",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "gpt-4-1-mini": {
+              "name": "OpenAI GPT-4.1-mini",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 128000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "apiModel": "openai/gpt-4.1-mini",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "o4-mini-high": {
+              "name": "OpenAI O4 Mini High",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 128000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "apiModel": "openai/o4-mini-high",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "deepseek-r1-zero": {
+              "name": "DeepSeek R1 Zero",
+              "provider": "openrouter",
+              "apiUrl": "https://openrouter.ai/api/v1/chat/completions",
+              "contextWindow": 32000,
+              "maxTokens": 8192,
+              "temperature": 0.7,
+              "apiModel": "deepseek/deepseek-r1-zero:free",
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "narrans": {
+              "name": "NARRANS (Default)",
+              "provider": "custom",
+              "apiUrl": "https://api-se-dev.narrans.samsungds.net/v1/chat/completions",
+              "contextWindow": 10000,
+              "maxTokens": 10000,
+              "temperature": 0,
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "llama-4-maverick": {
+              "name": "Llama 4 Maverick",
+              "provider": "custom",
+              "apiUrl": "http://apigw-stg.samsungds.net:8000/llama4/1/llama/aiserving/llama-4/maverick/v1/chat/completions",
+              "contextWindow": 50000,
+              "maxTokens": 50000,
+              "temperature": 0,
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            },
+            "llama-4-scout": {
+              "name": "Llama 4 Scout",
+              "provider": "custom",
+              "apiUrl": "http://apigw-stg.samsungds.net:8000/llama4/1/llama/aiserving/llama-4/maverick/v1/chat/completions",
+              "contextWindow": 50000,
+              "maxTokens": 50000,
+              "temperature": 0,
+              "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+            }
+          }
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "node esbuild.config.js",
+    "watch": "node esbuild.config.js --watch",
+    "package": "node esbuild.config.js --production",
+    "test": "node ./tests/runTest.js",
+    "build": "node esbuild.config.js",
+    "build:clean": "node esbuild.config.js --clean --build",
+    "build:analyze": "node esbuild.config.js --production --analyze",
+    "build:prod": "node esbuild.config.js --production",
+    "build:dev": "node esbuild.config.js --clean --build",
+    "prebuild": "rimraf dist",
+    "dev": "npm run watch",
+    "pretest": "npm run build"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.1",
+    "@typescript-eslint/parser": "^5.59.1",
+    "@vscode/test-electron": "^2.3.0",
+    "esbuild": "^0.20.0",
+    "esbuild-node-externals": "^1.11.0",
+    "esbuild-plugin-copy": "^2.1.1",
+    "esbuild-plugin-eslint": "^0.3.12",
+    "eslint": "^8.39.0",
+    "glob": "^8.1.0",
+    "rimraf": "^5.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.0.4"
+  }
+}

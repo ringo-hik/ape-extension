@@ -1,0 +1,124 @@
+/* APE 아이콘 시스템
+ * VS Code의 Codicons 기반 아이콘 확장 세트
+ */
+
+/* 기본 Codicon 폰트 임포트 */
+/* Webview에서는 불필요한 임포트 - Codicon CSS는 HTML에서 직접 로드됩니다 */
+/* @import url('../../../resources/codicons/codicon.css'); */
+
+/* APE 아이콘 기본 스타일 */
+.ape-icon {
+  font-family: 'codicon';
+  font-size: 16px;
+  display: inline-block;
+  text-decoration: none;
+  text-rendering: auto;
+  text-align: center;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  vertical-align: middle;
+}
+
+/* 아이콘 크기 변형 */
+.ape-icon-sm {
+  font-size: 14px;
+}
+
+.ape-icon-lg {
+  font-size: 18px;
+}
+
+.ape-icon-xl {
+  font-size: 24px;
+}
+
+/* 아이콘 색상 변형 */
+.ape-icon-primary {
+  color: var(--ape-accent, #FF9900);
+}
+
+.ape-icon-git {
+  color: var(--ape-git, #F14E32);
+}
+
+.ape-icon-jira {
+  color: var(--ape-jira, #0052CC);
+}
+
+.ape-icon-swdp {
+  color: var(--ape-swdp, #6554C0);
+}
+
+/* 애니메이션 효과 */
+@keyframes ape-rotate {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.ape-icon-spin {
+  animation: ape-rotate 1.5s steps(30) infinite;
+}
+
+/* 그룹별 아이콘 래퍼 */
+.ape-command-git,
+.ape-command-jira,
+.ape-command-swdp,
+.ape-command-system {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ape-command-git .ape-icon {
+  color: var(--ape-git, #F14E32);
+}
+
+.ape-command-jira .ape-icon {
+  color: var(--ape-jira, #0052CC);
+}
+
+.ape-command-swdp .ape-icon {
+  color: var(--ape-swdp, #6554C0);
+}
+
+.ape-command-system .ape-icon {
+  color: var(--ape-accent, #FF9900);
+}
+
+/* 텍스트 내 아이콘 위치 조정 */
+.ape-icon-inline {
+  font-size: inherit;
+  line-height: 1;
+  margin: 0 2px;
+  vertical-align: text-bottom;
+}
+
+/* 배지 스타일 아이콘 */
+.ape-icon-badge {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: var(--vscode-activityBarBadge-background);
+  color: var(--vscode-activityBarBadge-foreground);
+}
+
+/* 토스트 메시지 내 아이콘 */
+.ape-toast-icon {
+  margin-right: 8px;
+}
+
+/* 버튼 내 아이콘 */
+.ape-button-icon {
+  margin-right: 6px;
+}
+
+/* 특수 아이콘 스타일 */
+.ape-logo-icon {
+  color: var(--ape-accent, #FF9900);
+  margin-right: 8px;
+}

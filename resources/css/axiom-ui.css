@@ -1,0 +1,943 @@
+/* 
+ * APE UI - Consolidated CSS
+ * 통합된 UI 스타일 시트
+ */
+
+/* ========== 테마 변수 ========== */
+:root {
+  /* APE 고유 색상 매핑 */
+  --ape-accent: #FF9900;
+  --ape-accent-light: #FFB84D;
+  --ape-accent-dark: #CC7A00;
+  
+  /* 플러그인별 색상 */
+  --ape-git: #F14E32;
+  --ape-jira: #0052CC;
+  --ape-swdp: #6554C0;
+  
+  /* 상태 색상 */
+  --ape-success: var(--vscode-gitDecoration-addedResourceForeground, #81b88b);
+  --ape-warning: var(--vscode-warningForeground, #cca700);
+  --ape-error: var(--vscode-errorForeground, #f48771);
+  --ape-info: var(--vscode-activityBarBadge-background, #007acc);
+
+  /* 구문 강조 색상 (코드 블록용) */
+  --ape-syntax-keyword: var(--vscode-symbolIcon-keywordForeground, #569cd6);
+  --ape-syntax-string: var(--vscode-symbolIcon-stringForeground, #ce9178);
+  --ape-syntax-number: var(--vscode-symbolIcon-numberForeground, #b5cea8);
+  --ape-syntax-comment: var(--vscode-symbolIcon-textForeground, #6a9955);
+  --ape-syntax-class: var(--vscode-symbolIcon-classForeground, #4ec9b0);
+  --ape-syntax-function: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+  --ape-syntax-variable: var(--vscode-symbolIcon-variableForeground, #9cdcfe);
+  
+  /* 간격 시스템 */
+  --ape-space-xs: 4px;
+  --ape-space-sm: 8px;
+  --ape-space-md: 12px;
+  --ape-space-lg: 16px;
+  --ape-space-xl: 24px;
+  
+  /* 글꼴 크기 */
+  --ape-font-xs: 11px;
+  --ape-font-sm: 12px;
+  --ape-font-md: 14px;
+  --ape-font-lg: 16px;
+  --ape-font-xl: 18px;
+  
+  /* 애니메이션 속도 */
+  --ape-animation-fast: 0.1s;
+  --ape-animation-normal: 0.2s;
+  --ape-animation-slow: 0.3s;
+  
+  /* 그림자 스타일 */
+  --ape-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --ape-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+  --ape-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+  
+  /* 테두리 반경 */
+  --ape-radius-sm: 2px;
+  --ape-radius-md: 4px;
+  --ape-radius-lg: 8px;
+  --ape-radius-xl: 12px;
+  
+  /* 테두리 스타일 */
+  --ape-border-width: 1px;
+  --ape-border-style: solid;
+  --ape-border-color: var(--vscode-sideBarSectionHeader-border);
+  
+  /* 커서 모양 */
+  --ape-cursor-hover: pointer;
+  --ape-cursor-disabled: not-allowed;
+  
+  /* 불투명도 */
+  --ape-opacity-disabled: 0.5;
+  --ape-opacity-hover: 0.8;
+  --ape-opacity-active: 1;
+}
+
+/* ========== 공통 스타일 ========== */
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-sideBar-background);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-size: var(--vscode-font-size);
+  transition: all var(--ape-animation-normal) ease;
+}
+
+/* 테마 타입별 스타일 */
+body.ape-theme-dark {
+  color-scheme: dark;
+}
+
+body.ape-theme-light {
+  color-scheme: light;
+}
+
+/* APE 컴포넌트 스타일 기본값 */
+.ape-component {
+  border-radius: var(--ape-radius-md);
+  padding: var(--ape-space-md);
+  margin-bottom: var(--ape-space-md);
+  background-color: var(--vscode-editor-background);
+  border: var(--ape-border-width) var(--ape-border-style) var(--ape-border-color);
+  transition: all var(--ape-animation-normal) ease;
+}
+
+/* 버튼 기본 스타일 */
+.ape-button {
+  padding: var(--ape-space-sm) var(--ape-space-md);
+  border-radius: var(--ape-radius-sm);
+  border: none;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  cursor: var(--ape-cursor-hover);
+  font-size: var(--ape-font-sm);
+  transition: background-color var(--ape-animation-normal) ease;
+}
+
+.ape-button:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.ape-button:disabled {
+  opacity: var(--ape-opacity-disabled);
+  cursor: var(--ape-cursor-disabled);
+}
+
+/* 입력 필드 기본 스타일 */
+.ape-input {
+  padding: var(--ape-space-sm);
+  border-radius: var(--ape-radius-sm);
+  border: var(--ape-border-width) var(--ape-border-style) var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: var(--ape-font-sm);
+}
+
+.ape-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder, var(--ape-accent));
+}
+
+/* ========== 채팅 인터페이스 스타일 ========== */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* 헤더 영역 */
+.chat-header {
+  padding: 8px 10px;
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-header h1 {
+  font-size: 14px;
+  margin: 0;
+  color: var(--vscode-sideBarTitle-foreground);
+  font-weight: normal;
+}
+
+.logo {
+  font-size: var(--ape-font-lg);
+  color: var(--ape-accent);
+  margin-right: var(--ape-space-sm);
+}
+
+/* 모델 선택 컴포넌트 스타일 */
+.model-selector {
+  position: relative;
+  display: inline-block;
+  min-width: 120px;
+}
+
+.model-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 8px;
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-dropdown-border);
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.model-selector-header:hover {
+  background-color: var(--vscode-dropdown-listBackground);
+}
+
+.model-selector-title {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80%;
+}
+
+.model-selector-icon {
+  margin-left: 4px;
+  transition: transform 0.2s ease;
+}
+
+.model-selector-icon.open {
+  transform: rotate(180deg);
+}
+
+.model-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 180px;
+  overflow-y: auto;
+  background-color: var(--vscode-dropdown-listBackground);
+  border: var(--ape-border-width) var(--ape-border-style) var(--vscode-dropdown-border);
+  border-radius: var(--ape-radius-sm);
+  box-shadow: var(--ape-shadow-md);
+  z-index: 10;
+  display: none;
+  transition: all var(--ape-animation-normal) ease;
+}
+
+.model-selector-dropdown.open {
+  display: block;
+  width: 240px; /* 더 넓은 드롭다운 */
+}
+
+.model-category-header {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-editor-foreground);
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border);
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.model-option {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--vscode-dropdown-foreground);
+  cursor: pointer;
+}
+
+.model-option:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.model-option.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* 메시지 영역 */
+.chat-messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  margin-bottom: var(--ape-space-md);
+  max-width: 85%;
+  padding: var(--ape-space-sm) var(--ape-space-md);
+  border-radius: var(--ape-radius-xl);
+  word-wrap: break-word;
+  transition: all var(--ape-animation-normal) ease;
+}
+
+.message-user {
+  align-self: flex-end;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.message-assistant {
+  align-self: flex-start;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  border: 1px solid var(--vscode-input-border);
+}
+
+.message-system {
+  align-self: center;
+  background-color: var(--vscode-activityBarBadge-background);
+  color: var(--vscode-activityBarBadge-foreground);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+/* 스트리밍 효과 */
+.streaming::after {
+  content: '';
+  display: inline-block;
+  vertical-align: middle;
+  width: 5px;
+  height: 1.2em;
+  background-color: var(--vscode-editor-foreground);
+  animation: blink 1s step-end infinite;
+  margin-left: 3px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* 입력 영역 */
+.chat-input-container {
+  padding: 10px;
+  background-color: var(--vscode-sideBar-background);
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.input-wrapper {
+  display: flex;
+  position: relative;
+}
+
+.chat-input {
+  flex: 1;
+  padding: var(--ape-space-sm);
+  padding-right: 40px;
+  border: var(--ape-border-width) var(--ape-border-style) var(--vscode-input-border);
+  border-radius: var(--ape-radius-md);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  resize: none;
+  min-height: 38px;
+  max-height: 120px;
+  transition: border-color var(--ape-animation-normal) ease, background-color var(--ape-animation-normal) ease;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder, var(--ape-accent));
+}
+
+.send-button {
+  position: absolute;
+  right: var(--ape-space-sm);
+  bottom: var(--ape-space-sm);
+  background: none;
+  border: none;
+  color: var(--vscode-button-foreground);
+  cursor: var(--ape-cursor-hover);
+  font-size: var(--ape-font-md);
+  opacity: var(--ape-opacity-hover);
+  transition: opacity var(--ape-animation-normal) ease;
+}
+
+.send-button:hover {
+  opacity: var(--ape-opacity-active);
+}
+
+.send-button:disabled {
+  opacity: var(--ape-opacity-disabled);
+  cursor: var(--ape-cursor-disabled);
+}
+
+/* 툴바 */
+.toolbar {
+  display: flex;
+  margin-bottom: 8px;
+  justify-content: flex-end;
+}
+
+.toolbar-button {
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  margin-left: 8px;
+}
+
+.toolbar-button:hover {
+  opacity: 1;
+}
+
+/* ========== 코드 블록 스타일 ========== */
+/* Base code block container */
+.code-block-container {
+  margin: var(--ape-space-md) 0;
+  border-radius: var(--ape-radius-md);
+  overflow: hidden;
+  background-color: var(--vscode-editor-background);
+  border: var(--ape-border-width) var(--ape-border-style) var(--vscode-editorWidget-border, var(--vscode-input-border));
+  box-shadow: var(--ape-shadow-sm);
+  transition: all var(--ape-animation-normal) ease;
+}
+
+/* Header bar for code blocks */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--ape-space-xs) var(--ape-space-sm);
+  background-color: var(--vscode-editorGroupHeader-tabsBackground, var(--vscode-editor-background));
+  border-bottom: var(--ape-border-width) var(--ape-border-style) var(--vscode-editorWidget-border, var(--vscode-input-border));
+  font-size: var(--ape-font-sm);
+  transition: background-color var(--ape-animation-normal) ease;
+}
+
+/* Language indicator */
+.code-language {
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family, var(--vscode-font-family));
+  font-size: var(--ape-font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color var(--ape-animation-normal) ease;
+}
+
+/* Copy button */
+.copy-button {
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+  border: none;
+  color: var(--vscode-button-foreground);
+  padding: 2px var(--ape-space-xs);
+  font-size: var(--ape-font-xs);
+  cursor: var(--ape-cursor-hover);
+  border-radius: var(--ape-radius-sm);
+  opacity: var(--ape-opacity-hover);
+  transition: all var(--ape-animation-normal) ease;
+}
+
+.copy-button:hover {
+  opacity: var(--ape-opacity-active);
+  background-color: var(--vscode-button-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.copy-button.copied {
+  background-color: var(--ape-success, var(--vscode-gitDecoration-addedResourceForeground, #81b88b));
+  color: var(--vscode-button-foreground);
+  opacity: var(--ape-opacity-active);
+}
+
+.copy-icon {
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+/* Code block pre/code elements */
+.code-block {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  tab-size: 4;
+  white-space: pre;
+  color: var(--vscode-editor-foreground);
+}
+
+.code-block code {
+  font-family: inherit;
+  background: transparent;
+  padding: 0;
+}
+
+/* Inline code */
+code.inline-code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  background-color: var(--vscode-textCodeBlock-background, rgba(127, 127, 127, 0.1));
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: var(--vscode-editor-foreground);
+}
+
+/* Simple syntax highlighting using theme variables */
+.highlight-js, .highlight-javascript {
+  color: var(--ape-syntax-function, var(--vscode-symbolIcon-functionForeground, #dcdcaa));
+}
+
+.highlight-py, .highlight-python {
+  color: var(--ape-syntax-class, var(--vscode-symbolIcon-methodForeground, #4ec9b0));
+}
+
+.highlight-ts, .highlight-typescript {
+  color: var(--ape-syntax-class, var(--vscode-symbolIcon-typeParameterForeground, #3dc9b0));
+}
+
+.highlight-json {
+  color: var(--ape-syntax-string, var(--vscode-symbolIcon-jsonForeground, #ce9178));
+}
+
+.highlight-html {
+  color: var(--ape-syntax-string, var(--vscode-symbolIcon-snippetForeground, #ce9178));
+}
+
+.highlight-css {
+  color: var(--ape-syntax-variable, var(--vscode-symbolIcon-colorForeground, #9cdcfe));
+}
+
+.highlight-bash, .highlight-shell, .highlight-sh {
+  color: var(--vscode-terminal-foreground, #cccccc);
+}
+
+/* Syntax elements */
+.syntax-keyword {
+  color: var(--ape-syntax-keyword, var(--vscode-symbolIcon-keywordForeground, #569cd6));
+}
+
+.syntax-string {
+  color: var(--ape-syntax-string, var(--vscode-symbolIcon-stringForeground, #ce9178));
+}
+
+.syntax-number {
+  color: var(--ape-syntax-number, var(--vscode-symbolIcon-numberForeground, #b5cea8));
+}
+
+.syntax-comment {
+  color: var(--ape-syntax-comment, var(--vscode-symbolIcon-textForeground, #6a9955));
+  font-style: italic;
+}
+
+.syntax-class {
+  color: var(--ape-syntax-class, var(--vscode-symbolIcon-classForeground, #4ec9b0));
+}
+
+.syntax-function {
+  color: var(--ape-syntax-function, var(--vscode-symbolIcon-functionForeground, #dcdcaa));
+}
+
+.syntax-variable {
+  color: var(--ape-syntax-variable, var(--vscode-symbolIcon-variableForeground, #9cdcfe));
+}
+
+/* Theme-based adaptations */
+.ape-theme-dark .code-block-container {
+  border-color: var(--vscode-widget-border, #454545);
+}
+
+.ape-theme-light .code-block-container {
+  border-color: var(--vscode-widget-border, #ccc);
+}
+
+/* Code block collapsible */
+.code-block-container.collapsible .code-block-header {
+  cursor: var(--ape-cursor-hover);
+}
+
+.code-block-container.collapsed .code-block {
+  display: none;
+}
+
+.collapse-icon {
+  margin-right: var(--ape-space-xs);
+  transition: transform var(--ape-animation-normal) ease;
+}
+
+.code-block-container.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+/* ========== 명령어 버튼 스타일 ========== */
+.command-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.command-section h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  opacity: 0.8;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.commands-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.command-button {
+  margin: 0;
+}
+
+.button-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.button-content:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+.button-content i {
+  font-size: 14px;
+}
+
+/* 그룹별 색상 스타일 */
+.command-group-jira .button-content {
+  background-color: #0052CC;
+}
+
+.command-group-git .button-content {
+  background-color: #F14E32;
+}
+
+.command-group-swdp .button-content {
+  background-color: #6554C0;
+}
+
+.command-group-system .button-content {
+  background-color: var(--vscode-button-background);
+}
+
+/* 명령어 영역 확장 */
+.empty-command-message {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* 커맨드 영역 접기/펼치기 */
+.command-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+
+.toggle-icon {
+  font-size: 12px;
+  transition: transform 0.2s;
+}
+
+.toggle-icon.collapsed {
+  transform: rotate(-90deg);
+}
+
+.commands-container.collapsed {
+  display: none;
+}
+
+/* ========== 명령어 자동완성 스타일 ========== */
+.command-suggestions {
+  position: absolute;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-focusBorder, #007fd4);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  font-family: var(--vscode-font-family, 'Segoe UI', Tahoma, sans-serif);
+  overflow: hidden;
+  max-width: 500px;
+}
+
+.suggestion-title {
+  padding: 6px 10px;
+  background-color: var(--vscode-sideBar-background, #252526);
+  color: var(--vscode-foreground, #cccccc);
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, #3c3c3c);
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-item:hover,
+.suggestion-item.active {
+  background-color: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
+.suggestion-item.active {
+  background-color: var(--vscode-list-activeSelectionBackground, #094771);
+  color: var(--vscode-list-activeSelectionForeground, #ffffff);
+}
+
+.suggestion-item i {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+.suggestion-label {
+  font-size: 13px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-description {
+  color: var(--vscode-descriptionForeground, #9d9d9d);
+  font-size: 12px;
+  margin-left: 8px;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion-item.active .suggestion-description {
+  color: var(--vscode-list-activeSelectionForeground, #ffffff);
+  opacity: 0.8;
+}
+
+/* 인라인 명령어 힌트 */
+.command-hint {
+  position: absolute;
+  pointer-events: none;
+  color: var(--vscode-editorSuggestWidget-foreground, #9d9d9d);
+  opacity: 0.8;
+  user-select: none;
+}
+
+/* Claude Code 스타일 명령어 입력 스타일 */
+.chat-input.with-hint {
+  color: transparent;
+  caret-color: var(--vscode-input-foreground, #cccccc);
+}
+
+.command-hint-container {
+  position: relative;
+}
+
+.command-hint-visible {
+  color: var(--vscode-input-foreground, #cccccc) !important;
+}
+
+.command-hint-suggestion {
+  color: var(--vscode-editorSuggestWidget-foreground, #9d9d9d);
+}
+
+/* 명령어 그룹별 색상 */
+.command-group-git i {
+  color: #0366d6 !important;
+}
+
+.command-group-jira i {
+  color: #0052cc !important;
+}
+
+.command-group-swdp i {
+  color: #ff9900 !important;
+}
+
+.command-group-system i {
+  color: #6f42c1 !important;
+}
+
+/* ========== 유틸리티 클래스 ========== */
+.ape-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--ape-radius-xl);
+  background-color: var(--vscode-activityBarBadge-background);
+  color: var(--vscode-activityBarBadge-foreground);
+  font-size: var(--ape-font-xs);
+  font-weight: bold;
+}
+
+.ape-header {
+  padding: var(--ape-space-sm);
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  border-bottom: var(--ape-border-width) var(--ape-border-style) var(--vscode-sideBarSectionHeader-border);
+}
+
+/* 상태별 색상 클래스 */
+.ape-success {
+  color: var(--ape-success);
+}
+
+.ape-warning {
+  color: var(--ape-warning);
+}
+
+.ape-error {
+  color: var(--ape-error);
+}
+
+.ape-info {
+  color: var(--ape-info);
+}
+
+/* 백그라운드 상태별 색상 클래스 */
+.ape-bg-success {
+  background-color: var(--ape-success);
+  color: #ffffff;
+}
+
+.ape-bg-warning {
+  background-color: var(--ape-warning);
+  color: #ffffff;
+}
+
+.ape-bg-error {
+  background-color: var(--ape-error);
+  color: #ffffff;
+}
+
+.ape-bg-info {
+  background-color: var(--ape-info);
+  color: #ffffff;
+}
+
+/* ========== 플렉스 유틸리티 ========== */
+.ape-flex {
+  display: flex;
+}
+
+.ape-flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.ape-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ape-flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ape-flex-grow {
+  flex-grow: 1;
+}
+
+/* ========== 애니메이션 ========== */
+@keyframes ape-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ape-slide-up {
+  from { 
+    transform: translateY(20px);
+    opacity: 0; 
+  }
+  to { 
+    transform: translateY(0);
+    opacity: 1; 
+  }
+}
+
+@keyframes ape-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.ape-fade-in {
+  animation: ape-fade-in var(--ape-animation-normal) ease;
+}
+
+.ape-slide-up {
+  animation: ape-slide-up var(--ape-animation-normal) ease;
+}
+
+.ape-spin {
+  animation: ape-spin 1.5s linear infinite;
+}
+
+/* ========== 반응형 미디어 쿼리 ========== */
+@media (max-width: 480px) {
+  :root {
+    --ape-space-md: 8px;
+    --ape-space-lg: 12px;
+    --ape-font-md: 13px;
+    --ape-font-lg: 15px;
+  }
+  
+  .commands-container {
+    flex-direction: column;
+  }
+  
+  .command-button {
+    width: 100%;
+  }
+  
+  .message {
+    max-width: 95%;
+  }
+}
+
+/* ========== Codicon 아이콘 스타일 ========== */
+.codicon {
+  font-family: codicon;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  font-variant-ligatures: discretionary-ligatures;
+  display: inline-block;
+  line-height: 1;
+  text-align: center;
+  width: 20px;
+  height: 20px;
+}

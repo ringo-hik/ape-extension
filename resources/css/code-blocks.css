@@ -1,0 +1,82 @@
+/* Code Blocks Styling - Skeleton Version */
+
+/* Base code block container */
+.code-block-container {
+  margin: 12px 0;
+  overflow: hidden;
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-input-border);
+}
+
+/* Header bar for code blocks */
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background-color: var(--vscode-editor-background);
+  border-bottom: 1px solid var(--vscode-input-border);
+  font-size: 12px;
+}
+
+/* Language indicator */
+.code-language {
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-font-family);
+  font-size: 11px;
+}
+
+/* Copy button */
+.copy-button {
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+  border: 1px solid var(--vscode-input-border);
+  color: var(--vscode-button-foreground);
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.copy-button.copied {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.copy-icon {
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+/* Code block pre/code elements */
+.code-block {
+  margin: 0;
+  padding: 12px;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  tab-size: 4;
+  white-space: pre;
+  color: var(--vscode-editor-foreground);
+}
+
+.code-block code {
+  font-family: inherit;
+  background: transparent;
+  padding: 0;
+}
+
+/* Inline code */
+code.inline-code {
+  font-family: monospace;
+  background-color: var(--vscode-editor-background);
+  padding: 2px 4px;
+  border: 1px solid var(--vscode-input-border);
+  font-size: 0.9em;
+  color: var(--vscode-editor-foreground);
+}

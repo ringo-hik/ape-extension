@@ -1,0 +1,270 @@
+/* 채팅 인터페이스 기본 스타일 - 스켈레톤 버전 */
+body {
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-sideBar-background);
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-size: var(--vscode-font-size);
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* 헤더 영역 */
+.chat-header {
+  padding: 8px 10px;
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-header h1 {
+  font-size: 14px;
+  margin: 0;
+  color: var(--vscode-foreground);
+  font-weight: normal;
+}
+
+.logo {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+/* 모델 선택 컴포넌트 스타일 */
+.model-selector {
+  position: relative;
+  display: inline-block;
+  min-width: 120px;
+}
+
+.model-selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 8px;
+  background-color: var(--vscode-dropdown-background);
+  color: var(--vscode-dropdown-foreground);
+  border: 1px solid var(--vscode-input-border);
+  cursor: pointer;
+}
+
+.model-selector-header:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.model-selector-title {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80%;
+}
+
+.model-selector-icon {
+  margin-left: 4px;
+}
+
+.model-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 180px;
+  overflow-y: auto;
+  background-color: var(--vscode-dropdown-background);
+  border: 1px solid var(--vscode-input-border);
+  z-index: 10;
+  display: none;
+}
+
+.model-selector-dropdown.open {
+  display: block;
+  width: 240px;
+}
+
+.model-category-header {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-sideBarSectionHeader-background);
+  border-top: 1px solid var(--vscode-input-border);
+  border-bottom: 1px solid var(--vscode-input-border);
+  margin-top: 4px;
+}
+
+.model-option {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--vscode-dropdown-foreground);
+  cursor: pointer;
+}
+
+.model-option:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.model-option.selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* 메시지 영역 */
+.chat-messages {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.message {
+  margin-bottom: 10px;
+  max-width: 85%;
+  padding: 8px 12px;
+  word-wrap: break-word;
+  border: 1px solid var(--vscode-input-border);
+}
+
+.message-user {
+  align-self: flex-end;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.message-assistant {
+  align-self: flex-start;
+  background-color: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.message-system {
+  align-self: center;
+  background-color: var(--vscode-editorWidget-background);
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+/* 스트리밍 효과 */
+.streaming::after {
+  content: '|';
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 3px;
+}
+
+/* 입력 영역 */
+.chat-input-container {
+  padding: 10px;
+  background-color: var(--vscode-sideBar-background);
+  border-top: 1px solid var(--vscode-input-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.input-wrapper {
+  display: flex;
+  position: relative;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 8px;
+  padding-right: 40px;
+  border: 1px solid var(--vscode-input-border);
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-family: inherit;
+  resize: none;
+  min-height: 38px;
+  max-height: 120px;
+}
+
+.send-button {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  background: none;
+  border: none;
+  color: var(--vscode-button-foreground);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.send-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* 툴바 */
+.toolbar {
+  display: flex;
+  margin-bottom: 8px;
+  justify-content: flex-end;
+}
+
+.toolbar-button {
+  background: none;
+  border: 1px solid var(--vscode-input-border);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  margin-left: 8px;
+}
+
+.toolbar-button.active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+/* 명령어 패널 */
+.commands-panel-container {
+  margin-bottom: 10px;
+  border: 1px solid var(--vscode-input-border);
+  overflow: hidden;
+  background-color: var(--vscode-editor-background);
+}
+
+.commands-panel {
+  width: 100%;
+  height: 300px;
+  border: none;
+  overflow: auto;
+}
+
+/* 빈 상태 메시지 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-state-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.empty-state-title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.empty-state-text {
+  font-size: 12px;
+  max-width: 240px;
+}
