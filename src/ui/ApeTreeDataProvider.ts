@@ -7,43 +7,47 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ApeCoreService } from '../core/ApeCoreService';
+import { ICoreService } from '../core/ICoreService';
 import { CommandType, CommandDomain } from '../types/CommandTypes';
 import { SwdpDomainService } from '../core/domain/SwdpDomainService';
+import { container } from '../core/di/Container';
+
+// 디버그 로그 추가
+console.log('ApeTreeDataProvider: 모듈 로드됨');
 
 /**
  * TreeView 노드 타입 열거형
  */
 export enum TreeNodeType {
-  // 카테고리 노드
+  
   CATEGORY = 'category',
   
-  // 채팅 관련 노드
+  
   CHAT_SESSION = 'chat-session',
   CHAT_HISTORY = 'chat-history',
   
-  // 명령어 관련 노드
+  
   COMMAND_ROOT = 'command-root',
   COMMAND_DOMAIN = 'command-domain',
   COMMAND = 'command',
   
-  // 지식 저장소 관련 노드
+  
   VAULT_ROOT = 'vault-root',
   VAULT_FOLDER = 'vault-folder',
   VAULT_DOCUMENT = 'vault-document',
   
-  // SWDP 관련 노드
+  
   SWDP_ROOT = 'swdp-root',
   SWDP_PROJECT = 'swdp-project',
   SWDP_TASK = 'swdp-task',
   SWDP_DOCUMENT = 'swdp-document',
   SWDP_BUILD = 'swdp-build',
   
-  // 룰 관련 노드
+  
   RULE_ROOT = 'rule-root',
   RULE = 'rule',
   
-  // 설정 관련 노드
+  
   SETTINGS_ROOT = 'settings-root',
   SETTINGS_CATEGORY = 'settings-category',
   SETTINGS_ITEM = 'settings-item'
@@ -53,21 +57,21 @@ export enum TreeNodeType {
  * TreeView 아이템 인터페이스
  */
 export interface ApeTreeItem {
-  // 기본 속성
+  
   id: string;
   label: string;
   type: TreeNodeType;
   
-  // 추가 속성
+  
   description?: string;
   iconPath?: string | vscode.ThemeIcon;
   tooltip?: string;
   contextValue?: string;
   
-  // 메타데이터 (명령어, 실행 함수 등)
+  
   metadata?: any;
   
-  // 자식 아이템
+  
   children?: ApeTreeItem[];
 }
 
@@ -75,28 +79,32 @@ export interface ApeTreeItem {
  * APE TreeView 데이터 제공자 클래스
  */
 export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem> {
-  // VS Code 이벤트 이미터
+  
   private _onDidChangeTreeData: vscode.EventEmitter<ApeTreeItem | undefined> = new vscode.EventEmitter<ApeTreeItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<ApeTreeItem | undefined> = this._onDidChangeTreeData.event;
   
-  // 트리 데이터
+  
   private treeData: ApeTreeItem[] = [];
   
-  // 컨텍스트 및 서비스 참조
-  private context: vscode.ExtensionContext;
-  private coreService: ApeCoreService;
+  
+  private readonly context: vscode.ExtensionContext;
+  private readonly coreService: ICoreService;
   
   /**
    * 생성자
    * @param context VS Code 확장 컨텍스트
+   * @param coreService 코어 서비스 인스턴스
    */
-  constructor(context: vscode.ExtensionContext) {
+  constructor(
+    context: vscode.ExtensionContext,
+    coreService: ICoreService
+  ) {
     this.context = context;
-    this.coreService = ApeCoreService.getInstance();
+    this.coreService = coreService;
     
-    // 트리 데이터 초기화 (비동기 처리)
-    // 코어 서비스가 초기화될 때까지 기다리지 않음
-    // refresh() 메서드를 통해 UI 업데이트 가능
+    console.log('ApeTreeDataProvider: 생성자 호출됨, ape.treeView 제공자 초기화');
+    
+    // 초기화 지연 (의존성이 모두 로드된 후 실행하기 위함)
     setTimeout(() => {
       console.log('ApeTreeDataProvider: 초기 트리 데이터 초기화 시작');
       this.initializeTreeData();
@@ -109,7 +117,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    */
   private initializeTreeData(): void {
     this.treeData = [
-      // 채팅 카테고리
+      
       {
         id: 'chat',
         label: '채팅',
@@ -136,7 +144,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         ]
       },
       
-      // 명령어 카테고리
+      
       {
         id: 'commands',
         label: '명령어',
@@ -146,7 +154,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         children: this.getCommandDomainItems()
       },
       
-      // 지식 저장소 카테고리
+      
       {
         id: 'vault',
         label: '지식 저장소',
@@ -156,7 +164,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         children: this.getVaultItems()
       },
       
-      // SWDP 카테고리
+      
       {
         id: 'swdp',
         label: 'SWDP 포털',
@@ -166,7 +174,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         children: this.getSwdpItems()
       },
       
-      // 룰 카테고리
+      
       {
         id: 'rules',
         label: '프롬프트 룰',
@@ -176,7 +184,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         children: this.getRuleItems()
       },
       
-      // 설정 카테고리
+      
       {
         id: 'settings',
         label: '설정',
@@ -193,48 +201,115 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 채팅 히스토리 트리 아이템 배열
    */
   private getChatHistoryItems(): ApeTreeItem[] {
+    try {
+      // ChatService 인스턴스 가져오기
+      const chatService = container.get('chatService');
+      if (!chatService) {
+        console.error('ApeTreeDataProvider: ChatService를 찾을 수 없습니다.');
+        return this.getPlaceholderHistoryItems();
+      }
+      
+      // 날짜별로 그룹화된 세션 가져오기
+      const sessionsByDate = chatService.getSessionsByDate();
+      
+      if (!sessionsByDate || sessionsByDate.size === 0) {
+        return [{
+          id: 'chat-history-empty',
+          label: '대화 기록 없음',
+          type: TreeNodeType.CHAT_HISTORY,
+          iconPath: new vscode.ThemeIcon('info'),
+          contextValue: 'chatHistoryEmpty',
+          description: '저장된 대화가 없습니다'
+        }];
+      }
+      
+      const historyItems: ApeTreeItem[] = [];
+      
+      // 오늘 세션
+      if (sessionsByDate.has('today')) {
+        const todaySessions = sessionsByDate.get('today') || [];
+        historyItems.push({
+          id: 'chat-history-today',
+          label: `오늘 (${todaySessions.length} 세션)`,
+          type: TreeNodeType.CHAT_HISTORY,
+          iconPath: new vscode.ThemeIcon('calendar'),
+          contextValue: 'chatHistoryDay',
+          children: todaySessions.map(session => this.createSessionTreeItem(session, true))
+        });
+      }
+      
+      // 어제 세션
+      if (sessionsByDate.has('yesterday')) {
+        const yesterdaySessions = sessionsByDate.get('yesterday') || [];
+        historyItems.push({
+          id: 'chat-history-yesterday',
+          label: `어제 (${yesterdaySessions.length} 세션)`,
+          type: TreeNodeType.CHAT_HISTORY,
+          iconPath: new vscode.ThemeIcon('calendar'),
+          contextValue: 'chatHistoryDay',
+          children: yesterdaySessions.map(session => this.createSessionTreeItem(session, false))
+        });
+      }
+      
+      // 이전 세션 (이외 날짜)
+      for (const [dateKey, sessions] of sessionsByDate.entries()) {
+        if (dateKey !== 'today' && dateKey !== 'yesterday' && sessions.length > 0) {
+          historyItems.push({
+            id: `chat-history-${dateKey}`,
+            label: `${dateKey} (${sessions.length} 세션)`,
+            type: TreeNodeType.CHAT_HISTORY,
+            iconPath: new vscode.ThemeIcon('calendar'),
+            contextValue: 'chatHistoryDay',
+            children: sessions.map(session => this.createSessionTreeItem(session, false))
+          });
+        }
+      }
+      
+      return historyItems;
+    } catch (error) {
+      console.error('ApeTreeDataProvider: 채팅 히스토리 로드 중 오류 발생:', error);
+      return this.getPlaceholderHistoryItems();
+    }
+  }
+  
+  /**
+   * 세션 객체로부터 트리 아이템 생성
+   */
+  private createSessionTreeItem(session: any, isToday: boolean): ApeTreeItem {
+    // 타임스탬프를 시간 문자열로 변환
+    const time = new Date(session.timestamp).toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const description = isToday ? `오늘 ${time}` : time;
+    
+    return {
+      id: session.id,
+      label: session.title,
+      type: TreeNodeType.CHAT_SESSION,
+      iconPath: new vscode.ThemeIcon('comment'),
+      description: description,
+      contextValue: 'chatHistorySession',
+      metadata: {
+        sessionId: session.id,
+        timestamp: session.timestamp,
+        messageCount: session.messages?.length || 0
+      }
+    };
+  }
+  
+  /**
+   * 기본 히스토리 아이템 (로딩 실패시)
+   */
+  private getPlaceholderHistoryItems(): ApeTreeItem[] {
     return [
       {
-        id: 'chat-history-1',
-        label: '오늘 (2 세션)',
+        id: 'chat-history-loading',
+        label: '대화 기록 로딩 중...',
         type: TreeNodeType.CHAT_HISTORY,
-        iconPath: new vscode.ThemeIcon('calendar'),
-        contextValue: 'chatHistoryDay',
-        children: [
-          {
-            id: 'chat-session-1',
-            label: '프로젝트 설정 도움말',
-            type: TreeNodeType.CHAT_SESSION,
-            iconPath: new vscode.ThemeIcon('comment'),
-            description: '오늘 10:30',
-            contextValue: 'chatHistorySession'
-          },
-          {
-            id: 'chat-session-2',
-            label: '명령어 시스템 개발',
-            type: TreeNodeType.CHAT_SESSION,
-            iconPath: new vscode.ThemeIcon('comment'),
-            description: '오늘 14:15',
-            contextValue: 'chatHistorySession'
-          }
-        ]
-      },
-      {
-        id: 'chat-history-2',
-        label: '어제 (1 세션)',
-        type: TreeNodeType.CHAT_HISTORY,
-        iconPath: new vscode.ThemeIcon('calendar'),
-        contextValue: 'chatHistoryDay',
-        children: [
-          {
-            id: 'chat-session-3',
-            label: 'UI 개선 작업',
-            type: TreeNodeType.CHAT_SESSION,
-            iconPath: new vscode.ThemeIcon('comment'),
-            description: '어제 15:45',
-            contextValue: 'chatHistorySession'
-          }
-        ]
+        iconPath: new vscode.ThemeIcon('loading~spin'),
+        contextValue: 'chatHistoryLoading'
       }
     ];
   }
@@ -244,7 +319,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 명령어 도메인 트리 아이템 배열
    */
   private getCommandDomainItems(): ApeTreeItem[] {
-    // commandRegistry가 undefined일 수 있으므로 안전하게 처리
+    
     const commandRegistry = this.coreService?.commandRegistry;
     const domains: ApeTreeItem[] = [];
     
@@ -261,7 +336,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       }];
     }
     
-    // 시스템 명령어 (/로 시작하는 명령어)
+    
     const systemCommandItem: ApeTreeItem = {
       id: 'commands-system',
       label: '시스템 명령어',
@@ -273,7 +348,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
     };
     
     try {
-      // 시스템 명령어 로드
+      
       const systemCommands = commandRegistry.getAllSystemCommandUsages() || [];
       systemCommandItem.children = systemCommands.map(cmd => ({
         id: `command-${cmd.command}`,
@@ -302,8 +377,8 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
     
     domains.push(systemCommandItem);
     
-    // 도메인별 명령어 ('@'로 시작하는 명령어)
-    // Git 도메인
+    
+    
     domains.push({
       id: 'commands-git',
       label: 'Git 명령어',
@@ -314,7 +389,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: this.getCommandsForDomain(CommandDomain.GIT)
     });
     
-    // 문서 도메인
+    
     domains.push({
       id: 'commands-doc',
       label: '문서 명령어',
@@ -325,7 +400,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: this.getCommandsForDomain(CommandDomain.DOC)
     });
     
-    // Jira 도메인
+    
     domains.push({
       id: 'commands-jira',
       label: 'Jira 명령어',
@@ -336,7 +411,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: this.getCommandsForDomain(CommandDomain.JIRA)
     });
     
-    // Pocket 도메인
+    
     domains.push({
       id: 'commands-pocket',
       label: 'Pocket 명령어',
@@ -347,7 +422,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: this.getCommandsForDomain(CommandDomain.POCKET)
     });
     
-    // Vault 도메인
+    
     domains.push({
       id: 'commands-vault',
       label: 'Vault 명령어',
@@ -358,7 +433,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: this.getCommandsForDomain(CommandDomain.VAULT)
     });
     
-    // Rules 도메인
+    
     domains.push({
       id: 'commands-rules',
       label: 'Rules 명령어',
@@ -369,7 +444,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: this.getCommandsForDomain(CommandDomain.RULES)
     });
     
-    // SWDP 도메인
+    
     domains.push({
       id: 'commands-swdp',
       label: 'SWDP 명령어',
@@ -392,7 +467,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
     try {
       const commandRegistry = this.coreService?.commandRegistry;
       
-      // commandRegistry가 undefined인 경우 처리
+      
       if (!commandRegistry) {
         console.log(`ApeTreeDataProvider: ${domain} 도메인 명령어 로드 실패 - commandRegistry가 초기화되지 않음`);
         return [{
@@ -621,7 +696,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns VS Code TreeItem 인스턴스
    */
   getTreeItem(element: ApeTreeItem): vscode.TreeItem {
-    // TreeItem 인스턴스 생성
+    
     const treeItem = new vscode.TreeItem(
       element.label,
       element.children && element.children.length > 0 
@@ -629,26 +704,26 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         : vscode.TreeItemCollapsibleState.None
     );
     
-    // 기본 속성 설정
+    
     treeItem.description = element.description || '';
     treeItem.tooltip = element.tooltip || element.description || element.label;
     treeItem.contextValue = element.contextValue || '';
     
-    // 아이콘 설정
+    
     if (element.iconPath) {
       treeItem.iconPath = element.iconPath;
     }
     
-    // 메타데이터 설정 및 명령 연결
+    
     if (element.metadata) {
       if (element.contextValue === 'settingsOpen') {
-        // 설정 열기 명령 설정
+        
         treeItem.command = {
           command: element.metadata.command,
           title: element.metadata.title || '설정 열기'
         };
       } else if (element.type === TreeNodeType.COMMAND) {
-        // 명령어 세부정보 보기 명령 설정
+        
         treeItem.command = {
           command: 'ape.showCommandDetails',
           title: '명령어 세부정보 보기',
@@ -679,7 +754,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    */
   private getSwdpItems(): ApeTreeItem[] {
     try {
-      // SWDP 기능 활성화 여부 확인
+      
       const swdpEnabled = vscode.workspace.getConfiguration('ape').get('swdp.enabled', true);
       if (!swdpEnabled) {
         return [{
@@ -691,7 +766,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         }];
       }
       
-      // 연결 상태 확인
+      
       try {
         const swdpDomainService = SwdpDomainService.getInstance();
         const isInitialized = swdpDomainService.isInitialized();
@@ -706,7 +781,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
           }];
         }
         
-        // 프로젝트 목록 (미리 가져온 캐시 데이터 활용)
+        
         const projects = swdpDomainService.getCachedProjects() || [];
         
         if (projects.length === 0) {
@@ -720,7 +795,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
           }];
         }
         
-        // 프로젝트 트리 아이템 생성
+        
         return projects.map(project => ({
           id: `swdp-project-${project.code}`,
           label: project.name,
@@ -730,7 +805,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
           description: project.description || '',
           metadata: {
             projectId: project.code,
-            projectKey: project.code // code 사용
+            projectKey: project.code 
           },
           children: [
             {
@@ -789,8 +864,8 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 부모 아이템 또는 null
    */
   getParent(element: ApeTreeItem): vscode.ProviderResult<ApeTreeItem> {
-    // 부모 찾기는 선택적 구현이지만, 제공하면 트리의 탐색이 향상됨
-    // 복잡한 트리 구조에서는 부모 참조를 별도로 유지하는 것이 좋음
+    
+    
     return null;
   }
 }

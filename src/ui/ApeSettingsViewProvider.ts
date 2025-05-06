@@ -8,7 +8,7 @@ import fs from 'fs';
  * Provider class for displaying and managing APE settings in a webview
  */
 export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = 'apeSettingsView';
+  public static readonly viewType = 'ape.settingsView';
 
   private _view?: vscode.WebviewView;
   private _configService: ConfigService;
@@ -55,7 +55,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
 
-    // Handle messages from the webview
+    
     webviewView.webview.onDidReceiveMessage(async (message) => {
       await this._handleWebviewMessage(message);
     });
@@ -103,20 +103,20 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    * @param webview Optional webview to send settings to (if not the view)
    */
   public async _sendCurrentSettings(webview?: vscode.Webview) {
-    // Use provided webview or the view's webview
+    
     const targetWebview = webview || (this._view ? this._view.webview : undefined);
     
     if (!targetWebview) {
       return;
     }
 
-    // Get VS Code settings
+    
     this._vsCodeConfig = vscode.workspace.getConfiguration('ape');
     
-    // Get current settings from configService for any additional non-VS Code settings
+    
     const config = this._configService.getAppConfig();
     
-    // Create the user section
+    
     const userInfo = {
       displayName: config['user'] ? config['user']['displayName'] || '' : '',
       email: config['user'] ? config['user']['email'] || '' : '',
@@ -126,19 +126,19 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
       swdpTeam: config['swdp'] ? config['swdp']['team'] || '' : ''
     };
     
-    // Get plugin settings 
+    
     const plugins = config['plugins'] || [];
     
-    // Get API endpoints
+    
     const apiEndpoints = {
       llmEndpoint: config['endpoints'] ? config['endpoints']['llm'] || '' : '',
       gitApiEndpoint: config['endpoints'] ? config['endpoints']['git'] || '' : '',
       jiraApiEndpoint: config['endpoints'] ? config['endpoints']['jira'] || '' : '',
-      swdpApiEndpoint: this._vsCodeConfig.get('swdp.baseUrl') || 'http://localhost:8001',
+      swdpApiEndpoint: this._vsCodeConfig.get('swdp.baseUrl') || 'http://localhost:8080',
       pocketApiEndpoint: config['endpoints'] ? config['endpoints']['pocket'] || '' : ''
     };
     
-    // Get LLM settings from VS Code configuration
+    
     const llmSettings = {
       defaultModel: this._vsCodeConfig.get('llm.defaultModel') || 'gemini-2.5-flash',
       openRouterApiKey: this._vsCodeConfig.get('llm.openrouterApiKey') || '',
@@ -147,11 +147,11 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
       maxTokens: 4000
     };
     
-    // Get all available models from configuration
+    
     const availableModels = this._vsCodeConfig.get('llm.models') || {};
     console.log('Available models:', availableModels);
     
-    // Send settings to webview
+    
     targetWebview.postMessage({
       command: 'updateSettings',
       settings: {
@@ -167,7 +167,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
         },
         swdpSettings: {
           enabled: this._vsCodeConfig.get('swdp.enabled') || true,
-          baseUrl: this._vsCodeConfig.get('swdp.baseUrl') || 'http://localhost:8001',
+          baseUrl: this._vsCodeConfig.get('swdp.baseUrl') || 'http://localhost:8080',
           defaultProject: this._vsCodeConfig.get('swdp.defaultProject') || ''
         }
       }
@@ -180,7 +180,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    * @param userInfo The user information to save
    */
   private async _handleSaveUserInfo(userInfo: any) {
-    // Update configuration
+    
     await this._configService.updateConfig('app', {
       user: {
         displayName: userInfo.displayName,
@@ -196,7 +196,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    // Show confirmation
+    
     this._vscodeService.showInformationMessage('User information saved');
   }
 
@@ -206,12 +206,12 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    * @param pluginSettings The plugin settings to save
    */
   private async _handleSavePluginSettings(pluginSettings: any) {
-    // Update configuration
+    
     await this._configService.updateConfig('app', {
       plugins: pluginSettings
     });
 
-    // Show confirmation
+    
     this._vscodeService.showInformationMessage('Plugin settings saved');
   }
 
@@ -222,10 +222,10 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    */
   private async _handleSaveApiEndpoints(apiEndpoints: any) {
     try {
-      // Update VS Code configuration for SWDP
+      
       await this._vsCodeConfig.update('swdp.baseUrl', apiEndpoints.swdpApiEndpoint, vscode.ConfigurationTarget.Global);
       
-      // Update other endpoints via ConfigService
+      
       await this._configService.updateConfig('app', {
         endpoints: {
           llm: apiEndpoints.llmEndpoint,
@@ -235,7 +235,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
         }
       });
 
-      // Show confirmation
+      
       this._vscodeService.showInformationMessage('API 엔드포인트가 저장되었습니다');
     } catch (error) {
       console.error('API 엔드포인트 저장 중 오류 발생:', error);
@@ -250,12 +250,12 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    */
   private async _handleSaveLlmSettings(llmSettings: any) {
     try {
-      // Update VS Code configuration
+      
       await this._vsCodeConfig.update('llm.defaultModel', llmSettings.defaultModel, vscode.ConfigurationTarget.Global);
       await this._vsCodeConfig.update('llm.openrouterApiKey', llmSettings.openRouterApiKey, vscode.ConfigurationTarget.Global);
       await this._vsCodeConfig.update('llm.supportsStreaming', llmSettings.supportsStreaming, vscode.ConfigurationTarget.Global);
       
-      // Update non-VS Code settings via ConfigService if needed
+      
       await this._configService.updateConfig('app', {
         llm: {
           temperature: llmSettings.temperature,
@@ -263,7 +263,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
         }
       });
       
-      // Show confirmation
+      
       this._vscodeService.showInformationMessage('LLM 설정이 저장되었습니다');
     } catch (error) {
       console.error('LLM 설정 저장 중 오류 발생:', error);
@@ -278,13 +278,13 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    */
   private async _handleSaveModels(models: any) {
     try {
-      // Update VS Code configuration
+      
       await this._vsCodeConfig.update('llm.models', models, vscode.ConfigurationTarget.Global);
       
-      // Show confirmation
+      
       this._vscodeService.showInformationMessage('모델 설정이 저장되었습니다');
       
-      // Update UI
+      
       await this._sendCurrentSettings();
     } catch (error) {
       console.error('모델 설정 저장 중 오류 발생:', error);
@@ -301,7 +301,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
     const config = this._configService.getAppConfig();
     const currentPlugins = config.plugins || [];
     
-    // Add new plugin
+    
     currentPlugins.push({
       id: pluginInfo.id,
       name: pluginInfo.name,
@@ -310,15 +310,15 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
       settings: pluginInfo.settings || {}
     });
     
-    // Update configuration
+    
     await this._configService.updateConfig('app', {
       plugins: currentPlugins
     });
     
-    // Update UI
+    
     await this._sendCurrentSettings();
     
-    // Show confirmation
+    
     this._vscodeService.showInformationMessage(`Plugin ${pluginInfo.name} added`);
   }
 
@@ -331,18 +331,18 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
     const config = this._configService.getAppConfig();
     let currentPlugins = config.plugins || [];
     
-    // Filter out the plugin to remove
+    
     currentPlugins = currentPlugins.filter(plugin => plugin.id !== pluginId);
     
-    // Update configuration
+    
     await this._configService.updateConfig('app', {
       plugins: currentPlugins
     });
     
-    // Update UI
+    
     await this._sendCurrentSettings();
     
-    // Show confirmation
+    
     this._vscodeService.showInformationMessage(`Plugin removed`);
   }
 
@@ -353,12 +353,12 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    * @returns The HTML string
    */
   public _getHtmlForWebview(webview: vscode.Webview): string {
-    // Get path to media resources
+    
     const cssUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'ape-ui.css')
     );
 
-    // Read main CSS file for general styling
+    
     let cssContent = '';
     try {
       const cssPath = path.join(this._extensionUri.fsPath, 'resources', 'css', 'ape-ui.css');
@@ -574,7 +574,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                 margin-top: 15px;
             }
             
-            /* Sliders for temperature */
+            
             .slider-container {
                 margin-top: 5px;
             }
@@ -618,7 +618,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                 margin-top: 4px;
             }
 
-            /* Models list styling */
+            
             .models-grid {
                 display: grid;
                 grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -851,7 +851,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     <div class="endpoint-title">LLM Endpoint</div>
                     <div class="form-group">
                         <label for="llmEndpoint">URL</label>
-                        <input type="text" id="llmEndpoint" placeholder="https://api.anthropic.com/v1">
+                        <input type="text" id="llmEndpoint" placeholder="https:
                     </div>
                 </div>
                 
@@ -859,7 +859,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     <div class="endpoint-title">Git API Endpoint</div>
                     <div class="form-group">
                         <label for="gitApiEndpoint">URL</label>
-                        <input type="text" id="gitApiEndpoint" placeholder="https://api.github.com">
+                        <input type="text" id="gitApiEndpoint" placeholder="https:
                     </div>
                 </div>
                 
@@ -867,7 +867,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     <div class="endpoint-title">Jira API Endpoint</div>
                     <div class="form-group">
                         <label for="jiraApiEndpoint">URL</label>
-                        <input type="text" id="jiraApiEndpoint" placeholder="https://your-domain.atlassian.net/rest/api/3">
+                        <input type="text" id="jiraApiEndpoint" placeholder="https:
                     </div>
                 </div>
                 
@@ -875,7 +875,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     <div class="endpoint-title">SWDP API Endpoint</div>
                     <div class="form-group">
                         <label for="swdpApiEndpoint">URL</label>
-                        <input type="text" id="swdpApiEndpoint" placeholder="https://swdp-api.example.com">
+                        <input type="text" id="swdpApiEndpoint" placeholder="https:
                     </div>
                 </div>
                 
@@ -883,7 +883,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     <div class="endpoint-title">Pocket API Endpoint</div>
                     <div class="form-group">
                         <label for="pocketApiEndpoint">URL</label>
-                        <input type="text" id="pocketApiEndpoint" placeholder="https://getpocket.com/v3">
+                        <input type="text" id="pocketApiEndpoint" placeholder="https:
                     </div>
                 </div>
                 
@@ -941,7 +941,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     </div>
                     <div class="form-group">
                         <label for="modelApiUrl">API URL</label>
-                        <input type="text" id="modelApiUrl" placeholder="https://api.example.com">
+                        <input type="text" id="modelApiUrl" placeholder="https:
                     </div>
                     <div class="form-group">
                         <label for="modelApiModel">API 모델 명칭</label>
@@ -996,7 +996,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
         
         <script>
             (function() {
-                // Tab switching
+                
                 const tabs = document.querySelectorAll('.tab');
                 const tabContents = document.querySelectorAll('.tab-content');
                 
@@ -1004,17 +1004,17 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     tab.addEventListener('click', () => {
                         const tabId = tab.getAttribute('data-tab');
                         
-                        // Remove active class from all tabs and contents
+                        
                         tabs.forEach(t => t.classList.remove('active'));
                         tabContents.forEach(c => c.classList.remove('active'));
                         
-                        // Add active class to clicked tab and corresponding content
+                        
                         tab.classList.add('active');
                         document.getElementById(tabId).classList.add('active');
                     });
                 });
                 
-                // Temperature slider
+                
                 const temperatureSlider = document.getElementById('temperature');
                 const temperatureValue = document.getElementById('temperatureValue');
                 
@@ -1022,7 +1022,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     temperatureValue.textContent = temperatureSlider.value;
                 });
                 
-                // Toggle password visibility
+                
                 const toggleButtons = document.querySelectorAll('.toggle-visibility');
                 
                 toggleButtons.forEach(button => {
@@ -1040,7 +1040,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     });
                 });
                 
-                // Plugin list rendering
+                
                 function renderPluginList(plugins = []) {
                     const pluginList = document.getElementById('pluginList');
                     pluginList.innerHTML = '';
@@ -1067,7 +1067,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         pluginList.appendChild(pluginItem);
                     });
                     
-                    // Attach event listeners to toggles and remove buttons
+                    
                     document.querySelectorAll('.plugin-toggle').forEach(toggle => {
                         toggle.addEventListener('change', (e) => {
                             const pluginId = e.target.getAttribute('data-id');
@@ -1082,7 +1082,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     document.querySelectorAll('.remove-plugin').forEach(button => {
                         button.addEventListener('click', (e) => {
                             const pluginId = e.target.getAttribute('data-id');
-                            // Send message to VS Code to remove plugin
+                            
                             vscode.postMessage({
                                 command: 'removePlugin',
                                 pluginId: pluginId
@@ -1091,7 +1091,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     });
                 }
                 
-                // Add plugin button
+                
                 document.getElementById('addPlugin').addEventListener('click', () => {
                     const id = document.getElementById('pluginId').value.trim();
                     const name = document.getElementById('pluginName').value.trim();
@@ -1129,13 +1129,13 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         }
                     });
                     
-                    // Clear form
+                    
                     document.getElementById('pluginId').value = '';
                     document.getElementById('pluginName').value = '';
                     document.getElementById('pluginSettings').value = '';
                 });
                 
-                // Save user info
+                
                 document.getElementById('saveUserInfo').addEventListener('click', () => {
                     vscode.postMessage({
                         command: 'saveUserInfo',
@@ -1150,9 +1150,9 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     });
                 });
                 
-                // Save plugin settings
+                
                 document.getElementById('savePluginSettings').addEventListener('click', () => {
-                    // Collect current plugin state
+                    
                     const plugins = [];
                     document.querySelectorAll('.plugin-item').forEach(item => {
                         const nameElement = item.querySelector('.plugin-name');
@@ -1175,7 +1175,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     });
                 });
                 
-                // Save API endpoints
+                
                 document.getElementById('saveApiEndpoints').addEventListener('click', () => {
                     vscode.postMessage({
                         command: 'saveApiEndpoints',
@@ -1189,9 +1189,9 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     });
                 });
                 
-                // Save LLM settings
+                
                 document.getElementById('saveLlmSettings').addEventListener('click', () => {
-                    // OpenRouter 키가 있는지 확인
+                    
                     const openRouterKeyElement = document.getElementById('openRouterApiKey');
                     const openRouterKey = openRouterKeyElement ? openRouterKeyElement.value : '';
 
@@ -1199,7 +1199,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         command: 'saveLlmSettings',
                         llmSettings: {
                             defaultModel: document.getElementById('defaultModel').value,
-                            // 테스트용 OpenRouter 키
+                            
                             openRouterApiKey: openRouterKey,
                             supportsStreaming: document.getElementById('supportsStreaming').checked,
                             temperature: parseFloat(document.getElementById('temperature').value),
@@ -1208,18 +1208,18 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     });
                 });
                 
-                // Listen for messages from the extension
-                // 모델 목록 관리
+                
+                
                 let currentModels = {};
                 let editingModelId = null;
                 
-                // 모델 목록 렌더링
+                
                 function renderModelsList(models) {
                     const modelsContainer = document.getElementById('models-container');
                     modelsContainer.innerHTML = '';
                     currentModels = models || {};
                     
-                    // 기본 모델 값 가져오기
+                    
                     const defaultModelId = document.getElementById('defaultModel').value;
                     
                     if (Object.keys(models).length === 0) {
@@ -1242,7 +1242,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         const contextWindow = model.contextWindow || 'N/A';
                         const maxTokens = model.maxTokens || 'N/A';
                         
-                        // 시스템 프롬프트 처리
+                        
                         let systemPromptDisplay = 'N/A';
                         if (model.systemPrompt) {
                             const promptText = model.systemPrompt;
@@ -1250,7 +1250,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                                 promptText.substring(0, 50) + '...' : promptText;
                         }
                         
-                        // 헤더 처리
+                        
                         let headersDisplay = '';
                         if (model.headers) {
                             const headersText = JSON.stringify(model.headers);
@@ -1259,13 +1259,13 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             headersDisplay = '<div><span class="model-detail-label">헤더:</span> ' + truncated + '</div>';
                         }
                         
-                        // API 모델 처리
+                        
                         let apiModelDisplay = '';
                         if (model.apiModel) {
                             apiModelDisplay = '<div><span class="model-detail-label">API 모델:</span> ' + model.apiModel + '</div>';
                         }
                         
-                        // 기본 모델 뱃지
+                        
                         const isDefault = modelId === defaultModelId;
                         const defaultBadge = isDefault ? 
                             '<div class="model-default-badge">기본 모델</div>' : '';
@@ -1296,7 +1296,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         modelsContainer.appendChild(modelItem);
                     }
                     
-                    // 편집 버튼 이벤트 등록
+                    
                     document.querySelectorAll('.edit-button').forEach(button => {
                         button.addEventListener('click', (e) => {
                             const modelId = e.target.getAttribute('data-id');
@@ -1304,7 +1304,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         });
                     });
                     
-                    // 삭제 버튼 이벤트 등록
+                    
                     document.querySelectorAll('.delete-button').forEach(button => {
                         button.addEventListener('click', (e) => {
                             const modelId = e.target.getAttribute('data-id');
@@ -1315,13 +1315,13 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                         });
                     });
                     
-                    // 기본 모델 설정 버튼 이벤트 등록
+                    
                     document.querySelectorAll('.set-default-button').forEach(button => {
                         button.addEventListener('click', (e) => {
                             const modelId = e.target.getAttribute('data-id');
                             document.getElementById('defaultModel').value = modelId;
                             
-                            // 저장 트리거
+                            
                             vscode.postMessage({
                                 command: 'saveLlmSettings',
                                 llmSettings: {
@@ -1333,20 +1333,20 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                                 }
                             });
                             
-                            // 모델 리스트 다시 렌더링
+                            
                             renderModelsList(currentModels);
                         });
                     });
                 }
                 
-                // 모델 폼 열기
+                
                 function openModelEditForm(modelId, model) {
                     const form = document.getElementById('modelEditForm');
                     editingModelId = modelId;
                     
-                    // 폼에 모델 데이터 채우기
+                    
                     document.getElementById('modelId').value = modelId || '';
-                    document.getElementById('modelId').disabled = !!modelId;  // 기존 모델 ID는 수정 불가
+                    document.getElementById('modelId').disabled = !!modelId;  
                     document.getElementById('modelName').value = model?.name || '';
                     document.getElementById('modelProvider').value = model?.provider || 'custom';
                     document.getElementById('modelApiUrl').value = model?.apiUrl || '';
@@ -1356,12 +1356,12 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     document.getElementById('modelSystemPrompt').value = model?.systemPrompt || '';
                     document.getElementById('modelHeadersJson').value = model?.headers ? JSON.stringify(model.headers, null, 2) : '';
                     
-                    // 폼 표시
+                    
                     form.style.display = 'block';
                     document.getElementById('modelId').focus();
                 }
                 
-                // 모델 저장
+                
                 function saveModel() {
                     try {
                         const modelId = document.getElementById('modelId').value.trim();
@@ -1371,7 +1371,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             return;
                         }
                         
-                        // 모델 기본 정보
+                        
                         const model = {
                             name: document.getElementById('modelName').value.trim() || modelId,
                             provider: document.getElementById('modelProvider').value,
@@ -1381,13 +1381,13 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             systemPrompt: document.getElementById('modelSystemPrompt').value.trim()
                         };
                         
-                        // API 모델 (있는 경우만)
+                        
                         const apiModel = document.getElementById('modelApiModel').value.trim();
                         if (apiModel) {
                             model.apiModel = apiModel;
                         }
                         
-                        // 헤더 JSON 파싱 (있는 경우만)
+                        
                         const headersJson = document.getElementById('modelHeadersJson').value.trim();
                         if (headersJson) {
                             try {
@@ -1398,62 +1398,62 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             }
                         }
                         
-                        // 기존 모델 복사 후 업데이트
+                        
                         const updatedModels = { ...currentModels };
                         
-                        // 새로운 모델이거나 이름이 변경된 경우
+                        
                         if (editingModelId && editingModelId !== modelId) {
-                            // 기존 모델 삭제하고 새 이름으로 추가
+                            
                             delete updatedModels[editingModelId];
                             updatedModels[modelId] = model;
                         } else {
-                            // 기존 모델 업데이트 또는 새 모델 추가
+                            
                             updatedModels[modelId] = model;
                         }
                         
-                        // VS Code에 설정 저장 메시지 전송
+                        
                         vscode.postMessage({
                             command: 'saveModels',
                             models: updatedModels
                         });
                         
-                        // 모델 폼 닫기
+                        
                         closeModelEditForm();
                     } catch (error) {
                         alert('모델 저장 중 오류가 발생했습니다: ' + error.message);
                     }
                 }
                 
-                // 모델 삭제
+                
                 function deleteModel(modelId) {
                     if (!modelId || !currentModels[modelId]) return;
                     
-                    // 모델 목록에서 삭제
+                    
                     const updatedModels = { ...currentModels };
                     delete updatedModels[modelId];
                     
-                    // VS Code에 설정 저장 메시지 전송
+                    
                     vscode.postMessage({
                         command: 'saveModels',
                         models: updatedModels
                     });
                 }
                 
-                // 모델 폼 닫기
+                
                 function closeModelEditForm() {
                     document.getElementById('modelEditForm').style.display = 'none';
                     editingModelId = null;
                 }
                 
-                // 새 모델 추가 버튼 이벤트
+                
                 document.getElementById('addModelBtn').addEventListener('click', () => {
                     openModelEditForm(null, null);
                 });
                 
-                // 모델 저장 버튼 이벤트
+                
                 document.getElementById('saveModelBtn').addEventListener('click', saveModel);
                 
-                // 모델 취소 버튼 이벤트
+                
                 document.getElementById('cancelModelBtn').addEventListener('click', closeModelEditForm);
                 
                 window.addEventListener('message', event => {
@@ -1461,7 +1461,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                     
                     switch (message.command) {
                         case 'updateSettings':
-                            // Update User Info
+                            
                             const userInfo = message.settings.userInfo;
                             document.getElementById('displayName').value = userInfo.displayName || '';
                             document.getElementById('email').value = userInfo.email || '';
@@ -1470,10 +1470,10 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             document.getElementById('swdpUsername').value = userInfo.swdpUsername || '';
                             document.getElementById('swdpTeam').value = userInfo.swdpTeam || '';
                             
-                            // Update Plugin Settings
+                            
                             renderPluginList(message.settings.pluginSettings);
                             
-                            // Update API Endpoints
+                            
                             const apiEndpoints = message.settings.apiEndpoints;
                             document.getElementById('llmEndpoint').value = apiEndpoints.llmEndpoint || '';
                             document.getElementById('gitApiEndpoint').value = apiEndpoints.gitApiEndpoint || '';
@@ -1481,17 +1481,17 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             document.getElementById('swdpApiEndpoint').value = apiEndpoints.swdpApiEndpoint || '';
                             document.getElementById('pocketApiEndpoint').value = apiEndpoints.pocketApiEndpoint || '';
                             
-                            // Update LLM Settings
+                            
                             const llmSettings = message.settings.llmSettings;
                             const availableModels = message.settings.availableModels || {};
                             
-                            // 모델 목록 생성
+                            
                             const defaultModelSelect = document.getElementById('defaultModel');
-                            defaultModelSelect.innerHTML = ''; // 기존 옵션 제거
+                            defaultModelSelect.innerHTML = ''; 
                             
                             console.log('웹뷰에서 모델 목록:', availableModels);
                             
-                            // 모델 목록 추가
+                            
                             if (availableModels && Object.keys(availableModels).length > 0) {
                                 Object.keys(availableModels).forEach(modelId => {
                                     const model = availableModels[modelId];
@@ -1501,7 +1501,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                                     defaultModelSelect.appendChild(option);
                                 });
                             } else {
-                                // 모델이 없을 경우 기본 옵션 추가
+                                
                                 const option = document.createElement('option');
                                 option.value = '';
                                 option.textContent = '설정된 모델 없음';
@@ -1509,38 +1509,38 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                                 console.warn('모델 목록이 비어있습니다');
                             }
                             
-                            // 기본 모델 선택
+                            
                             defaultModelSelect.value = llmSettings.defaultModel || '';
                             
-                            // 모델 상세 설정 목록 렌더링
+                            
                             renderModelsList(availableModels);
                             
-                            // OpenRouter API Key
-                            // OpenRouter API Key (테스트용) - 주석 처리하여 노출 방지
+                            
+                            
                             if (document.getElementById('openRouterApiKey')) {
                               document.getElementById('openRouterApiKey').value = llmSettings.openRouterApiKey || '';
                             }
                             
-                            // 스트리밍 지원 여부
+                            
                             document.getElementById('supportsStreaming').checked = llmSettings.supportsStreaming || false;
                             
-                            // Temperature
+                            
                             const temperature = llmSettings.temperature || 0.7;
                             document.getElementById('temperature').value = temperature;
                             document.getElementById('temperatureValue').textContent = temperature;
                             
-                            // Max Tokens
+                            
                             document.getElementById('maxTokens').value = llmSettings.maxTokens || 4000;
                             break;
                     }
                 });
                 
-                // Request initial settings
+                
                 vscode.postMessage({
                     command: 'getSettings'
                 });
                 
-                // Declare vscode for webview
+                
                 const vscode = acquireVsCodeApi();
             })();
         </script>
