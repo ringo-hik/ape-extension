@@ -12,6 +12,7 @@
   <link href="${contextSuggestionsCssUri}" rel="stylesheet">
   <link href="${codiconsUri}" rel="stylesheet">
   <link href="${apeIconsCssUri}" rel="stylesheet">
+  <link href="${modelDropdownCssUri}" rel="stylesheet">
   <!-- 아이콘용 CSS -->
   <link href="${phosphorIconsCssUri}" rel="stylesheet">
   <link href="${webviewResourceBaseUri}/css/toolbar-icons.css" rel="stylesheet">
@@ -20,6 +21,39 @@
     window.apeDebug = {
       log: function(message) {
         console.log('[APE Debug]:', message);
+      },
+      error: function(message) {
+        console.error('[APE Error]:', message);
+      },
+      warn: function(message) {
+        console.warn('[APE Warning]:', message);
+      },
+      // 디버그 이벤트 리스너
+      initDebugListeners: function() {
+        apeDebug.log('디버그 이벤트 리스너 초기화 중...');
+        
+        // 모든 버튼에 대한 디버그 클릭 리스너 추가
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(function(button) {
+          button.addEventListener('click', function(e) {
+            apeDebug.log('버튼 클릭됨: ' + (button.id || '[id 없음]') + ' - ' + (button.textContent || '[내용 없음]'));
+          });
+          
+          // 마우스 진입/이탈 이벤트 리스너
+          button.addEventListener('mouseenter', function() {
+            apeDebug.log('마우스 진입: ' + (button.id || '[id 없음]'));
+          });
+          
+          // 인라인 이벤트 핸들러 추가 (직접 접근 테스트)
+          if (button.id === 'apeToggleButton') {
+            button.onclick = function(e) {
+              apeDebug.log('APE 토글 버튼 직접 onclick 이벤트 감지!');
+              // 기본 이벤트 전파는 그대로 진행
+            };
+          }
+        });
+        
+        apeDebug.log('디버그 이벤트 리스너 초기화 완료');
       }
     };
     
@@ -29,20 +63,78 @@
       apeDebug.log('CSS URI: ${cssUri}');
       apeDebug.log('모델 선택기 URI: ${modelSelectorUri}');
       apeDebug.log('코드 블록 CSS URI: ${codeBlocksCssUri}');
+      
+      // 모델 선택기와 채팅 기능 디버깅을 위한 내부 상태 검사
+      setTimeout(function() {
+        // UI 요소 상태 검사
+        const elementsToCheck = [
+          'modelSelector', 'chatInput', 'sendButton', 'clearButton', 
+          'embedDevButton', 'commandsButton', 'apeToggleButton'
+        ];
+        
+        const elementStatus = {};
+        elementsToCheck.forEach(function(id) {
+          const element = document.getElementById(id);
+          elementStatus[id] = !!element;
+          
+          if (!element) {
+            apeDebug.error(`${id} 요소를 찾을 수 없습니다.`);
+          }
+        });
+        
+        apeDebug.log('UI 요소 상태:', elementStatus);
+        
+        // 디버그 이벤트 리스너 초기화
+        apeDebug.initDebugListeners();
+        
+        // document 레벨 이벤트 위임 추가 (안전망)
+        document.addEventListener('click', function(e) {
+          if (e.target && e.target.tagName === 'BUTTON') {
+            const buttonId = e.target.id || '[id 없음]';
+            const buttonText = e.target.textContent || '[내용 없음]';
+            apeDebug.log(`문서 수준 이벤트 위임: 버튼 클릭됨 (ID: ${buttonId}, 텍스트: ${buttonText})`);
+          }
+        });
+      }, 2000);
+    });
+    
+    // DOM 변경 감지 (MutationObserver)
+    window.addEventListener('load', function() {
+      // DOM 변경 관찰을 위한 MutationObserver 설정
+      const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            // 새로운 노드가 추가된 경우 중요 버튼이 있는지 확인
+            mutation.addedNodes.forEach(function(node) {
+              if (node.nodeType === 1 && node.id === 'apeToggleButton') {
+                apeDebug.log('APE 토글 버튼이 DOM에 추가되었습니다!');
+                
+                // 이벤트 리스너 직접 추가 시도
+                node.addEventListener('click', function() {
+                  apeDebug.log('추가된 APE 토글 버튼 클릭됨!');
+                });
+              }
+            });
+          }
+        });
+      });
+      
+      // 전체 문서에 대한 변경 감지 설정
+      observer.observe(document.body, { childList: true, subtree: true });
     });
   </script>
 </head>
 <body>
   <div class="chat-container">
     <div class="chat-header">
-      <h1><span class="logo"><img src="${cspSource}/resources/ape_logo.svg" alt="APE Logo" class="header-logo"></span> APE 채팅</h1>
+      <h1><span class="logo"><i class="codicon codicon-terminal"></i></span> APE 채팅</h1>
       <div id="modelSelector" class="model-selector"></div>
     </div>
     
     <div class="chat-messages" id="messages">
       <!-- 빈 상태 메시지 -->
       <div class="empty-state" id="emptyState">
-        <div class="empty-state-icon"><img src="${cspSource}/resources/ape_logo.svg" alt="APE Logo" class="empty-state-logo"></div>
+        <div class="empty-state-icon"><i class="codicon codicon-robot"></i></div>
         <div class="empty-state-title">APE와 대화를 시작하세요</div>
         <div class="empty-state-text">질문이나 명령어를 입력하여 대화를 시작할 수 있습니다.</div>
       </div>
@@ -61,8 +153,8 @@
         <button class="toolbar-button" id="commandsButton" title="명령어 패널 열기/닫기">
           <i class="ph ph-terminal"></i> 명령어
         </button>
-        <button class="toolbar-button toggle-button" id="apeToggleButton" title="APE 모드 켜기/끄기">
-          <i class="ph ph-lightning"></i> APE 모드
+        <button class="toolbar-button toggle-button" id="apeToggleButton" title="도구 활용 모드 켜기/끄기">
+          <i class="ph ph-lightning"></i> 도구 활용 모드
         </button>
       </div>
       
@@ -78,7 +170,8 @@
     </div>
   </div>
 
-  <script src="${modelSelectorUri}"></script>
+  <!-- 디버그 버전의 모델 선택기 사용 -->
+  <script src="${webviewResourceBaseUri}/js/new-model-selector-debug.js"></script>
   <script src="${codeBlocksJsUri}"></script>
   <script src="${commandIconsJsUri}"></script>
   <script src="${commandAutocompleteJsUri}"></script>
@@ -87,10 +180,78 @@
   <!-- 워크플로우 분석기 -->
   <script src="${workflowAnalyzerJsUri}"></script>
   <script src="${hybridApeUiJsUri}"></script>
+  <!-- UI 이벤트 수정 스크립트 -->
+  <script src="${webviewResourceBaseUri}/js/ape-ui-event-fix.js"></script>
+  <!-- 모델 선택기 디버그 도우미 -->
+  <script src="${webviewResourceBaseUri}/js/model-selector-debug-helper.js"></script>
   <!-- 내장 JS 코드는 제거하고 hybrid-ape-ui.js를 사용 -->
   <script>
     // 콘솔에 초기화 상태만 표시
-    console.log('APE 하이브리드 채팅 UI 초기화: hybrid-ape-ui.js, improved-context-handler.js, workflow-analyzer.js를 사용합니다.');
+    console.log('APE 하이브리드 채팅 UI 초기화: hybrid-ape-ui.js, improved-context-handler.js, workflow-analyzer.js, ape-ui-event-fix.js를 사용합니다.');
+    
+    // 모델 선택기 강조 스타일 추가
+    document.addEventListener('DOMContentLoaded', function() {
+      // 모델 선택기 강조
+      setTimeout(function() {
+        const modelSelector = document.getElementById('modelSelector');
+        if (modelSelector) {
+          // 모델 선택기 시각적 강조
+          modelSelector.style.animation = 'pulse 2s infinite';
+          
+          // 애니메이션 키프레임 추가
+          const styleSheet = document.createElement('style');
+          styleSheet.innerHTML = `
+            @keyframes pulse {
+              0% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.6); }
+              70% { box-shadow: 0 0 0 10px rgba(66, 133, 244, 0); }
+              100% { box-shadow: 0 0 0 0 rgba(66, 133, 244, 0); }
+            }
+            
+            .chat-header::after {
+              content: "← 모델 선택";
+              position: absolute;
+              right: 180px;
+              top: 15px;
+              font-size: 14px;
+              color: var(--vscode-button-background);
+              font-weight: bold;
+              pointer-events: none;
+            }
+          `;
+          document.head.appendChild(styleSheet);
+          
+          // 3초 후 애니메이션 중지
+          setTimeout(function() {
+            modelSelector.style.animation = 'none';
+          }, 6000);
+        }
+      }, 1000);
+    });
+    
+    // 추가 디버깅 도구 
+    document.addEventListener('DOMContentLoaded', function() {
+      // 전역 디버깅 함수 추가
+      window.debugButtons = function() {
+        const buttons = document.querySelectorAll('button');
+        console.log('현재 페이지의 모든 버튼:');
+        buttons.forEach(function(button, index) {
+          console.log(`버튼 ${index + 1}: id=${button.id}, 텍스트=${button.textContent.trim()}, 가시성=${window.getComputedStyle(button).display}`);
+        });
+        
+        // APE 토글 버튼 특별 검사
+        const apeToggleButton = document.getElementById('apeToggleButton');
+        if (apeToggleButton) {
+          console.log('APE 토글 버튼 발견! 상태:');
+          console.log(` - classList: ${apeToggleButton.className}`);
+          console.log(` - 스타일: display=${window.getComputedStyle(apeToggleButton).display}, visibility=${window.getComputedStyle(apeToggleButton).visibility}`);
+          console.log(` - onclick 핸들러: ${apeToggleButton.onclick ? '있음' : '없음'}`);
+        } else {
+          console.log('APE 토글 버튼을 찾을 수 없음!');
+        }
+        
+        return '디버깅 정보가 콘솔에 출력되었습니다.';
+      };
+    });
   </script>
 </body>
 </html>
