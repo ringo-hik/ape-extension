@@ -7,14 +7,22 @@ dist/
 
 # Environment files
 extension.env.js
+*.env.js
+*.env.json
 
 # Claude-generated files
 CLAUDE.md
+CLAUDE_*.md
+CLAUDE_*/
+CLAUDE_GUIDELINES/
+CLAUDE_WORKING_DOCS/
+CLAUDE_TO_OWNER/
 
 # Debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+*.log
 
 # Editor directories and files
 .vscode
@@ -34,3 +42,16 @@ renamed-resources/
 resources-new/
 **/.claude/settings.local.json
 .vscode-test/
+**/temp/
+*.backup
+backup/
+
+# Test files (keep in separate branch)
+tests/
+**/*.test.js
+**/*.test.ts
+
+# Environment-specific directories
+.env/
+.env.internal/
+.env.external/
