@@ -1538,7 +1538,10 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       modelSelectorCssUri: this._getUri(webview, 'resources', 'css', 'components', 'model-selector.css'),
       
       // 외부 리소스
-      codiconsUri: this._getUri(webview, 'resources', 'codicons', 'codicon.css')
+      codiconsUri: this._getUri(webview, 'resources', 'codicons', 'codicon.css'),
+      
+      // Phosphor 아이콘 CSS
+      phosphorIconsCssUri: this._getUri(webview, 'resources', 'fonts', 'phosphor', 'css', 'regular.css')
     };
     
     // JS 리소스 매핑 - 새 디렉토리 구조 적용
