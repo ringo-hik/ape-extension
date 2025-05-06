@@ -307,8 +307,9 @@ export function activate(context: vscode.ExtensionContext) {
         
         // 세부정보 HTML 생성
         const metadata = item.metadata || {};
-        const cssPath = panel.webview.asWebviewUri(vscode.Uri.file(
-          path.join(context.extensionPath, 'resources', 'css', 'claude-style.css')
+        // 새로운 CSS 파일 구조에 맞게 경로 변경
+        const themeCssPath = panel.webview.asWebviewUri(vscode.Uri.file(
+          path.join(context.extensionPath, 'resources', 'css', 'core', 'theme-vars.css')
         ));
         
         const contentHtml = `
@@ -317,7 +318,7 @@ export function activate(context: vscode.ExtensionContext) {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <link rel="stylesheet" href="${cssPath}">
+          <link rel="stylesheet" href="${themeCssPath}">
           <title>명령어 세부정보: ${item.label}</title>
           <style>
             body {
