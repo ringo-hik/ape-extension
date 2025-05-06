@@ -62,6 +62,11 @@ const commonConfig = {
           from: ['./resources/**/*'],
           to: ['./dist/resources'],
           keepStructure: true
+        },
+        // 환경 설정 파일 복사
+        {
+          from: ['./extension.env.js'],
+          to: ['./dist/extension.env.js']
         }
       ],
       watch: watch
