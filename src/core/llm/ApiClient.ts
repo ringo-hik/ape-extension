@@ -527,6 +527,280 @@ export class LocalApiClient implements ApiClient {
 }
 
 /**
+ * OpenRouter API 클라이언트 구현
+ * OpenRouter를 통해 다양한 LLM 모델에 접근
+ */
+export class OpenRouterApiClient implements ApiClient {
+  private idCounter: number = 0;
+  
+  /**
+   * 고유 ID 생성
+   */
+  private generateId(): string {
+    this.idCounter++;
+    return `openrouter-${Date.now()}-${this.idCounter}`;
+  }
+  
+  /**
+   * 환경 변수에서 API 키 가져오기
+   */
+  private getApiKeyFromEnv(): string | undefined {
+    try {
+      // 환경 변수 모듈 로드
+      let envModule: any = null;
+      try {
+        envModule = require('../../../extension.env.js');
+      } catch (envError) {
+        console.error('OpenRouterApiClient: 환경 변수 로드 실패', envError);
+        return undefined;
+      }
+      
+      // OpenRouter API 키 가져오기
+      if (envModule && envModule.OPENROUTER_API_KEY) {
+        return envModule.OPENROUTER_API_KEY;
+      }
+      
+      console.warn('OpenRouterApiClient: API 키가 환경 변수에 설정되지 않았습니다.');
+      return undefined;
+    } catch (error) {
+      console.error('OpenRouterApiClient: API 키 가져오기 오류', error);
+      return undefined;
+    }
+  }
+  
+  /**
+   * API 요청 전송 (비스트리밍)
+   */
+  public async sendRequest(
+    modelConfig: ModelConfig,
+    messages: ChatMessage[],
+    temperature?: number,
+    maxTokens?: number
+  ): Promise<LlmResponse> {
+    // API URL 설정 (OpenRouter는 고정 URL 사용)
+    const apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    
+    console.log(`OpenRouterApiClient: 요청 전송 - 모델: ${modelConfig.name}, API 모델: ${modelConfig.apiModel}`);
+    
+    try {
+      // API 키 가져오기
+      const apiKey = this.getApiKeyFromEnv();
+      
+      if (!apiKey) {
+        throw new Error('OpenRouter API 키가 설정되지 않았습니다.');
+      }
+      
+      // 헤더 생성
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://github.com/user/ape-extension',
+        'X-Title': 'APE Extension'
+      };
+      
+      // 모델 ID 결정 (apiModel 필드 사용)
+      const modelId = modelConfig.apiModel;
+      
+      if (!modelId) {
+        throw new Error(`OpenRouter 모델 ID가 설정되지 않았습니다. (${modelConfig.name})`);
+      }
+      
+      // 요청 본문 생성
+      const requestBody = {
+        model: modelId,
+        messages,
+        temperature: temperature ?? modelConfig.temperature ?? 0.7,
+        max_tokens: maxTokens ?? modelConfig.maxTokens ?? 4096,
+        stream: false
+      };
+      
+      console.log(`OpenRouterApiClient: 요청 데이터 - 모델: ${modelId}, 메시지 수: ${messages.length}`);
+      
+      // 요청 전송
+      const fetchResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+      
+      // 응답 확인
+      if (!fetchResponse.ok) {
+        const errorText = await fetchResponse.text().catch(() => '응답 텍스트를 가져올 수 없음');
+        throw new Error(`OpenRouter API 응답 오류 (${fetchResponse.status}): ${fetchResponse.statusText} - ${errorText}`);
+      }
+      
+      console.log(`OpenRouterApiClient: 응답 성공 - 상태 코드: ${fetchResponse.status}`);
+      
+      // 응답 파싱
+      const responseData = await fetchResponse.json();
+      
+      // 응답 데이터 구조 검증
+      if (!responseData.choices || !responseData.choices.length || !responseData.choices[0].message) {
+        console.error('OpenRouterApiClient: API 응답 형식이 예상과 다릅니다:', responseData);
+        throw new Error('API 응답 데이터 형식이 유효하지 않습니다.');
+      }
+      
+      // 응답 변환
+      return {
+        id: responseData.id || this.generateId(),
+        content: responseData.choices[0].message.content,
+        model: modelConfig.name,
+        usage: responseData.usage ? {
+          promptTokens: responseData.usage.prompt_tokens || 0,
+          completionTokens: responseData.usage.completion_tokens || 0,
+          totalTokens: responseData.usage.total_tokens || 0
+        } : undefined
+      };
+    } catch (error) {
+      console.error(`OpenRouterApiClient: ${modelConfig.name} 요청 오류:`, error);
+      throw error;
+    }
+  }
+  
+  /**
+   * 스트리밍 API 요청 전송
+   */
+  public async sendStreamingRequest(
+    modelConfig: ModelConfig,
+    messages: ChatMessage[],
+    onUpdate: (chunk: string) => void,
+    temperature?: number,
+    maxTokens?: number
+  ): Promise<LlmResponse> {
+    // API URL 설정 (OpenRouter는 고정 URL 사용)
+    const apiUrl = 'https://openrouter.ai/api/v1/chat/completions';
+    
+    console.log(`OpenRouterApiClient: 스트리밍 요청 - 모델: ${modelConfig.name}, API 모델: ${modelConfig.apiModel}`);
+    
+    try {
+      // API 키 가져오기
+      const apiKey = this.getApiKeyFromEnv();
+      
+      if (!apiKey) {
+        throw new Error('OpenRouter API 키가 설정되지 않았습니다.');
+      }
+      
+      // 헤더 생성
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': 'https://github.com/user/ape-extension',
+        'X-Title': 'APE Extension',
+        'Accept': 'text/event-stream'
+      };
+      
+      // 모델 ID 결정 (apiModel 필드 사용)
+      const modelId = modelConfig.apiModel;
+      
+      if (!modelId) {
+        throw new Error(`OpenRouter 모델 ID가 설정되지 않았습니다. (${modelConfig.name})`);
+      }
+      
+      // 요청 본문 생성
+      const requestBody = {
+        model: modelId,
+        messages,
+        temperature: temperature ?? modelConfig.temperature ?? 0.7,
+        max_tokens: maxTokens ?? modelConfig.maxTokens ?? 4096,
+        stream: true
+      };
+      
+      console.log(`OpenRouterApiClient: 스트리밍 요청 데이터 - 모델: ${modelId}, 메시지 수: ${messages.length}`);
+      
+      // 요청 전송
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+      
+      // 응답 확인
+      if (!response.ok || !response.body) {
+        const errorText = await response.text().catch(() => '응답 텍스트를 가져올 수 없음');
+        throw new Error(`OpenRouter 스트리밍 API 응답 오류 (${response.status}): ${response.statusText} - ${errorText}`);
+      }
+      
+      console.log('OpenRouterApiClient: 스트리밍 연결 성공 - 응답 처리 시작');
+      
+      // 응답 ID 및 누적 콘텐츠
+      let responseId = this.generateId();
+      let accumulatedContent = '';
+      
+      // 스트림 리더 생성
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      // 스트림 처리
+      let done = false;
+      let eventCount = 0;
+      let contentChunks = 0;
+      
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        
+        // Server-Sent Events 형식 파싱
+        const events = chunk
+          .split('\n\n')
+          .filter(line => line.trim() !== '' && line.trim() !== 'data: [DONE]');
+        
+        eventCount += events.length;
+        
+        for (const event of events) {
+          // 'data: ' 접두사 제거 및 JSON 파싱
+          if (event.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(event.slice(6));
+              
+              if (data.id) {
+                responseId = data.id;
+              }
+              
+              // 실제 콘텐츠 추출
+              const content = data.choices?.[0]?.delta?.content || '';
+              if (content) {
+                accumulatedContent += content;
+                onUpdate(content);
+                contentChunks++;
+                
+                // 처음 몇 개의 청크만 로깅
+                if (contentChunks <= 3 || contentChunks % 50 === 0) {
+                  console.log(`OpenRouterApiClient: 스트리밍 청크 #${contentChunks}: ${content.length > 20 ? content.substring(0, 20) + '...' : content}`);
+                }
+              }
+            } catch (error) {
+              console.warn('OpenRouterApiClient: 스트리밍 데이터 파싱 오류:', error);
+            }
+          }
+        }
+      }
+      
+      console.log(`OpenRouterApiClient: 스트리밍 완료 - 총 이벤트: ${eventCount}, 청크: ${contentChunks}, 길이: ${accumulatedContent.length}자`);
+      
+      // 누적 콘텐츠가 없는 경우 오류 처리
+      if (accumulatedContent.length === 0) {
+        console.warn('OpenRouterApiClient: 스트리밍 응답에서 내용 추출 실패');
+        throw new Error('스트리밍 데이터에서 콘텐츠를 추출할 수 없습니다.');
+      }
+      
+      // 완료된 응답 반환
+      return {
+        id: responseId,
+        content: accumulatedContent,
+        model: modelConfig.name
+      };
+    } catch (error) {
+      console.error(`OpenRouterApiClient: ${modelConfig.name} 스트리밍 오류:`, error);
+      throw error;
+    }
+  }
+}
+
+/**
  * API 클라이언트 팩토리
  * 모델 제공자에 따라 적절한 API 클라이언트 생성
  */
@@ -538,6 +812,8 @@ export class ApiClientFactory {
     switch (modelConfig.provider) {
       case 'custom':
         return new CustomApiClient();
+      case 'openrouter': // 외부망 OpenRouter 모델 추가
+        return new OpenRouterApiClient();
       case 'local':
         return new LocalApiClient();
       default:

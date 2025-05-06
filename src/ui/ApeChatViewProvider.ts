@@ -465,10 +465,38 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         modelsArray = [];
       }
       
-      // 모델 목록이 비어있는 경우 필수 모델 추가
-      // 항상 최소 3개 이상의 모델 보장 (내부망, 외부망, 로컬)
-      if (modelsArray.length < 3) {
-        this.logger.info('[UI<-EXT] 모델 목록이 불충분하여 필수 모델 추가');
+      // 환경 확인 (외부망인지 내부망인지)
+      let isExternalMode = false;
+      try {
+        const envModule = require('../../../extension.env.js');
+        isExternalMode = envModule.ENV_MODE === 'external';
+        this.logger.info(`[UI<-EXT] ENV_MODE=${envModule.ENV_MODE}, isExternalMode=${isExternalMode}`);
+      } catch (error) {
+        this.logger.warn('[UI<-EXT] 환경 변수 로드 실패, 기본 내부망 모드 사용');
+      }
+      
+      // 외부망 모드에서 모델 목록이 비어있거나 필요한 모델이 없는 경우
+      if (isExternalMode) {
+        // 외부망 모드: 오직 Llama 4 Maverick만 사용 - 절대 삭제 금지
+        if (!modelsArray.some(m => m.apiModel === 'meta-llama/llama-4-maverick')) {
+          this.logger.info('[UI<-EXT] 외부망 모드 - Llama 4 Maverick 모델 추가 (유일한 모델)');
+          
+          // 모델 배열 초기화 (오직 하나의 모델만 사용)
+          modelsArray = [{
+            id: 'openrouter-llama-4-maverick',
+            name: 'Llama 4 Maverick',
+            provider: 'openrouter',
+            temperature: 0.7,
+            apiModel: 'meta-llama/llama-4-maverick',
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          }];
+          
+          this.logger.info('[UI<-EXT] 외부망 모드 - 단일 모델 설정 완료');
+        }
+      }
+      // 내부망 모드에서 모델 목록이 비어있는 경우 필수 모델 추가
+      else if (modelsArray.length < 2) {
+        this.logger.info('[UI<-EXT] 내부망 모드 - 모델 목록이 불충분하여 필수 모델 추가');
         
         // 내부망 모델 추가 (항상 포함)
         if (!modelsArray.some(m => m.provider === 'custom' || m.name?.includes('NARRANS'))) {
@@ -481,39 +509,6 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
           });
           this.logger.info('[UI<-EXT] 내부망 모델(NARRANS) 추가됨');
-        }
-        
-        // OpenRouter 모델 추가 (외부 테스트용)
-        if (!modelsArray.some(m => m.provider === 'openrouter')) {
-          // 다양한 모델 옵션 추가
-          modelsArray.push({
-            id: 'openrouter-claude-3-opus',
-            name: 'Claude 3 Opus',
-            provider: 'openrouter',
-            temperature: 0.7,
-            apiModel: 'anthropic/claude-3-opus',
-            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-          });
-          
-          modelsArray.push({
-            id: 'openrouter-claude-3-sonnet',
-            name: 'Claude 3 Sonnet',
-            provider: 'openrouter',
-            temperature: 0.7,
-            apiModel: 'anthropic/claude-3-sonnet',
-            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-          });
-          
-          modelsArray.push({
-            id: 'openrouter-claude-3-haiku',
-            name: 'Claude 3 Haiku',
-            provider: 'openrouter',
-            temperature: 0.7,
-            apiModel: 'anthropic/claude-3-haiku',
-            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-          });
-          
-          this.logger.info('[UI<-EXT] OpenRouter 모델 3개 추가됨');
         }
         
         // 로컬 모델 추가 (오프라인 작업용)
@@ -1526,16 +1521,10 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * @returns 리소스 키와 URI 매핑 객체
    */
   private _createResourceMap(webview: vscode.Webview): Record<string, vscode.Uri> {
-    // CSS 리소스 매핑 - 새 디렉토리 구조 적용
+    // CSS 리소스 매핑 (단일 파일로 통합)
     const cssResources = {
-      // 코어 CSS
-      cssUri: this._getUri(webview, 'resources', 'css', 'core', 'chat.css'),
-      themeVarsCssUri: this._getUri(webview, 'resources', 'css', 'core', 'theme-vars.css'),
-      
-      // 컴포넌트 CSS
-      codeBlocksCssUri: this._getUri(webview, 'resources', 'css', 'components', 'code-blocks.css'),
-      commandButtonsCssUri: this._getUri(webview, 'resources', 'css', 'components', 'command-buttons.css'),
-      modelSelectorCssUri: this._getUri(webview, 'resources', 'css', 'components', 'model-selector.css'),
+      // 메인 CSS (모든 스타일 통합)
+      cssUri: this._getUri(webview, 'resources', 'css', 'main.css'),
       
       // 외부 리소스
       codiconsUri: this._getUri(webview, 'resources', 'codicons', 'codicon.css'),

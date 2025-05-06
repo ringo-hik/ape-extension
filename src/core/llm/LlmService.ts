@@ -62,15 +62,52 @@ export class LlmService implements ILlmService {
       content: '안녕하세요'
     }] : messages;
     
-    // 모델 ID 로깅
-    const modelId = String(model || this.getDefaultModelId());
-    this.logger.info(`LlmService: 요청 모델 ID - '${modelId}'`);
+    // 환경 확인 (외부망인지 내부망인지)
+    let isExternalMode = false;
+    try {
+      const envModule = require('../../../extension.env.js');
+      isExternalMode = envModule.ENV_MODE === 'external';
+      this.logger.info(`LlmService: ENV_MODE=${envModule.ENV_MODE}, isExternalMode=${isExternalMode}`);
+    } catch (error) {
+      this.logger.warn('LlmService: 환경 변수 로드 실패, 기본 내부망 모드 사용');
+    }
+    
+    // 모델 ID 결정 - 외부망이면 항상 Llama 4 Maverick 사용 (절대 삭제 금지)
+    let modelId: string;
+    
+    if (isExternalMode) {
+      // 외부망 모드: 항상 OpenRouter Llama 4 Maverick만 사용
+      modelId = 'openrouter-llama-4-maverick';
+      this.logger.info(`LlmService: 외부망 모드 - 무조건 모델 ID='${modelId}' 사용`);
+    } else {
+      // 내부망 모드: 기본 로직 사용
+      modelId = String(model || this.getDefaultModelId());
+      this.logger.info(`LlmService: 내부망 모드 - 요청 모델 ID='${modelId}'`);
+    }
     
     // 모델 설정 가져오기
-    const modelConfig = this.getModelConfig(modelId);
-    if (!modelConfig) {
+    let modelConfig = this.getModelConfig(modelId);
+    
+    // 외부망 모드에서 모델이 없으면 강제로 생성
+    if (!modelConfig && isExternalMode) {
+      this.logger.warn(`LlmService: OpenRouter Llama 4 Maverick 모델이 등록되지 않음. 강제 생성.`);
+      
+      // 모델 설정 생성 및 등록
+      modelConfig = {
+        id: 'openrouter-llama-4-maverick',
+        name: 'Llama 4 Maverick',
+        provider: 'openrouter',
+        apiModel: 'meta-llama/llama-4-maverick',
+        temperature: 0.7,
+        systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+      };
+      
+      // ModelManager에 등록 (메모리에만)
+      this.modelManager['models'].set('openrouter-llama-4-maverick', modelConfig);
+    }
+    // 일반적인 경우 모델이 없으면 로컬 모델로 대체
+    else if (!modelConfig) {
       this.logger.error(`LlmService: 모델 '${modelId}'를 찾을 수 없습니다.`);
-      // 오류 발생 시 로컬 모델로 대체
       this.logger.info(`LlmService: 모델을 찾을 수 없어 로컬 시뮬레이션 모델로 대체합니다.`);
       return this.simulateLocalModel(finalMessages);
     }

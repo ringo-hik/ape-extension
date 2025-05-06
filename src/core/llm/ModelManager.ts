@@ -91,29 +91,61 @@ export class ModelManager {
     // 모델맵 초기화
     this.models.clear();
     
-    // ===== NARRANS (내부망 기본 모델) =====
-    this.models.set('narrans', {
-      name: 'NARRANS (Default)',
-      provider: 'custom',
-      apiUrl: 'https://api-se-dev.narrans/v1/chat/completions',
-      contextWindow: 10000,
-      maxTokens: 10000,
-      temperature: 0,
-      systemPrompt: defaultSystemPrompt
-    });
+    // 환경 변수에서 외부망 모드인지 확인
+    let isExternalMode = false;
+    try {
+      const envModule = require('../../../extension.env.js');
+      isExternalMode = envModule.ENV_MODE === 'external';
+      console.log(`ModelManager: ENV_MODE=${envModule.ENV_MODE}, isExternalMode=${isExternalMode}`);
+    } catch (error) {
+      console.log('ModelManager: 환경 변수 로드 실패, 기본 내부망 모드 사용');
+    }
     
-    // ===== Llama 4 Maverick (내부망 모델) =====
-    this.models.set('llama-4-maverick', {
-      name: 'Llama 4 Maverick',
-      provider: 'custom',
-      apiUrl: 'http://apigw-stg:8000/llama4/1/llama/aiserving/llama-4/maverick/v1/chat/completions',
-      contextWindow: 50000,
-      maxTokens: 50000,
-      temperature: 0,
-      systemPrompt: defaultSystemPrompt
-    });
+    if (isExternalMode) {
+      // ===== 외부망 모드: OpenRouter Llama 4 Maverick 단독 모델 - 절대 삭제 금지 =====
+      console.log('ModelManager: 외부망 모드 - 유일한 OpenRouter 모델(Llama 4 Maverick)만 등록');
+      
+      // ===== Llama 4 Maverick (OpenRouter) - 외부망 유일 모델, 절대 삭제 금지 =====
+      this.models.set('openrouter-llama-4-maverick', {
+        id: 'openrouter-llama-4-maverick',
+        name: 'Llama 4 Maverick',
+        provider: 'openrouter',
+        apiModel: 'meta-llama/llama-4-maverick',
+        contextWindow: 128000,
+        maxTokens: 4096,
+        temperature: 0.7,
+        systemPrompt: defaultSystemPrompt
+      });
+      
+      // 기본 모델 ID 변경
+      this.defaultModelId = 'openrouter-llama-4-maverick';
+    } else {
+      // ===== 내부망 모드: NARRANS/Llama 모델 우선 =====
+      
+      // ===== NARRANS (내부망 기본 모델) =====
+      this.models.set('narrans', {
+        name: 'NARRANS (Default)',
+        provider: 'custom',
+        apiUrl: 'https://api-se-dev.narrans/v1/chat/completions',
+        contextWindow: 10000,
+        maxTokens: 10000,
+        temperature: 0,
+        systemPrompt: defaultSystemPrompt
+      });
+      
+      // ===== Llama 4 Maverick (내부망 모델) =====
+      this.models.set('llama-4-maverick', {
+        name: 'Llama 4 Maverick',
+        provider: 'custom',
+        apiUrl: 'http://apigw-stg:8000/llama4/1/llama/aiserving/llama-4/maverick/v1/chat/completions',
+        contextWindow: 50000,
+        maxTokens: 50000,
+        temperature: 0,
+        systemPrompt: defaultSystemPrompt
+      });
+    }
     
-    // ===== 로컬 시뮬레이션 모델 =====
+    // ===== 로컬 시뮬레이션 모델 (항상 추가) =====
     this.models.set('local', {
       name: '로컬 시뮬레이션 (오프라인)',
       provider: 'local',
@@ -121,7 +153,7 @@ export class ModelManager {
       systemPrompt: defaultSystemPrompt
     });
     
-    console.log('ModelManager: 기본 모델 로드 완료');
+    console.log(`ModelManager: 기본 모델 로드 완료 (${this.models.size}개)`);
   }
   
   /**
