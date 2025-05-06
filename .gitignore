@@ -2,6 +2,11 @@
 node_modules/
 dist/
 
+# Package lock files
+package-lock.json
+yarn.lock
+shrinkwrap.yaml
+
 # Built extension
 *.vsix
 
@@ -17,6 +22,7 @@ CLAUDE_*/
 CLAUDE_GUIDELINES/
 CLAUDE_WORKING_DOCS/
 CLAUDE_TO_OWNER/
+**/CLAUDE
 
 # Debug logs
 npm-debug.log*
@@ -36,6 +42,7 @@ yarn-error.log*
 # OS specific files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Temporary files
 renamed-resources/
@@ -45,13 +52,32 @@ resources-new/
 **/temp/
 *.backup
 backup/
+**/backup/
+**/*.bak
 
 # Test files (keep in separate branch)
 tests/
 **/*.test.js
 **/*.test.ts
+**/*.spec.js
+**/*.spec.ts
 
 # Environment-specific directories
 .env/
 .env.internal/
 .env.external/
+
+# Version and dependency tracking
+.npm
+.pnp
+.pnp.js
+.yarn/
+.yarn-integrity
+
+# Coverage reports
+coverage/
+.nyc_output/
+
+# Build intermediaries
+.tsbuildinfo
+.eslintcache
