@@ -439,9 +439,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     try {
       this.logger.info('[UI<-EXT] 모델 목록 전송 시작');
       
-      // 저장된 _coreService 참조 사용
+      // 저장된 _coreService 참조 사용 (이벤트 기반 설정)
       if (!this._coreService) {
-        this.logger.error('_sendModelList: _coreService가 설정되지 않았습니다');
+        this.logger.error('_sendModelList: _coreService가 설정되지 않았습니다 (이벤트 기반 설정이 완료되지 않음)');
         throw new Error('Core 서비스가 설정되지 않았습니다');
       }
       const coreService = this._coreService;
@@ -688,9 +688,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     try {
       this.logger.info('현재 모델 전송 시작');
       
-      // 저장된 _coreService 참조 사용
+      // 저장된 _coreService 참조 사용 (이벤트 기반 설정)
       if (!this._coreService) {
-        this.logger.error('_sendCurrentModel: _coreService가 설정되지 않았습니다');
+        this.logger.error('_sendCurrentModel: _coreService가 설정되지 않았습니다 (이벤트 기반 설정이 완료되지 않음)');
         throw new Error('Core 서비스가 설정되지 않았습니다');
       }
       const coreService = this._coreService;
@@ -899,9 +899,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private async _getDynamicData(): Promise<Record<string, unknown>> {
     try {
-      // APE 코어 서비스 접근 (저장된 참조 사용)
+      // APE 코어 서비스 접근 (이벤트 기반 저장된 참조 사용)
       if (!this._coreService) {
-        this.logger.error('_getDynamicData: _coreService가 설정되지 않았습니다');
+        this.logger.error('_getDynamicData: _coreService가 설정되지 않았습니다 (이벤트 기반 설정이 완료되지 않음)');
         throw new Error('Core 서비스가 설정되지 않았습니다');
       }
       const coreService = this._coreService;
@@ -1283,9 +1283,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     try {
       this.logger.info(`모델 변경 요청 - DEBUG 버전: ${modelId}`);
       
-      // 저장된 _coreService 참조 사용
+      // 저장된 _coreService 참조 사용 (이벤트 기반 설정)
       if (!this._coreService) {
-        this.logger.error('_changeModel: _coreService가 설정되지 않았습니다');
+        this.logger.error('_changeModel: _coreService가 설정되지 않았습니다 (이벤트 기반 설정이 완료되지 않음)');
         throw new Error('Core 서비스가 설정되지 않았습니다');
       }
       const coreService = this._coreService;
