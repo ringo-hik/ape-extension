@@ -11,16 +11,16 @@ import { LlmService } from '../../../core/llm/LlmService';
 import { JiraClientService } from './JiraClientService';
 
 interface IssueSuggestion {
-  summary: string;       // 이슈 제목
-  description: string;   // 이슈 설명
-  issueType: string;     // 이슈 유형 (Task, Bug, Story 등)
-  priority?: string;     // 우선순위 (선택 사항)
-  labels?: string[];     // 라벨 (선택 사항)
+  summary: string;       
+  description: string;   
+  issueType: string;     
+  priority?: string;     
+  labels?: string[];     
 }
 
 interface CommentSuggestion {
-  body: string;          // 코멘트 내용
-  isInternal?: boolean;  // 내부용 여부 (선택 사항)
+  body: string;          
+  isInternal?: boolean;  
 }
 
 /**
@@ -48,10 +48,10 @@ export class JiraLlmService {
    */
   async generateIssueFromDescription(description: string, projectKey: string): Promise<IssueSuggestion> {
     try {
-      // 프로젝트의 이슈 유형 가져오기 (실제 구현에서는 API 호출 필요)
+      
       const availableIssueTypes = ['Bug', 'Task', 'Story', 'Improvement'];
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 자연어 설명을 기반으로 Jira 이슈를 생성하기 위한 정보를 추출해주세요.
 
@@ -77,7 +77,7 @@ ${availableIssueTypes.join(', ')}
 이슈 설명은 마크다운 형식으로 구조화하고, 재현 단계, 예상 결과, 실제 결과 등을 포함해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -93,9 +93,9 @@ ${availableIssueTypes.join(', ')}
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -106,7 +106,7 @@ ${availableIssueTypes.join(', ')}
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 포맷으로 반환
+        
         return {
           summary: description.substring(0, 80),
           description: result.content,
@@ -128,7 +128,7 @@ ${availableIssueTypes.join(', ')}
    */
   async generateIssueFromCode(code: string, context: string, projectKey: string): Promise<IssueSuggestion> {
     try {
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 코드와 컨텍스트를 분석하여 Jira 이슈를 생성해주세요. 
 
@@ -161,7 +161,7 @@ ${context}
 분석 결과에 따라 가장 적합한 이슈 유형을 선택하고, 상세한 설명을 제공해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -177,9 +177,9 @@ ${context}
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -190,7 +190,7 @@ ${context}
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 포맷으로 반환
+        
         return {
           summary: `코드 검토: ${context.substring(0, 70)}`,
           description: result.content,
@@ -211,7 +211,7 @@ ${context}
    */
   async generateResponseComment(issueData: any, context: string): Promise<CommentSuggestion> {
     try {
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 Jira 이슈 정보를 바탕으로 적절한 응답 코멘트를 작성해주세요.
 
@@ -243,7 +243,7 @@ ${context}
 isInternal 필드는 코멘트가 내부용인지 여부를 나타냅니다 (선택 사항).
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -256,12 +256,12 @@ isInternal 필드는 코멘트가 내부용인지 여부를 나타냅니다 (선
             content: prompt
           }
         ],
-        temperature: 0.5  // 응답의 다양성을 위해 온도 약간 높임
+        temperature: 0.5  
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -272,7 +272,7 @@ isInternal 필드는 코멘트가 내부용인지 여부를 나타냅니다 (선
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 포맷으로 반환
+        
         return {
           body: result.content,
           isInternal: false
@@ -291,7 +291,7 @@ isInternal 필드는 코멘트가 내부용인지 여부를 나타냅니다 (선
    */
   async summarizeIssues(issueKeys: string[]): Promise<string> {
     try {
-      // 이슈 데이터 수집
+      
       const issues = await Promise.all(issueKeys.map(key => this.client.getIssue(key)));
       
       const issueData = issues.map(issue => ({
@@ -303,7 +303,7 @@ isInternal 필드는 코멘트가 내부용인지 여부를 나타냅니다 (선
         description: issue.fields.description || '(설명 없음)'
       }));
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 Jira 이슈 목록을 분석하고 요약해주세요:
 
@@ -324,7 +324,7 @@ ${issueData.map(issue => `
 마크다운 형식으로 응답해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -354,10 +354,10 @@ ${issueData.map(issue => `
    */
   async suggestIssuePriority(issueKey: string): Promise<{priority: string, explanation: string}> {
     try {
-      // 이슈 데이터 가져오기
+      
       const issue = await this.client.getIssue(issueKey);
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 Jira 이슈를 분석하고 적절한 우선순위를 추천해주세요:
 
@@ -387,7 +387,7 @@ ${issueData.map(issue => `
 4. 전략적 중요도 (비즈니스 목표와의 연관성)
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -403,9 +403,9 @@ ${issueData.map(issue => `
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -416,7 +416,7 @@ ${issueData.map(issue => `
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 포맷으로 반환
+        
         return {
           priority: 'Medium',
           explanation: result.content

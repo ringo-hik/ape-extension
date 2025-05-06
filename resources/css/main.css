@@ -4,6 +4,20 @@
  * UI 컴포넌트 및 레이아웃 스타일 통합
  */
 
+/* 코어 스타일 임포트 */
+@import url('./core/theme-vars.css');
+@import url('./core/chat.css');
+
+/* 컴포넌트 스타일 임포트 */
+@import url('./components/model-selector.css');
+@import url('./components/code-blocks.css');
+@import url('./components/command-buttons.css');
+@import url('./components/resize-handle.css');
+@import url('./components/test-buttons.css');
+
+/* 아이콘 스타일 임포트 */
+@import url('./icons/ape-icons.css');
+
 /* 변수 및 기본 설정 */
 :root {
   /* 기본 색상 (VS Code 테마 변수 활용) */
@@ -369,46 +383,7 @@ body {
 }
 
 /* ===== 아이콘 시스템 ===== */
-
-.ape-icon {
-  font-size: 16px;
-  display: inline-block;
-  text-rendering: auto;
-  text-align: center;
-  -webkit-font-smoothing: antialiased;
-  vertical-align: middle;
-}
-
-.ape-icon.codicon {
-  font-family: 'codicon';
-}
-
-.ape-icon.ph {
-  font-family: "Phosphor";
-}
-
-.ape-icon-sm { font-size: 14px; }
-.ape-icon-md { font-size: 16px; }
-.ape-icon-lg { font-size: 18px; }
-.ape-icon-xl { font-size: 24px; }
-
-.ape-icon-primary { color: var(--ape-primary); }
-.ape-icon-secondary { color: var(--ape-text-secondary); }
-.ape-icon-success { color: var(--ape-success); }
-.ape-icon-error { color: var(--ape-error); }
-.ape-icon-warning { color: var(--ape-warning); }
-
-.ape-icon-badge {
-  position: relative;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background-color: var(--vscode-activityBarBadge-background);
-  color: var(--vscode-activityBarBadge-foreground);
-}
+/* 아이콘 관련 스타일은 /css/icons/ape-icons.css 파일로 이동했습니다 */
 
 /* ===== 드롭다운 & 모달 ===== */
 

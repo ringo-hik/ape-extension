@@ -1,0 +1,164 @@
+{
+  "name": "ape-extension",
+  "displayName": "APE Extension",
+  "description": "Agentic Pipeline Engine - VS Code Extension",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ape.refreshTreeView",
+        "title": "APE: 트리 뷰 새로고침"
+      },
+      {
+        "command": "ape.openChat",
+        "title": "APE: 채팅 열기"
+      },
+      {
+        "command": "ape.openTest",
+        "title": "APE: 테스트 뷰 열기"
+      },
+      {
+        "command": "ape.toggleApeMode",
+        "title": "APE: 도구 활용 모드 전환"
+      },
+      {
+        "command": "ape.toggleEmbedDevMode",
+        "title": "APE: 심층 분석 모드 전환"
+      },
+      {
+        "command": "ape.clearChat",
+        "title": "APE: 채팅 지우기"
+      },
+      {
+        "command": "ape.saveChatSession",
+        "title": "APE: 채팅 세션 저장"
+      },
+      {
+        "command": "ape.loadChatHistory",
+        "title": "APE: 채팅 히스토리 불러오기"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ape-sidebar",
+          "title": "APE 확장",
+          "icon": "resources/icon/logo.png"
+        }
+      ]
+    },
+    "views": {
+      "ape-sidebar": [
+        {
+          "type": "webview",
+          "id": "ape.chatView",
+          "name": "APE 채팅",
+          "visibility": "visible",
+          "contextualTitle": "APE 채팅",
+          "icon": "resources/icon/logo.png"
+        },
+        {
+          "id": "ape.treeView",
+          "name": "APE 탐색기",
+          "contextualTitle": "APE 탐색기"
+        },
+        {
+          "type": "webview",
+          "id": "ape.testView",
+          "name": "APE 테스트",
+          "visibility": "visible",
+          "contextualTitle": "APE 테스트",
+          "icon": "resources/icon/logo.png"
+        },
+        {
+          "type": "webview",
+          "id": "ape.settingsView",
+          "name": "APE 설정",
+          "visibility": "visible",
+          "contextualTitle": "APE 설정",
+          "icon": "resources/icon/logo.png"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "ape.refreshTreeView",
+          "when": "view == ape.treeView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "APE Extension",
+      "properties": {
+        "ape.core.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "description": "로그 레벨 설정"
+        },
+        "ape.core.defaultModel": {
+          "type": "string",
+          "default": "claude-3-haiku-20240307",
+          "description": "기본 언어 모델 ID"
+        },
+        "ape.core.apeMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "APE 모드 활성화 여부"
+        },
+        "ape.core.devMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "개발자 모드 활성화 여부"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "node ./esbuild.config.js",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "test-compile": "tsc -p ./",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node ./out/test/runTest.js",
+    "dev": "concurrently \"npm run esbuild-watch\" \"npm run watch\"",
+    "build": "npm run esbuild"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.1",
+    "@types/node": "16.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/test-electron": "^2.3.3",
+    "concurrently": "^8.2.0",
+    "esbuild": "^0.18.12",
+    "eslint": "^8.44.0",
+    "glob": "^10.3.3",
+    "mocha": "^10.2.0",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "express": "^4.18.2",
+    "openai": "^4.13.0",
+    "ssri": "^10.0.4"
+  }
+}

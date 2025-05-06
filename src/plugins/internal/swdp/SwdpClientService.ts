@@ -159,14 +159,14 @@ export class SwdpClientService {
   
   /**
    * SwdpClientService 생성자
-   * @param baseUrl APE Core 엔드포인트 기본 URL (기본값: http://localhost:8001)
+   * @param baseUrl APE Core 엔드포인트 기본 URL (기본값: http://localhost:8080)
    * @param bypassSsl SSL 인증서 검증 우회 여부
    */
-  constructor(baseUrl: string = 'http://localhost:8001', bypassSsl: boolean = false) {
+  constructor(baseUrl: string = 'http://localhost:8080', bypassSsl: boolean = true) {
     this.baseUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
     this.httpClient = new HttpClientService();
     
-    // SSL 우회 설정
+    
     if (bypassSsl) {
       this.httpClient.setSSLBypass(true);
     }
@@ -178,12 +178,12 @@ export class SwdpClientService {
    */
   async initialize(credentials: SwdpCredentials): Promise<void> {
     try {
-      // 기본 헤더 설정
+      
       this.authHeaders = {
         'Content-Type': 'application/json'
       };
       
-      // 인증 정보 설정
+      
       if (credentials.userId) {
         this.authHeaders['User-ID'] = credentials.userId;
       }
@@ -200,7 +200,7 @@ export class SwdpClientService {
         this.authHeaders['Git-Email'] = credentials.gitEmail;
       }
       
-      // 연결 테스트
+      
       await this.testConnection();
       
       this.initialized = true;
@@ -251,16 +251,16 @@ export class SwdpClientService {
     this.checkInitialized();
     
     try {
-      // SWDP Agent 라우트 구성
+      
       const apiUrl = `${this.baseUrl}api/swdp/${route}`;
       
-      // 요청 데이터에 타임스탬프 추가
+      
       const requestData = {
         ...data,
         timestamp: new Date().toISOString()
       };
       
-      // API 호출
+      
       const response = await this.httpClient.post(
         apiUrl,
         requestData,

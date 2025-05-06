@@ -1,0 +1,209 @@
+/* code-blocks.css - 코드 블록 스타일 */
+
+.ape-code-block {
+  background-color: var(--ape-background, var(--vscode-textCodeBlock-background, #1e1e1e));
+  border-radius: var(--ape-border-radius, 4px);
+  border: 1px solid var(--ape-border-color, var(--vscode-widget-border, rgba(128, 128, 128, 0.2)));
+  margin: var(--ape-spacing-sm, 8px) 0;
+  overflow: hidden;
+  font-family: var(--vscode-editor-font-family, 'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  position: relative;
+}
+
+.ape-code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--ape-spacing-xs, 6px) var(--ape-spacing-md, 12px);
+  background-color: var(--ape-secondary-background, var(--vscode-debugToolBar-background, rgba(50, 50, 50, 0.8)));
+  color: var(--ape-foreground, var(--vscode-debugToolBar-foreground, #cccccc));
+  font-size: 0.85em;
+  border-bottom: 1px solid var(--ape-border-color, rgba(128, 128, 128, 0.3));
+}
+
+.ape-code-language {
+  text-transform: lowercase;
+  font-weight: 500;
+}
+
+.ape-code-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ape-code-btn {
+  background: transparent;
+  border: none;
+  color: var(--vscode-debugToolBar-foreground, #cccccc);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ape-code-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.ape-code-btn i {
+  font-size: 1em;
+}
+
+.ape-code-btn-tooltip {
+  position: relative;
+}
+
+.ape-code-btn-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  background: var(--vscode-tooltip-background, rgba(15, 15, 15, 0.95));
+  color: var(--vscode-tooltip-foreground, #cccccc);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ape-code-btn-tooltip:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ape-code-content {
+  padding: var(--ape-spacing-sm, 8px) var(--ape-spacing-md, 12px);
+  overflow-x: auto;
+  position: relative;
+  line-height: var(--ape-line-height, 1.5);
+  white-space: pre;
+  tab-size: 4;
+}
+
+.ape-code-content code {
+  font-family: inherit;
+  display: block;
+}
+
+/* 코드 블록 복사 관련 */
+.ape-code-copy-success {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background-color: var(--vscode-debugToolBar-background, rgba(50, 50, 50, 0.8));
+  color: var(--vscode-debugToolBar-foreground, #cccccc);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+}
+
+.ape-code-copy-success.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 코드 블록 하이라이트 테마 (VS Code Dark+ 테마 기반) */
+.ape-code-keyword {
+  color: #569cd6;
+}
+
+.ape-code-string {
+  color: #ce9178;
+}
+
+.ape-code-comment {
+  color: #6a9955;
+}
+
+.ape-code-function {
+  color: #dcdcaa;
+}
+
+.ape-code-number {
+  color: #b5cea8;
+}
+
+.ape-code-class {
+  color: #4ec9b0;
+}
+
+.ape-code-operator {
+  color: #d4d4d4;
+}
+
+.ape-code-type {
+  color: #4ec9b0;
+}
+
+.ape-code-variable {
+  color: #9cdcfe;
+}
+
+/* 라인 번호 스타일 */
+.ape-code-content.with-line-numbers {
+  padding-left: 3.5em;
+}
+
+.ape-code-line-number {
+  position: absolute;
+  left: 0;
+  width: 3em;
+  padding-right: 0.5em;
+  text-align: right;
+  color: #858585;
+  user-select: none;
+}
+
+/* 코드 블록 크기 조절 토글 */
+.ape-code-collapsed .ape-code-content {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ape-code-expand-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 4px;
+  background-color: var(--vscode-debugToolBar-background, rgba(50, 50, 50, 0.8));
+  color: var(--vscode-debugToolBar-foreground, #cccccc);
+  border: none;
+  border-top: 1px solid rgba(128, 128, 128, 0.3);
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background-color 0.2s ease;
+}
+
+.ape-code-expand-btn:hover {
+  background-color: rgba(80, 80, 80, 0.8);
+}
+
+/* 모바일 반응형 */
+@media (max-width: 480px) {
+  .ape-code-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  
+  .ape-code-actions {
+    align-self: flex-end;
+  }
+}

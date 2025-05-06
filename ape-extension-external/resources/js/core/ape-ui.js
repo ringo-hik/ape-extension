@@ -19,6 +19,7 @@ import {
 // 명시적 의존성
 import '../components/model-selector.js';
 import '../components/code-blocks.js';
+import '../components/ui/resize-handle.js';
 
 class ApeUI {
   constructor() {
@@ -82,6 +83,10 @@ class ApeUI {
     // iframe 메시지 리스너 설정
     this.setupIframeListeners();
     
+    // 새 채팅 및 저장 버튼 모듈 로드
+    import('../components/new-chat-button.js');
+    import('../components/save-button.js');
+    
     // 오류 핸들러
     window.addEventListener('error', this.handleError.bind(this));
     
@@ -94,6 +99,31 @@ class ApeUI {
           logger.warn('초기화 중 iframe ping 실패:', error);
         }
       }, 1500);
+    }
+    
+    // 새 채팅 및 저장 버튼 이벤트 구독
+    const newChatButton = getElement('newChatButton');
+    if (newChatButton) {
+      newChatButton.addEventListener('click', () => {
+        if (this.vscode) {
+          logger.log('새 채팅 버튼 클릭됨, newChat 명령 전송');
+          this.vscode.postMessage({
+            command: 'newChat'
+          });
+        }
+      });
+    }
+    
+    const saveButton = getElement('saveButton');
+    if (saveButton) {
+      saveButton.addEventListener('click', () => {
+        if (this.vscode) {
+          logger.log('저장 버튼 클릭됨, saveChatSession 명령 전송');
+          this.vscode.postMessage({
+            command: 'saveChatSession'
+          });
+        }
+      });
     }
     
     logger.log('UI 초기화 완료');
@@ -225,33 +255,137 @@ class ApeUI {
     // 전송 버튼 클릭
     if (this.sendButton) {
       this.sendButton.addEventListener('click', this.handleSendMessage.bind(this));
+      logger.log('전송 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('전송 버튼 요소를 찾을 수 없습니다');
     }
     
     // 엔터 키 처리
     if (this.chatInput) {
       this.chatInput.addEventListener('keydown', this.handleInputKeyDown.bind(this));
       this.chatInput.addEventListener('input', this.handleInputChange.bind(this));
+      logger.log('채팅 입력 이벤트 리스너 등록됨');
+    } else {
+      logger.error('채팅 입력 요소를 찾을 수 없습니다');
     }
     
     // 지우기 버튼
     if (this.clearButton) {
-      this.clearButton.addEventListener('click', this.handleClearMessages.bind(this));
+      logger.log('지우기 버튼 ID: ' + this.clearButton.id);
+      logger.log('지우기 버튼 클래스: ' + this.clearButton.className);
+      this.clearButton.addEventListener('click', (event) => {
+        logger.log('지우기 버튼 클릭됨!');
+        this.handleClearMessages();
+      });
+      logger.log('지우기 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('지우기 버튼 요소를 찾을 수 없습니다');
+    }
+    
+    // 새 채팅 버튼 (직접 처리)
+    const newChatButton = document.getElementById('newChatButton');
+    if (newChatButton) {
+      newChatButton.addEventListener('click', () => {
+        logger.log('새 채팅 버튼 클릭됨');
+        if (this.vscode) {
+          this.vscode.postMessage({
+            command: 'newChat'
+          });
+        }
+      });
+      logger.log('새 채팅 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('새 채팅 버튼 요소를 찾을 수 없습니다');
+    }
+    
+    // 저장 버튼 (직접 처리)
+    const saveButton = document.getElementById('saveButton');
+    if (saveButton) {
+      saveButton.addEventListener('click', () => {
+        logger.log('저장 버튼 클릭됨');
+        if (this.vscode) {
+          this.vscode.postMessage({
+            command: 'saveChatSession'
+          });
+        }
+      });
+      logger.log('저장 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('저장 버튼 요소를 찾을 수 없습니다');
     }
     
     // 심층 분석 모드 버튼
     if (this.embedDevButton) {
       this.embedDevButton.addEventListener('click', this.handleEmbedDevMode.bind(this));
+      logger.log('심층 분석 모드 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('심층 분석 모드 버튼 요소를 찾을 수 없습니다');
     }
     
     // 명령어 버튼
     if (this.commandsButton) {
       this.commandsButton.addEventListener('click', this.handleCommandsPanel.bind(this));
+      logger.log('명령어 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('명령어 버튼 요소를 찾을 수 없습니다');
     }
     
     // APE 토글 버튼
     if (this.apeToggleButton) {
       this.apeToggleButton.addEventListener('click', this.handleApeToggle.bind(this));
+      logger.log('APE 토글 버튼 이벤트 리스너 등록됨');
+    } else {
+      logger.error('APE 토글 버튼 요소를 찾을 수 없습니다');
     }
+    
+    // 크기 조절 핸들
+    const resizeHandle = document.getElementById('resizeHandle');
+    if (resizeHandle) {
+      this.setupResizeHandlers(resizeHandle);
+      logger.log('크기 조절 핸들 이벤트 리스너 등록됨');
+    } else {
+      logger.error('크기 조절 핸들을 찾을 수 없습니다');
+    }
+    
+    // 창 크기 변경 이벤트
+    window.addEventListener('resize', () => {
+      this.adjustLayout();
+    });
+  }
+  
+  /**
+   * 크기 조절 핸들러 설정
+   */
+  setupResizeHandlers(resizeHandle) {
+    if (!this.messagesContainer) {
+      logger.error('메시지 컨테이너를 찾을 수 없어 크기 조절 핸들러를 설정할 수 없습니다.');
+      return;
+    }
+    
+    // ResizeHandle 컴포넌트가 이 기능을 대체합니다.
+    // 컴포넌트가 아직 로드되지 않은 경우를 대비해 기본 높이값 복원
+    try {
+      const savedHeight = localStorage.getItem('ape-messages-height');
+      if (savedHeight) {
+        const parsedHeight = parseInt(savedHeight, 10);
+        if (!isNaN(parsedHeight) && parsedHeight > 100) {
+          this.messagesContainer.style.height = `${parsedHeight}px`;
+          logger.log(`저장된 메시지 영역 높이 복원: ${parsedHeight}px`);
+        }
+      }
+    } catch (error) {
+      logger.warn('저장된 높이값 복원 실패:', error);
+    }
+    
+    // resize 이벤트 구독
+    eventBus.subscribe('resize:complete', (data) => {
+      // 스크롤 위치 조정 (필요 시)
+      if (this.streamingState.isStreaming) {
+        this.scrollToBottom();
+      }
+    });
+    
+    logger.log('크기 조절 핸들러 설정 완료');
   }
   
   /**
@@ -278,7 +412,8 @@ class ApeUI {
     // VS Code에 메시지 전송
     this.vscode.postMessage({
       command: 'sendMessage',
-      message: message,
+      text: message, // text 속성으로 변경 (원래 message 속성이었음)
+      model: this.chatInput.dataset.modelId, // 선택한 모델 ID 추가
       apeMode: this.apeMode,
       embedDevMode: this.embedDevMode
     });
@@ -329,25 +464,50 @@ class ApeUI {
    * 메시지 지우기
    */
   handleClearMessages() {
-    // 확인 메시지 표시
-    const confirmed = confirm('모든 대화 내용을 지우시겠습니까?');
-    if (!confirmed) return;
+    logger.log('handleClearMessages 함수 호출됨');
     
-    // 메시지 상태 초기화
-    this.messageState.messages = [];
-    
-    // 상태 저장
-    if (this.vscode) {
-      this.vscode.setState(this.messageState);
+    try {
+      // 확인 메시지 표시
+      const confirmed = confirm('모든 대화 내용을 지우시겠습니까?');
+      logger.log('확인 대화상자 결과: ' + confirmed);
       
-      // VS Code에 지우기 명령 전송
-      this.vscode.postMessage({
-        command: 'clearMessages'
-      });
+      if (!confirmed) {
+        logger.log('사용자가 취소함');
+        return;
+      }
+      
+      logger.log('메시지 지우기 확인됨, 모든 메시지를 지웁니다.');
+      
+      // 메시지 상태 초기화
+      this.messageState.messages = [];
+      logger.log('메시지 상태가 초기화됨');
+      
+      // 상태 저장
+      if (this.vscode) {
+        this.vscode.setState(this.messageState);
+        logger.log('VS Code 상태가 업데이트됨');
+        
+        // VS Code에 지우기 명령 전송
+        logger.log('VS Code에 clearChat 명령 전송 시도...');
+        this.vscode.postMessage({
+          command: 'clearChat'
+        });
+        
+        logger.log('VS Code에 clearChat 명령 전송됨');
+      } else {
+        logger.error('VS Code API를 찾을 수 없어 지우기 명령을 전송할 수 없습니다.');
+      }
+      
+      // UI 갱신
+      logger.log('메시지 UI 갱신 시도...');
+      this.renderMessages();
+      logger.log('메시지 UI 갱신됨');
+      
+      // 사용자에게 피드백
+      this.showTemporaryMessage('모든 대화 내용이 지워졌습니다.');
+    } catch (error) {
+      logger.error('메시지 지우기 중 오류 발생:', error);
     }
-    
-    // UI 갱신
-    this.renderMessages();
   }
   
   /**
@@ -558,6 +718,10 @@ class ApeUI {
     const message = event.data;
     
     switch (message.command) {
+      case 'viewStateChanged':
+        // 뷰 상태 변경 시 레이아웃 조정
+        this.handleViewStateChange(message);
+        break;
       case 'receiveMessage':
       case 'addMessage':
         this.addMessage('assistant', message.content, message.id);
@@ -566,6 +730,25 @@ class ApeUI {
         if (this.sendButton) {
           this.sendButton.disabled = false;
         }
+        break;
+        
+      case 'clearChat':
+        this.messageState.messages = [];
+        if (this.vscode) {
+          this.vscode.setState(this.messageState);
+        }
+        this.renderMessages();
+        
+        // 전송 버튼 상태 초기화
+        if (this.sendButton) {
+          this.sendButton.disabled = !this.chatInput || !this.chatInput.value.trim();
+        }
+        
+        // 환영 메시지 표시
+        setTimeout(() => {
+          const welcomeMsg = '안녕하세요! APE 채팅에 오신 것을 환영합니다.';
+          this.addMessage('assistant', welcomeMsg);
+        }, 500);
         break;
         
       case 'streamMessage':
@@ -647,6 +830,11 @@ class ApeUI {
           this.vscode.setState(this.messageState);
         }
         this.renderMessages();
+        
+        // 전송 버튼 상태 초기화
+        if (this.sendButton) {
+          this.sendButton.disabled = !this.chatInput || !this.chatInput.value.trim();
+        }
         break;
         
       case 'setModels':
@@ -702,6 +890,11 @@ class ApeUI {
       case 'initialized':
         // 초기화 완료 처리
         logger.log('웹뷰 초기화 완료 메시지 수신:', message.timestamp);
+        break;
+        
+      case 'viewDimensions':
+        // VSCode에서 전송한 뷰 크기 정보 처리
+        this.handleViewDimensions(message);
         break;
         
       default:
@@ -838,6 +1031,126 @@ class ApeUI {
     
     // 사용자에게 오류 알림
     this.showTemporaryMessage(`오류 발생: ${event.message}`, 3000);
+  }
+
+  /**
+   * 뷰 상태 변경 처리
+   * @param {Object} message - 변경된 뷰 상태 정보
+   */
+  handleViewStateChange(message) {
+    logger.log('뷰 상태 변경 감지:', message);
+    
+    // 메시지 컨테이너 레이아웃 조정
+    if (this.messagesContainer) {
+      // 뷰가 보이게 되면 스크롤을 아래로 이동
+      if (message.isVisible) {
+        this.scrollToBottom();
+        
+        // UI 레이아웃 재계산
+        this.adjustLayout();
+      }
+    }
+  }
+  
+  /**
+   * VSCode에서 제공하는 뷰 크기 정보 처리
+   */
+  handleViewDimensions(message) {
+    logger.log('뷰 크기 정보 수신:', message);
+    
+    // 레이아웃 조정 트리거
+    this.adjustLayout();
+    
+    // 저장된 높이값이 있다면 복원 시도
+    try {
+      const savedHeight = localStorage.getItem('ape-messages-height');
+      if (savedHeight) {
+        const parsedHeight = parseInt(savedHeight, 10);
+        if (!isNaN(parsedHeight) && parsedHeight > 100) {
+          if (this.messagesContainer) {
+            this.messagesContainer.style.height = `${parsedHeight}px`;
+            logger.log(`저장된 메시지 영역 높이 적용: ${parsedHeight}px`);
+          }
+        }
+      }
+    } catch (error) {
+      logger.warn('저장된 높이값 복원 실패:', error);
+    }
+    
+    // 최신 메시지로 스크롤
+    setTimeout(() => {
+      this.scrollToBottom();
+    }, 100);
+  }
+  
+  /**
+   * UI 레이아웃 조정
+   */
+  adjustLayout() {
+    logger.log('UI 레이아웃 조정 중...');
+    
+    // 컨테이너 및 메시지 영역 확인
+    if (!this.messagesContainer) {
+      logger.error('메시지 컨테이너를 찾을 수 없어 레이아웃을 조정할 수 없습니다.');
+      return;
+    }
+    
+    try {
+      // 가용 높이 계산
+      const containerHeight = window.innerHeight;
+      const headerHeight = document.querySelector('.ape-header')?.offsetHeight || 0;
+      const footerHeight = document.querySelector('.ape-footer')?.offsetHeight || 0;
+      
+      // 메시지 영역 최대 높이 계산 (패딩 고려)
+      const maxMessageHeight = containerHeight - headerHeight - footerHeight - 40; // 40px는 여유 공간
+      
+      // 저장된 높이값 가져오기
+      let savedHeight = 0;
+      try {
+        const savedHeightStr = localStorage.getItem('ape-messages-height');
+        if (savedHeightStr) {
+          savedHeight = parseInt(savedHeightStr, 10);
+        }
+      } catch (error) {
+        logger.warn('저장된 높이값 가져오기 실패:', error);
+      }
+      
+      // 저장된 높이값이 있고 가용 공간보다 작으면 그 값을 사용
+      // 그렇지 않으면 최대 높이와 최소 높이(150px) 중 큰 값 사용
+      const messageHeight = savedHeight > 0 && savedHeight < maxMessageHeight
+        ? savedHeight
+        : Math.max(150, maxMessageHeight);
+      
+      logger.log(`계산된 레이아웃 값: 컨테이너=${containerHeight}px, 헤더=${headerHeight}px, 푸터=${footerHeight}px, 메시지=${messageHeight}px, 저장된 높이=${savedHeight}px`);
+      
+      // 메시지 영역 높이 설정
+      if (!this.messagesContainer.style.height || this.messagesContainer.style.height === 'auto') {
+        this.messagesContainer.style.height = `${messageHeight}px`;
+      }
+      
+      // 스크롤을 최하단으로
+      this.scrollToBottom();
+      
+      // 크기 변경 모니터링 설정 (ResizeObserver가 지원되는 경우)
+      if (window.ResizeObserver && !this._resizeObserver) {
+        this._resizeObserver = new ResizeObserver(entries => {
+          for (let entry of entries) {
+            if (entry.target === document.body || entry.target === this.messagesContainer) {
+              this.adjustLayout();
+              break;
+            }
+          }
+        });
+        
+        // body와 메시지 컨테이너 크기 변경 감시
+        this._resizeObserver.observe(document.body);
+        this._resizeObserver.observe(this.messagesContainer);
+        
+        logger.log('크기 변경 모니터링이 설정되었습니다.');
+      }
+    } catch (error) {
+      logger.error('레이아웃 조정 중 오류 발생:', error);
+    }
   }
 }
 

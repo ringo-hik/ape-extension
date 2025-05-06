@@ -41,7 +41,7 @@ export interface ILlmService {
    * @param modelId 새 모델 ID
    * @returns 변경 성공 여부
    */
-  setDefaultModel(modelId: string): boolean;
+  setDefaultModel(modelId: string): Promise<boolean>;
   
   /**
    * 사용 가능한 모델 목록 가져오기

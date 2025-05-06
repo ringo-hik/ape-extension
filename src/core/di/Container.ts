@@ -29,13 +29,13 @@ export interface ServiceOptions {
 export class DIContainer {
   private static instance: DIContainer;
   
-  // 서비스 저장소
+  
   private services: Map<string, any> = new Map();
   
-  // 서비스 제공자 저장소
+  
   private providers: Map<string, ServiceProvider<any>> = new Map();
   
-  // 서비스 옵션 저장소
+  
   private options: Map<string, ServiceOptions> = new Map();
 
   /**
@@ -84,20 +84,20 @@ export class DIContainer {
    * @returns 서비스 인스턴스
    */
   public get<T>(id: string): T {
-    // 이미 등록된 인스턴스가 있는 경우 반환
+    
     if (this.services.has(id)) {
       return this.services.get(id) as T;
     }
 
-    // 제공자가 등록된 경우 인스턴스 생성
+    
     if (this.providers.has(id)) {
       const provider = this.providers.get(id)!;
       const options = this.options.get(id) || { singleton: true };
       
-      // 인스턴스 생성
+      
       const instance = provider();
       
-      // 싱글톤인 경우 서비스 저장소에 저장
+      
       if (options.singleton) {
         this.services.set(id, instance);
       }

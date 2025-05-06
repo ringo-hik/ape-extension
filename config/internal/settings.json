@@ -1,0 +1,9 @@
+{
+  "environment": "internal",
+  "apiBaseUrl": "http://localhost:8001",
+  "logLevel": "debug",
+  "features": {
+    "streamingEnabled": true,
+    "sslVerification": false
+  }
+}

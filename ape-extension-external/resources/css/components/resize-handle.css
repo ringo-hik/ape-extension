@@ -1,0 +1,124 @@
+/**
+ * resize-handle.css - 리사이즈 핸들 컴포넌트 스타일
+ * 
+ * 크기 조절 핸들의 시각적 표현과 상호작용을 정의합니다.
+ */
+
+/* 리사이즈 핸들 기본 스타일 */
+.ape-resize-handle {
+  height: 20px; /* 높이를 20px로 증가 - 클릭 영역 확대 */
+  background-color: var(--ape-secondary-background);
+  border-top: 2px solid var(--ape-border-color);
+  border-bottom: 2px solid var(--ape-border-color);
+  cursor: row-resize;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: 2px 0;
+  /* 뚜렷한 시각적 경계 표시 */
+  position: relative;
+  z-index: 100;
+  transition: background-color 0.2s, height 0.2s;
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.2); /* 그림자 추가 */
+}
+
+/* 리사이즈 핸들 라인 스타일 */
+.ape-resize-handle-line {
+  height: 2px; /* 두께 증가 */
+  width: 40px; /* 너비 증가 */
+  background-color: var(--ape-foreground);
+  opacity: 0.5; /* 기본 불투명도 증가 */
+  margin: 2px 0;
+  border-radius: 2px;
+}
+
+/* 핸들 호버 효과 */
+.ape-resize-handle:hover {
+  background-color: var(--ape-hover-background);
+  height: 18px; /* 호버 시 더 큰 클릭 영역 */
+}
+
+.ape-resize-handle:hover .ape-resize-handle-line {
+  opacity: 0.8;
+  width: 50px; /* 호버 시 더 넓은 라인 */
+}
+
+/* 활성 상태 (드래그 중) */
+.ape-resize-handle:active,
+.ape-resizing .ape-resize-handle {
+  background-color: var(--ape-active-background);
+  height: 20px; /* 드래그 중 최대 높이 */
+}
+
+.ape-resize-handle:active .ape-resize-handle-line,
+.ape-resizing .ape-resize-handle-line {
+  opacity: 1;
+  width: 60px; /* 드래그 중 최대 너비 */
+}
+
+/* 표시기 추가 - 경계 더 명확하게 */
+.ape-resize-handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 6px;
+  background-color: var(--ape-button-background);
+  border-radius: 3px;
+  opacity: 0.2;
+  transition: opacity 0.2s, width 0.2s;
+}
+
+.ape-resize-handle:hover::before {
+  opacity: 0.4;
+  width: 100px;
+}
+
+.ape-resize-handle:active::before,
+.ape-resizing .ape-resize-handle::before {
+  opacity: 0.6;
+  width: 120px;
+}
+
+/* 리사이징 중 상태 스타일 */
+.ape-resizing {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: row-resize !important;
+}
+
+/* 리사이즈 핸들 라벨 */
+.ape-resize-handle-label {
+  font-size: 11px;
+  color: var(--ape-foreground);
+  opacity: 0;
+  position: absolute;
+  right: 10px;
+  transition: opacity 0.2s;
+  user-select: none;
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.ape-resize-handle:hover .ape-resize-handle-label {
+  opacity: 0.7;
+}
+
+/* 모바일 장치에서의 최적화 */
+@media (max-width: 768px) {
+  .ape-resize-handle {
+    height: 24px; /* 모바일에서 더 큰 터치 영역 */
+  }
+  
+  .ape-resize-handle-line {
+    width: 60px; /* 모바일에서 더 넓은 라인 */
+  }
+  
+  .ape-resize-handle-label {
+    opacity: 0.5; /* 모바일에서는 항상 표시 */
+    font-size: 12px;
+  }
+}

@@ -3,7 +3,7 @@ import { CommandType, CommandPrefix } from '../../types/CommandTypes';
 import { HttpClientService } from '../../core/http/HttpClientService';
 import { HttpMethod } from '../../types/HttpTypes';
 
-// API 명령어 설정
+
 export interface ApiCommandConfig {
   id: string;
   name?: string;
@@ -19,7 +19,7 @@ export interface ApiCommandConfig {
   };
 }
 
-// 동적 플러그인 서비스
+
 export class DynamicPluginService implements IPlugin {
   public id: string;
   public name: string;
@@ -51,7 +51,7 @@ export class DynamicPluginService implements IPlugin {
       try {
         const command: PluginCommand = {
           id: cmdConfig.id,
-          name: cmdConfig.id, // ID와 동일하게 설정
+          name: cmdConfig.id, 
           type: CommandType.AT,
           prefix: CommandPrefix.AT,
           description: cmdConfig.description || '',
@@ -94,7 +94,7 @@ export class DynamicPluginService implements IPlugin {
   private async executeApiCommand(config: ApiCommandConfig, args: any[]): Promise<any> {
     try {
       const endpoint = this.processTemplate(config.api.endpoint, args);
-      // 문자열에서 HttpMethod 열거형으로 변환
+      
       const methodStr = config.api.method.toUpperCase();
       const method = methodStr as HttpMethod;
       
@@ -125,7 +125,7 @@ export class DynamicPluginService implements IPlugin {
         url: endpoint,
         method,
         headers,
-        body: body, // data -> body로 수정
+        body: body, 
         params: queryParams
       });
       

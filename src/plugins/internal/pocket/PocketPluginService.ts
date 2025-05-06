@@ -11,7 +11,7 @@ import { IConfigLoader } from '../../../types/ConfigTypes';
 import { CommandType, CommandPrefix } from '../../../types/CommandTypes';
 import { PocketClientService } from './PocketClientService';
 
-// LLM 서비스 접근 (파일 내용 요약 등을 위해)
+
 import { LlmService } from '../../../core/llm/LlmService';
 import { PluginNaturalLanguageService, CommandPattern } from '../../../core/plugin-system/llm';
 import { LoggerService } from '../../../core/utils/LoggerService';
@@ -28,7 +28,7 @@ interface PocketPluginConfig {
     accessKeyId: string;
     secretAccessKey: string;
   };
-  summarizeModel?: string; // 파일 요약에 사용할 모델 ID
+  summarizeModel?: string; 
 }
 
 /**
@@ -72,12 +72,12 @@ export class PocketPluginService extends PluginBaseService {
   /**
    * LLM 서비스
    */
-  private llmService: LlmService | null = null;
+  private readonly llmService: LlmService;
   
   /**
    * 자연어 처리 서비스
    */
-  private nlpService: PluginNaturalLanguageService | null = null;
+  private nlpService?: PluginNaturalLanguageService;
   
   /**
    * 로깅 서비스
@@ -87,15 +87,17 @@ export class PocketPluginService extends PluginBaseService {
   /**
    * PocketPluginService 생성자
    * @param configLoader 설정 로더
+   * @param llmService LLM 서비스 (선택적)
    */
-  constructor(configLoader: IConfigLoader) {
+  constructor(
+    configLoader: IConfigLoader,
+    llmService?: LlmService
+  ) {
     super(configLoader);
     
-    // 내부 플러그인 설정 로드
     const pluginConfig = this.loadPocketConfig();
     this.config = pluginConfig;
     
-    // S3 클라이언트 생성
     this.client = new PocketClientService(
       this.config.endpoint,
       this.config.region || 'us-east-1',
@@ -103,11 +105,10 @@ export class PocketPluginService extends PluginBaseService {
       this.config.credentials
     );
     
-    // 명령어 등록
-    this.registerCommands();
+    // 주입받은 LLM 서비스 사용 (없는 경우 초기화)
+    this.llmService = llmService || new LlmService();
     
-    // LLM 서비스 초기화 시도
-    this.initLlmService();
+    this.registerCommands();
     
     // 자연어 처리 서비스 초기화
     this.initNlpService();
@@ -118,10 +119,10 @@ export class PocketPluginService extends PluginBaseService {
    * @returns Pocket 플러그인 설정
    */
   private loadPocketConfig(): PocketPluginConfig {
-    // 기본 설정
+    
     const defaultConfig: PocketPluginConfig = {
       enabled: true,
-      endpoint: 'https://s3.amazonaws.com',
+      endpoint: 'https://s3.example.com',
       bucket: 'default-bucket',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
@@ -132,12 +133,12 @@ export class PocketPluginService extends PluginBaseService {
     try {
       let config = {};
       
-      // 설정 로더에서 Pocket 플러그인 설정 로드
+      
       if (this.configLoader && typeof this.configLoader.getPlugin === 'function') {
         config = this.configLoader.getPlugin('pocket') || {};
       }
       
-      // 설정 병합
+      
       return {
         ...defaultConfig,
         ...config
@@ -148,31 +149,14 @@ export class PocketPluginService extends PluginBaseService {
     }
   }
   
-  /**
-   * LLM 서비스 초기화
-   */
-  private async initLlmService(): Promise<void> {
-    try {
-      // LLM 서비스 생성
-      this.llmService = new LlmService();
-      console.log('LLM 서비스 초기화 완료');
-    } catch (error) {
-      console.error('LLM 서비스 초기화 중 오류 발생:', error);
-      this.llmService = null;
-    }
-  }
   
   /**
    * 자연어 처리 서비스 초기화
    */
   private initNlpService(): void {
     try {
-      if (!this.llmService) {
-        console.warn('LLM 서비스가 초기화되지 않아 자연어 처리 서비스를 초기화할 수 없습니다');
-        return;
-      }
       
-      // 자연어 명령어 패턴 정의
+      
       const commandPatterns: CommandPattern[] = [
         {
           command: 'ls',
@@ -256,7 +240,7 @@ export class PocketPluginService extends PluginBaseService {
             }
             
             if (pathMatch && pathMatch.length > 0) {
-              // 첫 번째 패턴 매치가 검색어일 수 있으므로 두 번째 매치부터 경로로 처리
+              
               if (pathMatch.length > 1) {
                 args.push(pathMatch[1]);
               }
@@ -272,7 +256,7 @@ export class PocketPluginService extends PluginBaseService {
         }
       ];
       
-      // 자연어 처리 서비스 초기화
+      
       this.nlpService = new PluginNaturalLanguageService(
         this.llmService,
         this.logger,
@@ -293,23 +277,18 @@ export class PocketPluginService extends PluginBaseService {
    */
   async initialize(): Promise<void> {
     try {
-      // S3 연결 검증
+      
       await this.client.testConnection();
       
-      // LLM 서비스가 없는 경우 다시 초기화 시도
-      if (!this.llmService) {
-        await this.initLlmService();
-      }
       
-      // 자연어 처리 서비스가 없는 경우 초기화 시도
-      if (!this.nlpService && this.llmService) {
+      if (!this.nlpService) {
         this.initNlpService();
       }
       
       console.log('Pocket 플러그인 초기화 완료');
     } catch (error) {
       console.error('Pocket 플러그인 초기화 중 오류 발생:', error);
-      // 오류가 발생해도 초기화는 성공한 것으로 취급 (최소 기능 동작)
+      
     }
   }
   
@@ -321,7 +300,7 @@ export class PocketPluginService extends PluginBaseService {
    */
   protected registerCommands(customCommands?: PluginCommand[]): boolean {
     this.commands = [
-      // 자연어 명령어 (최상단에 배치)
+      
       {
         id: '',
         name: 'natural-language',
@@ -338,7 +317,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.processNaturalLanguage(args.join(' '))
       },
       
-      // 버킷 내 파일 목록 명령어
+      
       {
         id: 'ls',
         name: 'ls',
@@ -350,7 +329,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.listFiles(args[0] || '')
       },
       
-      // 파일 정보 조회 명령어
+      
       {
         id: 'info',
         name: 'info',
@@ -362,7 +341,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.getFileInfo(args[0])
       },
       
-      // 파일 로드 명령어
+      
       {
         id: 'load',
         name: 'load',
@@ -374,7 +353,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.loadFile(args[0])
       },
       
-      // 파일 요약 명령어
+      
       {
         id: 'summarize',
         name: 'summarize',
@@ -386,7 +365,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.summarizeFile(args[0])
       },
       
-      // 디렉토리 구조 탐색 명령어
+      
       {
         id: 'tree',
         name: 'tree',
@@ -398,7 +377,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.getDirectoryTree(args[0] || '', this.extractOptions(args))
       },
       
-      // 파일 검색 명령어
+      
       {
         id: 'search',
         name: 'search',
@@ -410,7 +389,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.searchFiles(args[0])
       },
       
-      // 파일 내용 검색 명령어
+      
       {
         id: 'grep',
         name: 'grep',
@@ -422,7 +401,7 @@ export class PocketPluginService extends PluginBaseService {
         execute: async (args) => this.grepFiles(args[0], args[1])
       },
       
-      // 버킷 정보 명령어
+      
       {
         id: 'bucket',
         name: 'bucket',
@@ -446,14 +425,10 @@ export class PocketPluginService extends PluginBaseService {
     try {
       this.logger.info(`Pocket 자연어 명령 처리: "${naturalCommand}"`);
       
-      // 자연어 처리 서비스 확인
+      
       if (!this.nlpService) {
-        if (this.llmService) {
-          // 자연어 처리 서비스 초기화 시도
-          this.initNlpService();
-        }
-        
-        // 여전히 없는 경우 오류 반환
+        this.initNlpService();
+          
         if (!this.nlpService) {
           return {
             content: `# 자연어 명령 처리 불가\n\n자연어 처리 서비스가 초기화되지 않았습니다. '@pocket:help' 명령을 사용하여 사용 가능한 명령어를 확인하세요.`,
@@ -462,10 +437,10 @@ export class PocketPluginService extends PluginBaseService {
         }
       }
       
-      // 자연어 명령을 형식적 명령으로 변환
+      
       const conversion = await this.nlpService.convertNaturalCommand(naturalCommand);
       
-      // 변환 결과가 없는 경우
+      
       if (!conversion || !conversion.command) {
         return {
           content: `# 명령 인식 실패\n\n입력된 자연어 명령을 인식할 수 없습니다. '@pocket:help' 명령을 사용하여 사용 가능한 명령어를 확인하세요.`,
@@ -473,13 +448,13 @@ export class PocketPluginService extends PluginBaseService {
         };
       }
       
-      // 명령 실행 전 안내 메시지
+      
       const commandInfo = {
         content: `# 자연어 명령 처리\n\n**입력**: ${naturalCommand}\n\n**변환**: @pocket:${conversion.command} ${conversion.args.join(' ')}\n\n**신뢰도**: ${(conversion.confidence * 100).toFixed(1)}%\n\n**설명**: ${conversion.explanation}\n\n---\n\n`,
         type: 'pocket-nlp-info'
       };
       
-      // 해당 명령어 찾기
+      
       const command = this.commands.find(cmd => cmd.id === conversion.command);
       
       if (!command) {
@@ -490,7 +465,7 @@ export class PocketPluginService extends PluginBaseService {
         };
       }
       
-      // 명령 실행
+      
       try {
         if (!command.execute) {
           throw new Error(`명령 '${conversion.command}'에 실행 함수가 없습니다.`);
@@ -498,9 +473,9 @@ export class PocketPluginService extends PluginBaseService {
         
         const result = await command.execute(conversion.args);
         
-        // 결과에 자연어 처리 정보 추가
+        
         if (typeof result === 'object') {
-          // 객체인 경우 내용 병합
+          
           return {
             ...result,
             content: commandInfo.content + result.content,
@@ -512,7 +487,7 @@ export class PocketPluginService extends PluginBaseService {
             }
           };
         } else {
-          // 문자열 등 다른 타입인 경우
+          
           return {
             content: commandInfo.content + result,
             type: 'pocket-nlp-result',
@@ -548,13 +523,13 @@ export class PocketPluginService extends PluginBaseService {
    */
   private async listFiles(path: string): Promise<any> {
     try {
-      // 경로 정규화
+      
       const normalizedPath = path.endsWith('/') || path === '' ? path : `${path}/`;
       
-      // 파일 목록 조회
+      
       const files = await this.client.listObjects(normalizedPath);
       
-      // 결과가 없는 경우
+      
       if (files.length === 0) {
         return {
           content: `# 파일 없음\n\n경로 \`${normalizedPath}\`에 파일이 없습니다.`,
@@ -562,11 +537,11 @@ export class PocketPluginService extends PluginBaseService {
         };
       }
       
-      // 파일과 디렉토리 분리
+      
       const directories = files.filter(file => file.Key.endsWith('/'));
       const fileObjects = files.filter(file => !file.Key.endsWith('/'));
       
-      // 결과 포맷팅
+      
       let content = `# 파일 목록: ${normalizedPath || '/'}\n\n`;
       
       if (directories.length > 0) {
@@ -610,13 +585,13 @@ export class PocketPluginService extends PluginBaseService {
         throw new Error('파일 경로는 필수입니다');
       }
       
-      // 파일 정보 조회
+      
       const fileInfo = await this.client.getObjectInfo(path);
       
-      // 파일 유형 감지
+      
       const fileType = this.detectFileType(path, fileInfo.ContentType);
       
-      // 결과 포맷팅
+      
       const content = `# 파일 정보: ${path}\n\n` +
                       `**유형**: ${fileInfo.ContentType || '알 수 없음'}\n` +
                       `**크기**: ${this.formatFileSize(fileInfo.ContentLength)}\n` +
@@ -652,27 +627,27 @@ export class PocketPluginService extends PluginBaseService {
         throw new Error('파일 경로는 필수입니다');
       }
       
-      // 파일 내용 로드
+      
       const fileData = await this.client.getObject(path);
       const fileInfo = await this.client.getObjectInfo(path);
       
-      // 파일 유형 감지
+      
       const fileType = this.detectFileType(path, fileInfo.ContentType);
       
-      // 결과 포맷팅 (파일 유형에 따라)
+      
       let content = `# 파일 내용: ${path}\n\n`;
       
-      // 파일 정보 추가
+      
       content += `**유형**: ${fileInfo.ContentType || '알 수 없음'}\n` +
                  `**크기**: ${this.formatFileSize(fileInfo.ContentLength)}\n` +
                  `**마지막 수정**: ${new Date(fileInfo.LastModified).toLocaleString()}\n\n`;
       
-      // 파일 내용 포맷팅
+      
       if (fileType === FileType.TEXT) {
-        // 텍스트 파일인 경우
+        
         const textContent = fileData.toString('utf-8');
         
-        // 파일 확장자를 사용하여 적절한 코드 블록 언어 추가
+        
         const extension = path.split('.').pop()?.toLowerCase() || '';
         let language = '';
         
@@ -705,7 +680,7 @@ export class PocketPluginService extends PluginBaseService {
             language = extension || '';
         }
         
-        // 내용이 너무 큰 경우 잘라내기
+        
         const MAX_CONTENT_SIZE = 50000;
         let displayContent = textContent;
         let truncated = false;
@@ -721,10 +696,10 @@ export class PocketPluginService extends PluginBaseService {
           content += `\n\n**참고**: 파일이 너무 커서 처음 ${MAX_CONTENT_SIZE}자만 표시됩니다.`;
         }
       } else if (fileType === FileType.IMAGE) {
-        // 이미지 파일인 경우
+        
         content += `## 이미지 파일\n이 파일은 이미지입니다. 내용을 직접 표시할 수 없습니다.`;
       } else {
-        // 바이너리 파일인 경우
+        
         content += `## 바이너리 파일\n이 파일은 바이너리 형식입니다. 내용을 텍스트로 표시할 수 없습니다.`;
       }
       
@@ -750,7 +725,7 @@ export class PocketPluginService extends PluginBaseService {
    */
   private async summarizeFile(path: string): Promise<any> {
     try {
-      // LLM 서비스 확인
+      
       if (!this.llmService) {
         throw new Error('LLM 서비스가 초기화되지 않았습니다. 파일 요약을 수행할 수 없습니다.');
       }
@@ -759,14 +734,14 @@ export class PocketPluginService extends PluginBaseService {
         throw new Error('파일 경로는 필수입니다');
       }
       
-      // 파일 내용 로드
+      
       const fileData = await this.client.getObject(path);
       const fileInfo = await this.client.getObjectInfo(path);
       
-      // 파일 유형 감지
+      
       const fileType = this.detectFileType(path, fileInfo.ContentType);
       
-      // 텍스트 파일이 아닌 경우 요약 불가
+      
       if (fileType !== FileType.TEXT) {
         return {
           content: `# 파일 요약 불가\n\n파일 \`${path}\`은(는) 텍스트 파일이 아니므로 요약할 수 없습니다.`,
@@ -774,11 +749,11 @@ export class PocketPluginService extends PluginBaseService {
         };
       }
       
-      // 텍스트 내용 가져오기
+      
       const textContent = fileData.toString('utf-8');
       
-      // 내용이 너무 크면 자르기
-      const MAX_CONTENT_SIZE = 15000; // LLM 컨텍스트 창 고려
+      
+      const MAX_CONTENT_SIZE = 15000; 
       let contentToSummarize = textContent;
       let truncated = false;
       
@@ -787,11 +762,11 @@ export class PocketPluginService extends PluginBaseService {
         truncated = true;
       }
       
-      // 파일 확장자를 감지하여 적절한 프롬프트 작성
+      
       const extension = path.split('.').pop()?.toLowerCase() || '';
       const fileFormat = this.getFileFormatFromExtension(extension);
       
-      // LLM 요청을 위한 프롬프트 생성
+      
       const prompt = `
 다음 ${fileFormat} 파일의 내용을 요약해주세요:
 
@@ -813,7 +788,7 @@ ${contentToSummarize}
 마크다운 형식으로 응답해주세요.
 `;
       
-      // LLM 요청
+      
       console.log('LLM을 사용하여 파일 요약 생성 중...');
       
       const modelId = this.config.summarizeModel || this.llmService.getDefaultModelId();
@@ -832,7 +807,7 @@ ${contentToSummarize}
         temperature: 0.3
       });
       
-      // 결과 포맷팅
+      
       const content = `# 파일 요약: ${path}\n\n` +
                       `**파일 유형**: ${fileInfo.ContentType || '알 수 없음'}\n` +
                       `**파일 크기**: ${this.formatFileSize(fileInfo.ContentLength)}\n` +
@@ -863,46 +838,46 @@ ${contentToSummarize}
    */
   private async getDirectoryTree(path: string, options: Record<string, any>): Promise<any> {
     try {
-      // 기본 옵션 설정
+      
       const depth = options.depth ? parseInt(options.depth) : 3;
       
-      // 경로 정규화
+      
       const normalizedPath = path.endsWith('/') || path === '' ? path : `${path}/`;
       
-      // 모든 객체 조회
+      
       const allObjects = await this.client.listAllObjects(normalizedPath);
       
-      // 디렉토리 트리 구성
+      
       const tree: any = {};
       
       allObjects.forEach(obj => {
-        // 전체 키에서 기준 경로 제거
+        
         const relativePath = obj.Key.startsWith(normalizedPath) ? 
           obj.Key.substring(normalizedPath.length) : obj.Key;
         
-        // 빈 문자열이거나 깊이를 초과하는 경로는 건너뛰기
+        
         if (!relativePath) return;
         
-        // 경로 분할
+        
         const parts = relativePath.split('/');
         
-        // 지정된 깊이보다 깊은 경로는 건너뛰기
+        
         if (parts.length > depth) return;
         
-        // 트리 구성
+        
         let current = tree;
         for (let i = 0; i < parts.length; i++) {
           const part = parts[i];
-          if (!part && i !== parts.length - 1) continue; // 빈 부분 건너뛰기 (디렉토리 구분자 연속)
+          if (!part && i !== parts.length - 1) continue; 
           
-          // 마지막 부분이 빈 문자열인 경우 디렉토리
+          
           const isDir = i === parts.length - 1 && !part;
           
-          if (isDir) continue; // 디렉토리 자체는 이미 상위 레벨에서 처리됨
+          if (isDir) continue; 
           
-          // 현재 부분이 트리에 없으면 추가
+          
           if (!current[part]) {
-            // 마지막 부분이거나 다음 부분이 빈 문자열이면 파일, 아니면 디렉토리
+            
             const isFile = i === parts.length - 1;
             
             if (isFile) {
@@ -919,17 +894,17 @@ ${contentToSummarize}
             }
           }
           
-          // 디렉토리인 경우 하위 레벨로 이동
+          
           if (current[part].type === 'directory') {
             current = current[part].children;
           }
         }
       });
       
-      // 트리를 문자열로 변환
+      
       const treeString = this.formatTree(tree, '', true);
       
-      // 결과 포맷팅
+      
       const content = `# 디렉토리 구조: ${normalizedPath || '/'}\n\n` +
                       `**최대 깊이**: ${depth}\n\n` +
                       `\`\`\`\n${treeString || '(빈 디렉토리)'}\n\`\`\``;
@@ -960,16 +935,16 @@ ${contentToSummarize}
         throw new Error('검색 키워드는 필수입니다');
       }
       
-      // 모든 객체 조회
+      
       const allObjects = await this.client.listAllObjects('');
       
-      // 키워드로 필터링
+      
       const matchedObjects = allObjects.filter(obj => {
         const fileName = obj.Key.split('/').pop() || '';
         return fileName.toLowerCase().includes(keyword.toLowerCase());
       });
       
-      // 결과가 없는 경우
+      
       if (matchedObjects.length === 0) {
         return {
           content: `# 검색 결과 없음\n\n키워드 \`${keyword}\`와 일치하는 파일을 찾을 수 없습니다.`,
@@ -977,7 +952,7 @@ ${contentToSummarize}
         };
       }
       
-      // 결과 포맷팅
+      
       const content = `# 파일 검색 결과: "${keyword}"\n\n` +
                       `**총 ${matchedObjects.length}개 파일 발견**\n\n` +
                       matchedObjects.map(obj => {
@@ -1009,32 +984,32 @@ ${contentToSummarize}
         throw new Error('검색 패턴은 필수입니다');
       }
       
-      // 경로 정규화
+      
       const normalizedPath = path.endsWith('/') || path === '' ? path : `${path}/`;
       
-      // 해당 경로의 파일 목록 조회
+      
       const files = await this.client.listObjects(normalizedPath);
       
-      // 파일만 필터링
+      
       const fileObjects = files.filter(file => !file.Key.endsWith('/'));
       
-      // 각 파일 내용 검색
+      
       const matchResults = [];
       
       for (const file of fileObjects) {
         try {
-          // 파일 확장자 확인
+          
           const fileName = file.Key.split('/').pop() || '';
           const extension = fileName.split('.').pop()?.toLowerCase() || '';
           
-          // 텍스트 파일만 검색
+          
           if (!this.isTextFile(extension)) continue;
           
-          // 파일 내용 로드
+          
           const fileData = await this.client.getObject(file.Key);
           const textContent = fileData.toString('utf-8');
           
-          // 패턴으로 검색
+          
           const lines = textContent.split('\n');
           const matches = [];
           
@@ -1047,7 +1022,7 @@ ${contentToSummarize}
             }
           }
           
-          // 매칭된 결과가 있는 경우만 추가
+          
           if (matches.length > 0) {
             matchResults.push({
               file: file.Key,
@@ -1056,11 +1031,11 @@ ${contentToSummarize}
           }
         } catch (fileError) {
           console.warn(`파일 내용 검색 중 오류 (${file.Key}):`, fileError);
-          // 개별 파일 오류는 무시하고 계속 진행
+          
         }
       }
       
-      // 결과가 없는 경우
+      
       if (matchResults.length === 0) {
         return {
           content: `# 내용 검색 결과 없음\n\n패턴 \`${pattern}\`과 일치하는 내용을 찾을 수 없습니다.`,
@@ -1068,7 +1043,7 @@ ${contentToSummarize}
         };
       }
       
-      // 결과 포맷팅
+      
       let content = `# 내용 검색 결과: "${pattern}"\n\n`;
       content += `**패턴과 일치하는 파일**: ${matchResults.length}개\n\n`;
       
@@ -1077,7 +1052,7 @@ ${contentToSummarize}
         content += `## 📄 ${fileName}\n`;
         content += `**경로**: \`${result.file}\`\n\n`;
         
-        // 최대 표시할 매칭 수
+        
         const MAX_MATCHES = 10;
         const displayMatches = result.matches.slice(0, MAX_MATCHES);
         const hasMoreMatches = result.matches.length > MAX_MATCHES;
@@ -1110,18 +1085,18 @@ ${contentToSummarize}
    */
   private async getBucketInfo(): Promise<any> {
     try {
-      // 버킷 정보 조회
+      
       const bucketInfo = await this.client.getBucketInfo();
       
-      // 총 객체 수 및 크기 계산
+      
       const allObjects = await this.client.listAllObjects('');
       const totalSize = allObjects.reduce((sum, obj) => sum + obj.Size, 0);
       
-      // 디렉토리 카운트
+      
       const directories = new Set();
       allObjects.forEach(obj => {
         const parts = obj.Key.split('/');
-        parts.pop(); // 마지막 파일 이름 제거
+        parts.pop(); 
         
         let path = '';
         for (const part of parts) {
@@ -1130,7 +1105,7 @@ ${contentToSummarize}
         }
       });
       
-      // 결과 포맷팅
+      
       const content = `# 버킷 정보: ${this.config.bucket}\n\n` +
                       `**엔드포인트**: ${this.config.endpoint}\n` +
                       `**리전**: ${this.config.region || 'us-east-1'}\n` +
@@ -1168,26 +1143,26 @@ ${contentToSummarize}
    * @returns 파일 타입
    */
   private detectFileType(path: string, contentType?: string): FileType {
-    // 경로가 /로 끝나면 디렉토리
+    
     if (path.endsWith('/')) {
       return FileType.DIRECTORY;
     }
     
-    // 확장자로 판단
+    
     const extension = path.split('.').pop()?.toLowerCase() || '';
     
-    // 이미지 확장자
+    
     const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'svg', 'webp'];
     if (imageExtensions.includes(extension) || contentType?.startsWith('image/')) {
       return FileType.IMAGE;
     }
     
-    // 텍스트 확장자
+    
     if (this.isTextFile(extension) || contentType?.startsWith('text/')) {
       return FileType.TEXT;
     }
     
-    // 기본값은 바이너리
+    
     return FileType.BINARY;
   }
   
@@ -1296,7 +1271,7 @@ ${contentToSummarize}
   private formatTree(tree: any, prefix: string = '', isRoot: boolean = false): string {
     let result = '';
     
-    // 노드 정렬 (디렉토리 먼저, 그 다음 파일)
+    
     const sortedEntries = Object.entries(tree).sort((a, b) => {
       const aIsDir = a[1].type === 'directory';
       const bIsDir = b[1].type === 'directory';
@@ -1306,18 +1281,18 @@ ${contentToSummarize}
       return a[0].localeCompare(b[0]);
     });
     
-    // 각 항목 처리
+    
     sortedEntries.forEach(([name, info], index) => {
       const isLast = index === sortedEntries.length - 1;
       const connector = isLast ? '└── ' : '├── ';
       const newPrefix = prefix + (isLast ? '    ' : '│   ');
       
-      // 파일이나 디렉토리 표시
+      
       if (info.type === 'directory') {
         result += `${prefix}${isRoot ? '' : connector}📁 ${name}/\n`;
         result += this.formatTree(info.children, newPrefix);
       } else {
-        // 파일 크기 포맷팅
+        
         const sizeStr = info.size !== undefined ? ` (${this.formatFileSize(info.size)})` : '';
         result += `${prefix}${isRoot ? '' : connector}📄 ${name}${sizeStr}\n`;
       }
@@ -1334,7 +1309,7 @@ ${contentToSummarize}
   private extractOptions(args: any[]): Record<string, any> {
     const options: Record<string, any> = {};
     
-    // 플래그 형식 옵션 추출 (--key=value 또는 --flag)
+    
     for (const arg of args) {
       if (typeof arg === 'string' && arg.startsWith('--')) {
         const parts = arg.substring(2).split('=');

@@ -8,53 +8,59 @@
 import * as vscode from 'vscode';
 import { EventEmitter } from 'events';
 
-// 코어 서비스 인터페이스
+
 import { ICoreService, MessageProcessOptions, MessageProcessResult } from './ICoreService';
 
-// 의존성 주입 컨테이너
+
 import { container } from './di/Container';
 
-// 명령어 시스템
+
 import { CommandParserService } from './command/CommandParserService';
 import { CommandRegistryService } from './command/CommandRegistryService';
 import { CommandExecutorService } from './command/CommandExecutorService';
 import { CommandService } from './command/CommandService';
 
-// 설정 시스템
+
 import { ConfigService } from './config/ConfigService';
 
-// 플러그인 시스템
+
 import { PluginRegistryService } from './plugin-system/PluginRegistryService';
 
-// LLM 서비스 
+
 import { LlmService } from './llm/LlmService';
 
-// VS Code 서비스
+
 import { VSCodeService } from './vscode/VSCodeService';
 
-// HTTP 클라이언트
+
 import { HttpClientService } from './http/HttpClientService';
 
-// 프롬프트 시스템
+
 import { PromptAssemblerService } from './prompt/PromptAssemblerService';
 import { RulesEngineService } from './prompt/RulesEngineService';
 
-// 유틸리티
+
 import { LoggerService } from './utils/LoggerService';
 
-// 타입 임포트
+
 import { Command } from '../types/CommandTypes';
 import { ChatMessage, MessageRole } from '../types/LlmTypes';
+
+
+import { SwdpDomainService } from './domain/SwdpDomainService';
+import { SwdpWorkflowService } from './workflow/SwdpWorkflowService';
+import { UserAuthService } from './auth/UserAuthService';
+import { SwdpNaturalLanguageService } from '../plugins/internal/swdp/SwdpNaturalLanguageService';
 
 /**
  * APE 코어 서비스 클래스
  * 모든 핵심 서비스 통합 및 관리
  */
 export class CoreService extends EventEmitter implements ICoreService {
-  // 서비스 활성화 상태
+  
   private _isEnabled: boolean = false;
   
-  // 서비스 인스턴스
+  
   private readonly _configService: ConfigService;
   private readonly _commandParser: CommandParserService;
   private readonly _commandRegistry: CommandRegistryService;
@@ -67,6 +73,11 @@ export class CoreService extends EventEmitter implements ICoreService {
   private readonly _promptAssembler: PromptAssemblerService;
   private readonly _rulesEngine: RulesEngineService;
   private readonly _logger: LoggerService;
+  private readonly _userAuthService: UserAuthService;
+  private readonly _swdpDomainService: SwdpDomainService;
+  private readonly _swdpWorkflowService: SwdpWorkflowService;
+  private readonly _swdpNaturalLanguageService: SwdpNaturalLanguageService;
+  private _disposables: vscode.Disposable[] = [];
   
   /**
    * CoreService 생성자
@@ -76,34 +87,60 @@ export class CoreService extends EventEmitter implements ICoreService {
   constructor(private context: vscode.ExtensionContext) {
     super();
     
-    // 필수 서비스 초기화
+    
     this._logger = new LoggerService();
-    this._configService = new ConfigService();
+    
+    // 의존성 주입 방식으로 ConfigService 생성
+    this._configService = ConfigService.createInstance(context);
+    
     this._commandParser = new CommandParserService();
     this._httpService = new HttpClientService();
     this._vsCodeService = new VSCodeService(context);
     
-    // 플러그인 시스템 초기화
+    // 의존성 주입 방식으로 UserAuthService 생성
+    this._userAuthService = UserAuthService.createInstance(this._configService);
+    
     this._pluginRegistry = new PluginRegistryService(this._configService);
     
-    // 명령어 시스템 초기화
+    
     this._commandRegistry = new CommandRegistryService(this._pluginRegistry);
     this._commandExecutor = new CommandExecutorService(
       this._commandRegistry,
       this._pluginRegistry
     );
     
-    // 컨텍스트 기반 명령어 서비스 초기화
-    this._commandService = new CommandService(this._configService);
     
-    // LLM 서비스 초기화
+    this._commandService = new CommandService(this._configService, this);
+    
+    
     this._llmService = new LlmService();
     
-    // 프롬프트 시스템 초기화
+    
     this._rulesEngine = new RulesEngineService();
     this._promptAssembler = new PromptAssemblerService(this._rulesEngine);
     
-    // DI 컨테이너에 서비스 등록
+    
+    // 의존성 주입 방식으로 SwdpDomainService 생성
+    this._swdpDomainService = SwdpDomainService.createInstance(
+      this._configService,
+      this._userAuthService
+    );
+    
+    // 의존성 주입 방식으로 SwdpWorkflowService 생성
+    this._swdpWorkflowService = SwdpWorkflowService.createInstance(
+      this._configService,
+      this._userAuthService,
+      this._swdpDomainService
+    );
+    
+    // 의존성 주입 방식으로 SwdpNaturalLanguageService 생성
+    this._swdpNaturalLanguageService = new SwdpNaturalLanguageService(
+      this._swdpDomainService,
+      this._swdpWorkflowService,
+      this._configService,
+      this._userAuthService
+    );
+    
     this.registerServices();
   }
   
@@ -133,6 +170,10 @@ export class CoreService extends EventEmitter implements ICoreService {
     container.register('promptAssembler', this._promptAssembler);
     container.register('rulesEngine', this._rulesEngine);
     container.register('logger', this._logger);
+    container.register('userAuthService', this._userAuthService);
+    container.register('swdpDomainService', this._swdpDomainService);
+    container.register('swdpWorkflowService', this._swdpWorkflowService);
+    container.register('swdpNaturalLanguageService', this._swdpNaturalLanguageService);
   }
   
   /**
@@ -144,7 +185,7 @@ export class CoreService extends EventEmitter implements ICoreService {
     try {
       this._logger.info('APE 코어 서비스 초기화 시작');
       
-      // 설정 로드 및 검증
+      
       try {
         this._logger.info('설정 로드 시작');
         const loadSuccess = await this._configService.load(true);
@@ -154,7 +195,7 @@ export class CoreService extends EventEmitter implements ICoreService {
           this._logger.info('설정 로드 성공');
         }
         
-        // 설정 검증 시도
+        
         try {
           if (typeof this._configService.validate === 'function') {
             const configValid = await this._configService.validate(this._configService.getCoreConfig(), true);
@@ -175,11 +216,11 @@ export class CoreService extends EventEmitter implements ICoreService {
         this._logger.error('설정 검증 중 오류:', configError);
         this._logger.error('상세 오류 정보:', JSON.stringify(configError, Object.getOwnPropertyNames(configError)));
         
-        // 설정 오류 무시하고 진행 (개발 모드)
+        
         this._logger.info('설정 오류 무시하고 진행...');
       }
       
-      // SSL 우회 설정 확인 및 적용
+      
       try {
         this._logger.info('SSL 우회 설정 적용 시작');
         const coreConfig = this._configService.getCoreConfig();
@@ -190,7 +231,7 @@ export class CoreService extends EventEmitter implements ICoreService {
         this._logger.error('SSL 우회 설정 적용 중 오류:', sslError);
       }
       
-      // 내부 플러그인 등록
+      
       try {
         this._logger.info('내부 플러그인 등록 시작');
         const pluginCount = await this.registerInternalPlugins();
@@ -199,11 +240,11 @@ export class CoreService extends EventEmitter implements ICoreService {
         this._logger.error('내부 플러그인 등록 중 오류:', pluginError);
         this._logger.error('상세 오류 정보:', JSON.stringify(pluginError, Object.getOwnPropertyNames(pluginError)));
         
-        // 플러그인 오류 무시하고 진행
+        
         this._logger.info('플러그인 오류 무시하고 진행...');
       }
       
-      // 플러그인 초기화
+      
       try {
         this._logger.info('플러그인 초기화 시작');
         await this._pluginRegistry.initialize();
@@ -212,19 +253,15 @@ export class CoreService extends EventEmitter implements ICoreService {
         this._logger.error('플러그인 초기화 중 오류:', initError);
         this._logger.error('상세 오류 정보:', JSON.stringify(initError, Object.getOwnPropertyNames(initError)));
         
-        // 초기화 오류 무시하고 진행
+        
         this._logger.info('초기화 오류 무시하고 진행...');
       }
       
-      // 컨텍스트 기반 명령어 서비스 초기화
+      
       try {
         this._logger.info('컨텍스트 기반 명령어 서비스 초기화 시작');
-        
-        // 코어 서비스 참조 설정 (LLM 서비스 등 접근을 위해)
-        this._commandService.setCoreService(this);
-        
-        // 이벤트 기반으로 코어 서비스 준비 알림
-        this.emit('core-service-ready', this);
+        // 모든 서비스는 생성자에서 직접 주입되므로 이벤트 발생은 더 이상 필요하지 않음
+        // this.emit('core-service-ready', this);
         
         await this._commandService.initialize();
         this._logger.info('컨텍스트 기반 명령어 서비스 초기화 완료');
@@ -233,11 +270,11 @@ export class CoreService extends EventEmitter implements ICoreService {
                          (typeof commandServiceError === 'string' ? commandServiceError : '알 수 없는 오류');
         this._logger.error('컨텍스트 기반 명령어 서비스 초기화 중 오류:', errorMessage);
         
-        // 초기화 오류 무시하고 진행
+        
         this._logger.info('명령어 서비스 오류 무시하고 진행...');
       }
       
-      // 서비스 활성화
+      
       this._isEnabled = true;
       this.emit('core-initialized');
       this._logger.info('APE 코어 서비스 초기화 성공');
@@ -248,10 +285,10 @@ export class CoreService extends EventEmitter implements ICoreService {
       this._logger.error('상세 오류 정보:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       console.error('APE 코어 서비스 초기화 실패 상세 정보:', error);
       
-      // 중요: 오류가 발생해도 최소한의 기능은 활성화
+      
       this._logger.info('오류 발생으로 제한 모드로 전환합니다.');
-      this._isEnabled = true; // 최소 기능 활성화
-      return true; // 오류가 있어도 초기화 성공으로 처리
+      this._isEnabled = true; 
+      return true; 
     }
   }
   
@@ -263,10 +300,20 @@ export class CoreService extends EventEmitter implements ICoreService {
     try {
       this._logger.info('내부 플러그인 등록 시작');
       
-      // 플러그인 등록 카운터
+      // 테스트 명령어 등록
+      try {
+        const { registerTestCommands } = await import('./command/test-commands');
+        if (typeof registerTestCommands === 'function') {
+          registerTestCommands(this._commandRegistry, this);
+          this._logger.info('테스트 명령어 등록 완료');
+        }
+      } catch (error) {
+        this._logger.error('테스트 명령어 등록 실패:', error);
+      }
+      
       let count = 0;
       
-      // 내부 플러그인 모듈 로드
+      
       const internalPluginsPath = '../plugins/internal';
       this._logger.info(`내부 플러그인 모듈 경로: ${internalPluginsPath}`);
       
@@ -274,14 +321,14 @@ export class CoreService extends EventEmitter implements ICoreService {
         const internalPlugins = await import(internalPluginsPath);
         this._logger.info('내부 플러그인 모듈 로딩 성공:', Object.keys(internalPlugins));
         
-        // Git 플러그인 등록
+        
         try {
           this._logger.info('Git 플러그인 등록 시도 중...');
           const GitPluginService = internalPlugins.GitPluginService;
           if (!GitPluginService) {
             this._logger.error('GitPluginService를 찾을 수 없습니다');
           } else {
-            const gitPlugin = new GitPluginService(this._configService);
+            const gitPlugin = new GitPluginService(this._configService, this._llmService);
             if (this._pluginRegistry.registerPlugin(gitPlugin, 'internal')) {
               count++;
               this._logger.info(`Git 플러그인 등록 성공: ${gitPlugin.name} (${gitPlugin.id})`);
@@ -291,7 +338,7 @@ export class CoreService extends EventEmitter implements ICoreService {
           this._logger.error('Git 플러그인 등록 실패:', gitError);
         }
         
-        // Jira 플러그인 등록
+        
         try {
           this._logger.info('Jira 플러그인 등록 시도 중...');
           const JiraPluginService = internalPlugins.JiraPluginService;
@@ -308,14 +355,19 @@ export class CoreService extends EventEmitter implements ICoreService {
           this._logger.error('Jira 플러그인 등록 실패:', jiraError);
         }
         
-        // SWDP 플러그인 등록
+        
         try {
           this._logger.info('SWDP 플러그인 등록 시도 중...');
           const SwdpPluginService = internalPlugins.SwdpPluginService;
           if (!SwdpPluginService) {
             this._logger.error('SwdpPluginService를 찾을 수 없습니다');
           } else {
-            const swdpPlugin = new SwdpPluginService(this._configService);
+            const swdpPlugin = new SwdpPluginService(
+              this._configService, 
+              this._swdpDomainService, 
+              this._swdpWorkflowService,
+              this._swdpNaturalLanguageService
+            );
             if (this._pluginRegistry.registerPlugin(swdpPlugin, 'internal')) {
               count++;
               this._logger.info(`SWDP 플러그인 등록 성공: ${swdpPlugin.name} (${swdpPlugin.id})`);
@@ -325,14 +377,17 @@ export class CoreService extends EventEmitter implements ICoreService {
           this._logger.error('SWDP 플러그인 등록 실패:', swdpError);
         }
         
-        // Pocket 플러그인 등록
+        
         try {
           this._logger.info('Pocket 플러그인 등록 시도 중...');
           const PocketPluginService = internalPlugins.PocketPluginService;
           if (!PocketPluginService) {
             this._logger.error('PocketPluginService를 찾을 수 없습니다');
           } else {
-            const pocketPlugin = new PocketPluginService(this._configService);
+            const pocketPlugin = new PocketPluginService(
+              this._configService,
+              this._llmService
+            );
             if (this._pluginRegistry.registerPlugin(pocketPlugin, 'internal')) {
               count++;
               this._logger.info(`Pocket 플러그인 등록 성공: ${pocketPlugin.name} (${pocketPlugin.id})`);
@@ -349,7 +404,7 @@ export class CoreService extends EventEmitter implements ICoreService {
         this._logger.error('내부 플러그인 모듈 로딩 실패:', importError);
         this._logger.error('상세 오류 정보:', JSON.stringify(importError, Object.getOwnPropertyNames(importError)));
         
-        // 임시 대응: 없이 진행
+        
         this._logger.info('내부 플러그인 없이 진행합니다.');
         return 0;
       }
@@ -371,10 +426,10 @@ export class CoreService extends EventEmitter implements ICoreService {
     try {
       this._logger.info(`메시지 처리 시작: "${text}"`);
       
-      // 명령어 파싱
+      
       const command = this._commandParser.parse(text);
       
-      // 명령어인 경우 실행
+      
       if (command) {
         this._logger.info(`명령어 감지됨: ${command.prefix}${command.agentId}:${command.command}`);
         
@@ -385,7 +440,7 @@ export class CoreService extends EventEmitter implements ICoreService {
         } catch (cmdError) {
           this._logger.error(`명령어 실행 실패: ${cmdError}`);
           
-          // 오류 메시지 포맷팅
+          
           const errorMessage = cmdError instanceof Error ? cmdError.message : String(cmdError);
           return {
             content: `# 명령어 실행 오류\n\n\`${command.prefix}${command.agentId}:${command.command}\`\n\n오류: ${errorMessage}`,
@@ -394,7 +449,7 @@ export class CoreService extends EventEmitter implements ICoreService {
         }
       }
       
-      // 일반 텍스트인 경우 디버그 모드에서는 간단한 응답 반환
+      
       if (text.trim().toLowerCase() === 'debug') {
         return {
           content: '# 디버그 모드 활성화\n\n' +
@@ -404,24 +459,24 @@ export class CoreService extends EventEmitter implements ICoreService {
         };
       }
       
-      // 일반 텍스트는 LLM 응답 생성 (스트리밍 옵션 포함)
+      
       this._logger.info(`일반 텍스트로 처리: LLM 응답 생성 (스트리밍: ${options?.stream ? '켜짐' : '꺼짐'})`);
       
-      // 심층 분석 모드 로깅
+      
       if (options?.embedDevMode) {
         this._logger.info(`심층 분석 모드 활성화: 고급 프롬프트 엔지니어링 및 내부 데이터 분석 적용`);
       }
       
-      // 대화 맥락 로깅
+      
       if (options?.conversationHistory) {
         this._logger.info(`대화 맥락 포함: ${options.conversationHistory.length}개의 메시지`);
       }
       
       if (options?.stream && options?.onUpdate) {
-        // 스트리밍 모드
+        
         return await this.generateStreamingResponse(text, options.onUpdate, options.conversationHistory, options);
       } else {
-        // 일반 모드
+        
         return await this.generateResponse(text, options?.conversationHistory, options);
       }
     } catch (error) {
@@ -447,18 +502,18 @@ export class CoreService extends EventEmitter implements ICoreService {
     options?: MessageProcessOptions
   ): Promise<MessageProcessResult> {
     try {
-      // 프롬프트 어셈블러로 컨텍스트 주입
+      
       const promptData = await this._promptAssembler.assemblePrompt(text);
       
-      // 대화 맥락이 있는 경우, 기존 프롬프트 데이터에 통합
+      
       if (conversationHistory && conversationHistory.length > 0) {
-        // 시스템 메시지 분리 (항상 첫 번째로 유지)
+        
         const systemMessages = promptData.messages.filter(m => m.role === 'system');
         
-        // 대화 맥락 메시지와 현재 사용자 메시지 결합
+        
         const typedContextMessages = this.ensureChatMessageArray(conversationHistory);
         
-        // 현재 사용자 메시지가 컨텍스트에 없으면 추가
+        
         const hasCurrentUserMessage = typedContextMessages.some(
           m => m.role === 'user' && m.content === text
         );
@@ -467,7 +522,7 @@ export class CoreService extends EventEmitter implements ICoreService {
           typedContextMessages.push(this.createChatMessage('user', text));
         }
         
-        // 최종 메시지 배열 생성 (시스템 메시지 + 대화 맥락)
+        
         promptData.messages = [...systemMessages, ...typedContextMessages];
         
         this._logger.info(`대화 맥락 통합: 최종 메시지 수 ${promptData.messages.length}개`);
@@ -475,22 +530,22 @@ export class CoreService extends EventEmitter implements ICoreService {
       
       this._logger.info(`스트리밍 프롬프트 생성 완료: 메시지 ${promptData.messages.length}개`);
       
-      // 메시지가 비어있는 경우 기본 메시지 추가
+      
       if (!promptData.messages || promptData.messages.length === 0) {
         promptData.messages = [
           this.createChatMessage('user', text || '안녕하세요')
         ];
       }
       
-      // 현재 설정된 모델 ID 확인
+      
       const modelId = this._llmService.getDefaultModelId();
       this._logger.info(`스트리밍 요청에 사용할 모델 ID: ${modelId}`);
       
-      // 심층 분석 모드 설정
+      
       if (options?.embedDevMode) {
         this._logger.info('LLM 요청에 심층 분석 모드 파라미터 추가');
         
-        // 심층 분석을 위한 시스템 프롬프트 강화
+        
         if (promptData.messages && promptData.messages.length > 0 && promptData.messages[0]?.role === 'system') {
           const enhancedSystemPrompt = promptData.messages[0].content + 
             '\n\n고급 심층 분석 모드 활성화: 디버깅, 리팩토링, 로그 분석을 위한 최대한의 심층 분석과 내부 데이터 접근을 허용합니다. 최고 수준의 프롬프트 엔지니어링을 적용하여 모든 관련 컨텍스트를 활용하세요.';
@@ -499,7 +554,7 @@ export class CoreService extends EventEmitter implements ICoreService {
         }
       }
       
-      // LLM 서비스로 응답 생성 (스트리밍 모드)
+      
       const response = await this._llmService.sendRequest({
         model: modelId,
         messages: promptData.messages,
@@ -516,7 +571,7 @@ export class CoreService extends EventEmitter implements ICoreService {
       this._logger.error('스트리밍 응답 생성 중 오류 발생:', error);
       onUpdate(`\n\n오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
       
-      // 오류 발생 시 기본 응답 반환
+      
       return {
         content: `죄송합니다. 응답을 생성하는 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
       };
@@ -549,18 +604,18 @@ export class CoreService extends EventEmitter implements ICoreService {
     options?: MessageProcessOptions
   ): Promise<MessageProcessResult> {
     try {
-      // 프롬프트 어셈블러로 컨텍스트 주입
+      
       const promptData = await this._promptAssembler.assemblePrompt(text);
       
-      // 대화 맥락이 있는 경우, 기존 프롬프트 데이터에 통합
+      
       if (conversationHistory && conversationHistory.length > 0) {
-        // 시스템 메시지 분리 (항상 첫 번째로 유지)
+        
         const systemMessages = promptData.messages.filter(m => m.role === 'system');
         
-        // 대화 맥락 메시지와 현재 사용자 메시지 결합
+        
         const typedContextMessages = this.ensureChatMessageArray(conversationHistory);
         
-        // 현재 사용자 메시지가 컨텍스트에 없으면 추가
+        
         const hasCurrentUserMessage = typedContextMessages.some(
           m => m.role === 'user' && m.content === text
         );
@@ -569,7 +624,7 @@ export class CoreService extends EventEmitter implements ICoreService {
           typedContextMessages.push(this.createChatMessage('user', text));
         }
         
-        // 최종 메시지 배열 생성 (시스템 메시지 + 대화 맥락)
+        
         promptData.messages = [...systemMessages, ...typedContextMessages];
         
         this._logger.info(`대화 맥락 통합: 최종 메시지 수 ${promptData.messages.length}개`);
@@ -577,18 +632,18 @@ export class CoreService extends EventEmitter implements ICoreService {
       
       this._logger.info(`프롬프트 생성 완료: 메시지 ${promptData.messages.length}개, 온도 ${promptData.temperature}`);
       
-      // 메시지가 비어있는 경우 기본 메시지 추가
+      
       if (!promptData.messages || promptData.messages.length === 0) {
         promptData.messages = [
           this.createChatMessage('user', text || '안녕하세요')
         ];
       }
       
-      // 심층 분석 모드 설정
+      
       if (options?.embedDevMode) {
         this._logger.info('LLM 요청에 심층 분석 모드 파라미터 추가 (비스트리밍 모드)');
         
-        // 심층 분석을 위한 시스템 프롬프트 강화
+        
         if (promptData.messages && promptData.messages.length > 0 && promptData.messages[0]?.role === 'system') {
           const enhancedSystemPrompt = promptData.messages[0].content + 
             '\n\n고급 심층 분석 모드 활성화: 디버깅, 리팩토링, 로그 분석을 위한 최대한의 심층 분석과 내부 데이터 접근을 허용합니다. 최고 수준의 프롬프트 엔지니어링을 적용하여 모든 관련 컨텍스트를 활용하세요.';
@@ -597,7 +652,7 @@ export class CoreService extends EventEmitter implements ICoreService {
         }
       }
       
-      // LLM 서비스로 응답 생성
+      
       const response = await this._llmService.sendRequest({
         model: this._llmService.getDefaultModelId(),
         messages: promptData.messages,
@@ -611,7 +666,7 @@ export class CoreService extends EventEmitter implements ICoreService {
     } catch (error) {
       this._logger.error('응답 생성 중 오류 발생:', error);
       
-      // 오류 발생 시 기본 응답 반환
+      
       return {
         content: `죄송합니다. 응답을 생성하는 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`
       };
@@ -624,10 +679,10 @@ export class CoreService extends EventEmitter implements ICoreService {
    */
   public async collectContext(): Promise<any> {
     try {
-      // VS Code 정보 수집
+      
       const editorContext = await this._vsCodeService.getEditorContext();
       
-      // 활성 플러그인 정보
+      
       const pluginInfo = this._pluginRegistry.getEnabledPlugins().map(p => p.id);
       
       return {
@@ -686,7 +741,7 @@ export class CoreService extends EventEmitter implements ICoreService {
     return this._isEnabled;
   }
   
-  // 서비스 인스턴스 접근자
+  
   
   get configService(): ConfigService {
     return this._configService;
@@ -722,5 +777,51 @@ export class CoreService extends EventEmitter implements ICoreService {
   
   get logger(): LoggerService {
     return this._logger;
+  }
+  
+  get userAuthService(): UserAuthService {
+    return this._userAuthService;
+  }
+  
+  get swdpDomainService(): SwdpDomainService {
+    return this._swdpDomainService;
+  }
+  
+  get swdpWorkflowService(): SwdpWorkflowService {
+    return this._swdpWorkflowService;
+  }
+  
+  get swdpNaturalLanguageService(): SwdpNaturalLanguageService {
+    return this._swdpNaturalLanguageService;
+  }
+  
+  /**
+   * 리소스 해제
+   * 확장 프로그램 비활성화 시 호출
+   */
+  public dispose(): void {
+    try {
+      this._logger.info('APE 코어 서비스 리소스 해제 시작');
+      
+      // 등록된 모든 Disposable 해제
+      this._disposables.forEach(disposable => {
+        try {
+          disposable.dispose();
+        } catch (error) {
+          this._logger.error('Disposable 해제 중 오류:', error);
+        }
+      });
+      this._disposables = [];
+      
+      // 이벤트 리스너 제거
+      this.removeAllListeners();
+      
+      // 서비스 비활성화
+      this._isEnabled = false;
+      
+      this._logger.info('APE 코어 서비스 리소스 해제 완료');
+    } catch (error) {
+      this._logger.error('APE 코어 서비스 리소스 해제 중 오류:', error);
+    }
   }
 }

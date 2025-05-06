@@ -50,10 +50,10 @@ export abstract class PluginBaseService implements IPlugin {
    */
   constructor(protected configLoader?: IConfigLoader) {
     if (configLoader) {
-      // 플러그인 설정 로드
+      
       this.config = this.loadConfig();
       
-      // 활성화 여부 확인
+      
       this.enabled = this.config?.enabled !== false;
     }
   }
@@ -63,7 +63,7 @@ export abstract class PluginBaseService implements IPlugin {
    * @returns 플러그인 설정
    */
   protected loadConfig(): any {
-    // 내부 플러그인은 기본 설정 사용, 외부 플러그인은 설정 로드
+    
     return {};
   }
   
@@ -73,7 +73,7 @@ export abstract class PluginBaseService implements IPlugin {
    * @returns 초기화 성공 여부
    */
   async initialize(): Promise<void> {
-    // 자식 클래스에서 구현
+    
   }
   
   /**
@@ -82,7 +82,7 @@ export abstract class PluginBaseService implements IPlugin {
    * @returns 초기화 완료 여부
    */
   isInitialized(): boolean {
-    return true; // 기본적으로 초기화된 것으로 간주
+    return true; 
   }
   
   /**
@@ -100,14 +100,14 @@ export abstract class PluginBaseService implements IPlugin {
    * @returns 실행 결과
    */
   async executeCommand(command: string, args: any[]): Promise<any> {
-    // 명령어 찾기 (id 또는 name으로 검색)
+    
     const cmd = this.commands.find(c => (c.id === command) || (c.name === command));
     
     if (!cmd) {
       throw new Error(`명령어를 찾을 수 없음: ${command}`);
     }
     
-    // 명령어 실행
+    
     try {
       if (cmd.execute) {
         return await cmd.execute(args);
@@ -149,13 +149,13 @@ export abstract class PluginBaseService implements IPlugin {
       return false;
     }
 
-    // 이미 등록된 명령어인지 확인
+    
     const existingIndex = this.commands.findIndex(c => c.id === command.id);
     if (existingIndex >= 0) {
-      // 기존 명령어 업데이트
+      
       this.commands[existingIndex] = command;
     } else {
-      // 새 명령어 추가
+      
       this.commands.push(command);
     }
 
@@ -193,7 +193,7 @@ export abstract class PluginBaseService implements IPlugin {
   ): PluginCommand {
     return {
       id,
-      name: id, // id와 동일하게 설정
+      name: id, 
       type: CommandType.AT,
       prefix: CommandPrefix.AT,
       description: description || '',
@@ -215,7 +215,7 @@ export abstract class PluginBaseService implements IPlugin {
   ): PluginCommand {
     return {
       id,
-      name: id, // id와 동일하게 설정
+      name: id, 
       type: CommandType.SLASH,
       prefix: CommandPrefix.SLASH,
       description: description || '',
@@ -234,20 +234,20 @@ export abstract class PluginBaseService implements IPlugin {
       return template;
     }
     
-    // ${var} 형식의 변수 치환
+    
     let result = template.replace(/\${([^}]+)}/g, (match, varName) => {
-      // 환경 변수 확인
+      
       if (process.env[varName] !== undefined) {
         return process.env[varName] || '';
       }
       
-      // 변수 객체에서 확인
+      
       const varPath = varName.split('.');
       let value: any = vars;
       
       for (const part of varPath) {
         if (value === undefined || value === null) {
-          return match; // 변수를 찾지 못한 경우 원본 유지
+          return match; 
         }
         value = value[part];
       }

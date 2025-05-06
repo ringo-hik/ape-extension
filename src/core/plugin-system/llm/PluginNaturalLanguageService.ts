@@ -13,11 +13,11 @@ import { PluginCommand } from '../../../types/PluginTypes';
  * 명령어 변환 결과 인터페이스
  */
 export interface CommandConversion {
-  command: string;    // 변환된 명령어 (예: status, commit)
-  args: string[];     // 명령어 인자
-  confidence: number; // 변환 신뢰도 (0.0-1.0)
-  explanation: string; // 변환 설명
-  alternatives?: Array<{  // 대체 명령어 옵션
+  command: string;    
+  args: string[];     
+  confidence: number; 
+  explanation: string; 
+  alternatives?: Array<{  
     command: string;
     args: string[];
     confidence: number;
@@ -28,9 +28,9 @@ export interface CommandConversion {
  * 명령어 패턴 정의 인터페이스
  */
 export interface CommandPattern {
-  command: string;     // 명령어 ID
-  patterns: string[];  // 자연어 패턴
-  extractArgs?: (input: string) => string[];  // 인자 추출 함수
+  command: string;     
+  patterns: string[];  
+  extractArgs?: (input: string) => string[];  
 }
 
 /**
@@ -74,7 +74,7 @@ export class PluginNaturalLanguageService {
     try {
       this.logger.info(`자연어 ${this.pluginId} 명령 변환 시작: "${naturalCommand}"`);
       
-      // 간단한 휴리스틱 매칭 시도 (빠른 응답을 위해)
+      
       const heuristicMatch = this.heuristicCommandMatch(naturalCommand);
       
       if (heuristicMatch && heuristicMatch.confidence > 0.8) {
@@ -82,12 +82,12 @@ export class PluginNaturalLanguageService {
         return heuristicMatch;
       }
       
-      // LLM을 이용한 명령어 변환
+      
       return await this.llmCommandMatch(naturalCommand, heuristicMatch);
     } catch (error) {
       this.logger.error(`자연어 명령 변환 중 오류 발생: ${error}`);
       
-      // 오류 발생 시 기본 명령어로 처리
+      
       const defaultCommand = this.getDefaultCommand();
       return {
         command: defaultCommand,
@@ -106,7 +106,7 @@ export class PluginNaturalLanguageService {
   private heuristicCommandMatch(naturalCommand: string): CommandConversion | null {
     const normalizedInput = naturalCommand.toLowerCase().trim();
     
-    // 각 명령어 패턴별 점수 계산
+    
     let bestMatch = {
       command: '',
       score: 0,
@@ -135,7 +135,7 @@ export class PluginNaturalLanguageService {
       return {
         command: bestMatch.command,
         args: bestMatch.args,
-        confidence: bestMatch.score * 0.8, // 휴리스틱 신뢰도는 약간 낮게 설정
+        confidence: bestMatch.score * 0.8, 
         explanation: `자연어 명령 "${naturalCommand}"을(를) @${this.pluginId}:${bestMatch.command} 명령으로 변환했습니다.`
       };
     }
@@ -153,13 +153,13 @@ export class PluginNaturalLanguageService {
     naturalCommand: string, 
     heuristicMatch: CommandConversion | null
   ): Promise<CommandConversion> {
-    // 사용 가능한 명령어 설명 생성
+    
     const commandDescriptions = this.availableCommands
-      .filter(cmd => cmd.id !== '') // 자연어 명령 자체는 제외
+      .filter(cmd => cmd.id !== '') 
       .map(cmd => `- ${cmd.id}: ${cmd.description} (사용법: ${cmd.syntax})`)
       .join('\n');
     
-    // 플러그인별 특화된 지시사항 추가
+    
     let pluginSpecificInstructions = '';
     
     switch (this.pluginId) {
@@ -242,7 +242,7 @@ export class PluginNaturalLanguageService {
         break;
         
       default:
-        // 기본 지시사항 없음
+        
         break;
     }
     
@@ -284,7 +284,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
 `;
 
     try {
-      // LLM 서비스를 통해 요청 전송
+      
       const response = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -300,7 +300,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
         temperature: 0.3
       }).then(result => result.content);
       
-      // JSON 파싱
+      
       const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```|{[\s\S]*}/);
       
       if (!jsonMatch) {
@@ -315,7 +315,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
     } catch (error) {
       this.logger.error(`LLM 명령어 변환 중 오류 발생: ${error}`);
       
-      // LLM 오류 시 휴리스틱 결과 사용 또는 기본값 반환
+      
       if (heuristicMatch) {
         return heuristicMatch;
       }
@@ -335,7 +335,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
    * @returns 기본 명령어
    */
   private getDefaultCommand(): string {
-    // 각 플러그인별 적절한 기본 명령어 반환
+    
     switch (this.pluginId) {
       case 'git':
         return 'status';

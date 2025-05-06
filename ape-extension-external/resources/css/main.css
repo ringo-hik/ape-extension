@@ -4,6 +4,16 @@
  * UI 컴포넌트 및 레이아웃 스타일 통합
  */
 
+/* 코어 스타일 임포트 */
+@import url('./core/theme-vars.css');
+@import url('./core/chat.css');
+
+/* 컴포넌트 스타일 임포트 */
+@import url('./components/model-selector.css');
+@import url('./components/code-blocks.css');
+@import url('./components/command-buttons.css');
+@import url('./components/resize-handle.css');
+
 /* 변수 및 기본 설정 */
 :root {
   /* 기본 색상 (VS Code 테마 변수 활용) */

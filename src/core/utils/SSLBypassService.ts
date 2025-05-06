@@ -40,7 +40,7 @@ export class SSLBypassService {
    * 생성자
    */
   private constructor() {
-    // 환경 변수로 이미 설정되어 있는지 확인
+    
     this.isBypassEnabled = process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0';
   }
   
@@ -50,11 +50,11 @@ export class SSLBypassService {
    */
   public applyGlobalBypass(): boolean {
     try {
-      // NODE_TLS_REJECT_UNAUTHORIZED 환경 변수 설정
+      
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
       
-      // 전역 TLS 설정은 직접 DEFAULT_MIN_VERSION을 설정하지 않고
-      // 각 요청에서 minVersion 옵션을 사용하는 방식으로 변경
+      
+      
       
       this.isBypassEnabled = true;
       console.log('SSL 인증서 검증 우회가 활성화되었습니다 (온프레미스 모드)');
@@ -74,7 +74,7 @@ export class SSLBypassService {
     return {
       rejectUnauthorized: false,
       minVersion: 'TLSv1' as tls.SecureVersion,
-      checkServerIdentity: () => undefined,  // 서버 ID 검증 비활성화
+      checkServerIdentity: () => undefined,  
       secureOptions: constants.SSL_OP_NO_TLSv1_2
     };
   }
@@ -86,11 +86,11 @@ export class SSLBypassService {
   public createHttpsAgent(): https.Agent {
     return new https.Agent({
       rejectUnauthorized: false,
-      // 타입 오류 방지를 위한 적절한 접근 방식
+      
       minVersion: 'TLSv1' as tls.SecureVersion,
       checkServerIdentity: () => undefined,
       secureOptions: constants.SSL_OP_NO_TLSv1_2,
-      ciphers: 'ALL'  // 모든 암호화 알고리즘 허용
+      ciphers: 'ALL'  
     });
   }
   
@@ -108,7 +108,7 @@ export class SSLBypassService {
    */
   public disableBypass(): boolean {
     try {
-      // NODE_TLS_REJECT_UNAUTHORIZED 환경 변수 재설정
+      
       process.env.NODE_TLS_REJECT_UNAUTHORIZED = '1';
       
       this.isBypassEnabled = false;

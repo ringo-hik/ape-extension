@@ -43,7 +43,7 @@ export class PromptAssemblerService implements IPromptAssembler {
     private configLoader: IConfigLoader,
     private rulesEngine: RulesEngineService
   ) {
-    // 기본 템플릿 등록
+    
     this.registerDefaultTemplates();
   }
   
@@ -51,7 +51,7 @@ export class PromptAssemblerService implements IPromptAssembler {
    * 기본 템플릿 등록
    */
   private registerDefaultTemplates(): void {
-    // 시스템 프롬프트 템플릿
+    
     this.registerTemplate({
       id: 'default_system',
       type: PromptTemplateType.SYSTEM,
@@ -59,7 +59,7 @@ export class PromptAssemblerService implements IPromptAssembler {
       description: '기본 시스템 프롬프트'
     });
     
-    // 코드 생성 템플릿
+    
     this.registerTemplate({
       id: 'code_generation',
       type: PromptTemplateType.USER,
@@ -76,7 +76,7 @@ export class PromptAssemblerService implements IPromptAssembler {
       tags: ['code', 'generation']
     });
     
-    // 코드 리팩토링 템플릿
+    
     this.registerTemplate({
       id: 'code_refactoring',
       type: PromptTemplateType.USER,
@@ -96,7 +96,7 @@ export class PromptAssemblerService implements IPromptAssembler {
       tags: ['code', 'refactoring']
     });
     
-    // 버그 해결 템플릿
+    
     this.registerTemplate({
       id: 'bug_fixing',
       type: PromptTemplateType.USER,
@@ -151,19 +151,19 @@ export class PromptAssemblerService implements IPromptAssembler {
       return '';
     }
     
-    // {{variable}} 형식의 변수 치환
+    
     return template.replace(/\{\{([^}]+)\}\}/g, (match, varName) => {
-      // 컨텍스트에서 변수 찾기
+      
       if (context[varName as keyof PromptContext] !== undefined) {
         return String(context[varName as keyof PromptContext] || '');
       }
       
-      // 사용자 정의 변수 확인
+      
       if (context.variables && context.variables[varName] !== undefined) {
         return String(context.variables[varName] || '');
       }
       
-      // 변수를 찾지 못한 경우 원본 유지
+      
       return match;
     });
   }
@@ -179,7 +179,7 @@ export class PromptAssemblerService implements IPromptAssembler {
    */
   async assemblePrompt(text: string): Promise<{ messages: ChatMessage[], temperature: number }> {
     try {
-      // 기본 메시지 구성
+      
       const messages: ChatMessage[] = [
         {
           role: 'system' as MessageRole,
@@ -191,7 +191,7 @@ export class PromptAssemblerService implements IPromptAssembler {
         }
       ];
       
-      // 기본 온도값
+      
       const temperature = 0.7;
       
       return {
@@ -200,7 +200,7 @@ export class PromptAssemblerService implements IPromptAssembler {
       };
     } catch (error) {
       console.error('프롬프트 생성 중 오류 발생:', error);
-      // 오류 발생 시 최소한의 메시지 반환
+      
       return {
         messages: [
           {
@@ -218,10 +218,10 @@ export class PromptAssemblerService implements IPromptAssembler {
    */
   assemblePromptLegacy(basePrompt: string, context: PromptContext): string {
     try {
-      // 변수 치환
+      
       const prompt = this.replaceVariables(basePrompt, context);
       
-      // 프롬프트 조정 (필요시 컨텍스트 정보 추가)
+      
       return this.enhancePrompt(prompt, context);
     } catch (error) {
       console.error('프롬프트 생성 중 오류 발생:', error);
@@ -237,7 +237,7 @@ export class PromptAssemblerService implements IPromptAssembler {
    */
   assembleFromTemplate(templateId: string, context: PromptContext): string {
     try {
-      // 템플릿 가져오기
+      
       const template = this.getTemplate(templateId);
       
       if (!template) {
@@ -245,7 +245,7 @@ export class PromptAssemblerService implements IPromptAssembler {
         return '';
       }
       
-      // 템플릿 내용 변수 치환
+      
       return this.assemblePrompt(template.content, context);
     } catch (error) {
       console.error(`템플릿 기반 프롬프트 생성 중 오류 발생 (${templateId}):`, error);
@@ -260,10 +260,10 @@ export class PromptAssemblerService implements IPromptAssembler {
    */
   assembleFromRules(context: PromptContext): string[] {
     try {
-      // 적용 가능한 규칙 조회
+      
       const rules = this.rulesEngine.getApplicableRules(context);
       
-      // 규칙별로 템플릿 가져와 프롬프트 생성
+      
       return rules.map(rule => {
         const template = this.getTemplate(rule.templateId);
         
@@ -287,8 +287,8 @@ export class PromptAssemblerService implements IPromptAssembler {
    * @returns 개선된 프롬프트
    */
   private enhancePrompt(prompt: string, context: PromptContext): string {
-    // 필요에 따라 컨텍스트 정보 추가
-    // 이 부분은 필요에 따라 확장 가능
+    
+    
     
     return prompt;
   }

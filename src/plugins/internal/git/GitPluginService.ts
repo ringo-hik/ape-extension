@@ -13,11 +13,11 @@ import { CommandType, CommandPrefix } from '../../../types/CommandTypes';
 import { GitClientService } from './GitClientService';
 import { GitLlmService } from './GitLlmService';
 
-// VS Code API 접근 (LLM 서비스 사용 등을 위해)
+
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-// LLM 서비스 접근 (커밋 메시지 자동 생성)
+
 import { LlmService } from '../../../core/llm/LlmService';
 
 /**
@@ -82,32 +82,33 @@ export class GitPluginService extends PluginBaseService {
   /**
    * LLM 서비스
    */
-  private llmService: LlmService | null = null;
+  private readonly llmService: LlmService;
   
   /**
    * Git LLM 서비스
    */
-  private gitLlmService: GitLlmService | null = null;
+  private readonly gitLlmService: GitLlmService;
   
   /**
    * GitPluginService 생성자
    * @param configLoader 설정 로더
    */
-  constructor(configLoader: IConfigLoader) {
+  constructor(
+    configLoader: IConfigLoader,
+    llmService?: LlmService
+  ) {
     super(configLoader);
     
-    // 내부 플러그인 설정 로드
     const pluginConfig = this.loadGitConfig();
     this.config = pluginConfig;
     
-    // Git 클라이언트 생성
     this.client = new GitClientService();
     
-    // 명령어 등록
-    this.registerCommands();
+    // LLM 서비스 초기화 (주입되지 않은 경우 새로 생성)
+    this.llmService = llmService || new LlmService();
+    this.gitLlmService = new GitLlmService(this.llmService, this.client);
     
-    // LLM 서비스 초기화 시도
-    this.initLlmService();
+    this.registerCommands();
   }
   
   /**
@@ -115,7 +116,7 @@ export class GitPluginService extends PluginBaseService {
    * @returns Git 플러그인 설정
    */
   private loadGitConfig(): GitPluginConfig {
-    // 기본 설정
+    
     const defaultConfig: GitPluginConfig = {
       enabled: true,
       useLocalGit: true,
@@ -125,11 +126,11 @@ export class GitPluginService extends PluginBaseService {
     };
     
     try {
-      // 설정 로더에서 Git 플러그인 설정 로드
+      
       const config = this.configLoader.getConfig<any>() || {};
       const gitConfig = config.internalPlugins?.git || {};
       
-      // 설정 병합
+      
       return {
         ...defaultConfig,
         ...gitConfig
@@ -140,46 +141,23 @@ export class GitPluginService extends PluginBaseService {
     }
   }
   
-  /**
-   * LLM 서비스 초기화
-   */
-  private async initLlmService(): Promise<void> {
-    try {
-      // LLM 서비스 생성
-      this.llmService = new LlmService();
-      console.log('LLM 서비스 초기화 완료');
-      
-      // GitLlmService 인스턴스 생성
-      this.gitLlmService = new GitLlmService(this.llmService, this.client);
-      console.log('Git LLM 서비스 초기화 완료');
-    } catch (error) {
-      console.error('LLM 서비스 초기화 중 오류 발생:', error);
-      this.llmService = null;
-      this.gitLlmService = null;
-    }
-  }
+  // initLlmService 메서드 삭제 - 생성자에서 직접 초기화 처리
   
   /**
    * 플러그인 초기화
    */
   async initialize(): Promise<void> {
     try {
-      // Git 저장소 검증
+      // Git 저장소 확인
       const isRepo = await this.client.executeGitCommand(['rev-parse', '--is-inside-work-tree']);
       
       if (!isRepo.success || isRepo.stdout.trim() !== 'true') {
         console.warn('현재 디렉토리는 Git 저장소가 아닙니다.');
       }
       
-      // LLM 서비스가 없는 경우 다시 초기화 시도
-      if (!this.llmService) {
-        await this.initLlmService();
-      }
-      
       console.log('Git 플러그인 초기화 완료');
     } catch (error) {
       console.error('Git 플러그인 초기화 중 오류 발생:', error);
-      // 오류가 발생해도 초기화는 성공한 것으로 취급 (최소 기능 동작)
     }
   }
   
@@ -191,7 +169,7 @@ export class GitPluginService extends PluginBaseService {
    */
   protected registerCommands(customCommands?: PluginCommand[]): boolean {
     this.commands = [
-      // 상태 확인 명령어
+      
       {
         id: 'status',
         name: 'status',
@@ -203,7 +181,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async () => this.getStatus()
       },
       
-      // 변경 내역 확인 명령어
+      
       {
         id: 'diff',
         name: 'diff',
@@ -215,7 +193,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.getDiff(args[0], this.extractOptions(args))
       },
       
-      // 변경 파일 확인 명령어
+      
       {
         id: 'changes',
         name: 'changes',
@@ -227,7 +205,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async () => this.getChanges()
       },
       
-      // 스테이징 명령어
+      
       {
         id: 'add',
         name: 'add',
@@ -239,7 +217,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.stageFiles(args)
       },
       
-      // 커밋 명령어
+      
       {
         id: 'commit',
         name: 'commit',
@@ -254,7 +232,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.commit(args)
       },
       
-      // 자동 커밋 메시지 생성 명령어
+      
       {
         id: 'auto-commit',
         name: 'auto-commit',
@@ -271,7 +249,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.autoCommit(this.extractOptions(args))
       },
       
-      // 푸시 명령어
+      
       {
         id: 'push',
         name: 'push',
@@ -283,7 +261,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.push(args[0], args[1])
       },
       
-      // 브랜치 생성 명령어
+      
       {
         id: 'branch',
         name: 'branch',
@@ -299,7 +277,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.manageBranch(args, this.extractOptions(args))
       },
       
-      // 브랜치 전환 명령어
+      
       {
         id: 'checkout',
         name: 'checkout',
@@ -315,7 +293,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.checkout(args, this.extractOptions(args))
       },
       
-      // 가져오기 명령어
+      
       {
         id: 'pull',
         name: 'pull',
@@ -327,7 +305,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.pull(args[0], args[1])
       },
       
-      // 커밋 이력 확인 명령어
+      
       {
         id: 'log',
         name: 'log',
@@ -339,7 +317,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.getLog(this.extractOptions(args))
       },
       
-      // 커밋 설명 명령어
+      
       {
         id: 'explain',
         name: 'explain',
@@ -348,13 +326,13 @@ export class GitPluginService extends PluginBaseService {
         description: 'LLM을 사용하여 특정 커밋의 변경 내용을 자세히 설명',
         syntax: '@git:explain [commit-hash]',
         examples: [
-          '@git:explain',  // 가장 최근 커밋
+          '@git:explain',  
           '@git:explain abc1234'
         ],
         execute: async (args) => this.explainCommit(args[0])
       },
       
-      // 커밋 요약 명령어
+      
       {
         id: 'summarize',
         name: 'summarize',
@@ -370,7 +348,7 @@ export class GitPluginService extends PluginBaseService {
         execute: async (args) => this.summarizeCommits(this.extractOptions(args))
       },
       
-      // 변경 분석 명령어
+      
       {
         id: 'analyze',
         name: 'analyze',
@@ -419,7 +397,7 @@ export class GitPluginService extends PluginBaseService {
    */
   private async getChanges(): Promise<any> {
     try {
-      // 변경된 파일 목록 가져오기
+      
       const result = await this.client.executeGitCommand(['status', '--porcelain']);
       
       if (!result.success) {
@@ -435,7 +413,7 @@ export class GitPluginService extends PluginBaseService {
         };
       }
       
-      // 파일 상태별로 분류
+      
       const modified: string[] = [];
       const added: string[] = [];
       const deleted: string[] = [];
@@ -459,7 +437,7 @@ export class GitPluginService extends PluginBaseService {
         }
       });
       
-      // 결과 포맷팅
+      
       let content = '# 변경된 파일 목록\n\n';
       
       if (modified.length > 0) {
@@ -518,7 +496,7 @@ export class GitPluginService extends PluginBaseService {
     try {
       const args = ['diff'];
       
-      // Git 버전 호환성 확인
+      
       try {
         const versionCheck = await this.client.executeGitCommand(['--version']);
         const gitVersion = versionCheck.stdout.trim();
@@ -527,7 +505,7 @@ export class GitPluginService extends PluginBaseService {
         console.warn('Git 버전 확인 실패:', versionError);
       }
       
-      // Git 저장소 상태 확인
+      
       try {
         const repoCheck = await this.client.executeGitCommand(['rev-parse', '--is-inside-work-tree']);
         if (!repoCheck.success || repoCheck.stdout.trim() !== 'true') {
@@ -540,13 +518,13 @@ export class GitPluginService extends PluginBaseService {
         console.warn('Git 저장소 확인 실패:', repoError);
       }
       
-      // 스테이징된 변경 사항 확인 (--staged 또는 --cached 사용)
+      
       if (options.staged) {
-        // 먼저 --staged 옵션이 지원되는지 확인
+        
         const stagedCheck = await this.client.executeGitCommand(['diff', '--staged', '--quiet']);
         
         if (stagedCheck.stderr && stagedCheck.stderr.includes('unknown option')) {
-          // --staged가 지원되지 않는 경우 --cached 사용
+          
           console.log('Git diff --staged 옵션이 지원되지 않아 --cached 사용');
           args.push('--cached');
         } else {
@@ -554,7 +532,7 @@ export class GitPluginService extends PluginBaseService {
         }
       }
       
-      // 특정 파일만 확인
+      
       if (file && file !== '--staged') {
         args.push(file);
       }
@@ -566,7 +544,7 @@ export class GitPluginService extends PluginBaseService {
         throw new Error(`Git diff 명령어 실패: ${result.stderr}`);
       }
       
-      // 변경 사항이 없는 경우
+      
       if (!result.stdout.trim()) {
         return {
           content: '# 변경 사항 없음\n\n' + 
@@ -584,7 +562,7 @@ export class GitPluginService extends PluginBaseService {
     } catch (error) {
       console.error('Git 변경 내역 확인 중 오류 발생:', error);
       
-      // 오류 발생 시 사용자 친화적 메시지 반환
+      
       return {
         content: `# Git 오류 발생\n\n오류 메시지: ${error instanceof Error ? error.message : String(error)}\n\n` +
                 '가능한 원인:\n' +
@@ -605,7 +583,7 @@ export class GitPluginService extends PluginBaseService {
   private async stageFiles(files: string[]): Promise<any> {
     try {
       if (!files || files.length === 0) {
-        files = ['.'];  // 기본값: 모든 파일
+        files = ['.'];  
       }
       
       const result = await this.client.stageFiles(files);
@@ -639,7 +617,7 @@ export class GitPluginService extends PluginBaseService {
         throw new Error('커밋 메시지는 필수입니다');
       }
       
-      // 커밋 옵션 구성
+      
       const commitOptions = {
         message: message,
         all: options.all === true
@@ -669,19 +647,16 @@ export class GitPluginService extends PluginBaseService {
    */
   private async autoCommit(options: Record<string, any> = {}): Promise<any> {
     try {
-      // LLM 서비스 확인
-      if (!this.llmService) {
-        throw new Error('LLM 서비스가 초기화되지 않았습니다. 수동 커밋을 사용해 주세요.');
-      }
+      // LLM 서비스는 생성자에서 항상 초기화되므로 검사 필요 없음
       
-      // 현재 변경 사항 확인 (staged)
+      
       const stagedDiff = await this.client.getDiff(true);
-      // 스테이징되지 않은 변경 사항 확인
+      
       const unstagedDiff = await this.client.getDiff(false);
       
-      // 스테이징된 변경 사항이 없고, --all 옵션이 없는 경우
+      
       if (!stagedDiff.trim() && !options.all) {
-        // 스테이징되지 않은 변경 사항이 있는 경우
+        
         if (unstagedDiff.trim()) {
           return {
             content: `# 스테이징된 변경 사항 없음\n\n` +
@@ -691,7 +666,7 @@ export class GitPluginService extends PluginBaseService {
             type: 'git-auto-commit-error'
           };
         } else {
-          // 변경 사항이 전혀 없는 경우
+          
           return {
             content: `# 변경 사항 없음\n\n` +
                     `커밋할 변경 사항이 없습니다. 먼저 파일을 수정한 후 다시 시도하세요.`,
@@ -700,11 +675,11 @@ export class GitPluginService extends PluginBaseService {
         }
       }
       
-      // 변경 사항 확인 (--all 옵션이 있는 경우 스테이징되지 않은 변경 사항도 포함)
+      
       const diffContent = options.all ? 
         (stagedDiff + (stagedDiff && unstagedDiff ? '\n\n' : '') + unstagedDiff) : stagedDiff;
       
-      // 변경된 파일 목록 가져오기
+      
       const statusResult = await this.client.executeGitCommand([
         'status', '--porcelain', options.all ? '' : '--staged'
       ]);
@@ -718,12 +693,12 @@ export class GitPluginService extends PluginBaseService {
           return { status, file };
         });
       
-      // 커밋 타입 (기본값: feat)
+      
       const commitType = (options.type && 
         Object.values(GitCommitType).includes(options.type as GitCommitType)) ? 
         options.type : GitCommitType.FEAT;
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 당신은 Git 커밋 메시지 작성 전문가입니다. 현재 변경 사항을 분석하여 좋은 커밋 메시지를 작성해주세요.
 작성 규칙:
@@ -751,10 +726,10 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
 JSON 형식으로만 응답해주세요.
 `;
       
-      // LLM으로 커밋 메시지 생성
+      
       console.log('LLM을 사용하여 커밋 메시지 생성 중...');
       
-      // LLM 요청
+      
       const messageModel = (this.config as GitPluginConfig).commitMessageModel || '';
       const llmResult = await this.llmService.sendRequest({
         model: messageModel || this.llmService.getDefaultModelId(),
@@ -768,14 +743,14 @@ JSON 형식으로만 응답해주세요.
             content: prompt
           }
         ],
-        temperature: 0.3 // 낮은 temperature로 일관성 있는 응답 유도
+        temperature: 0.3 
       });
       
-      // LLM 응답에서 커밋 메시지 추출
+      
       let commitMessage = '';
       
       try {
-        // JSON 응답 파싱 시도
+        
         const contentStr = llmResult.content || '';
         const jsonMatch = contentStr.match(/```json\s*([\s\S]*?)\s*```/) || 
                         contentStr.match(/\{[\s\S]*\}/);
@@ -784,7 +759,7 @@ JSON 형식으로만 응답해주세요.
           const jsonContent = jsonMatch[0].replace(/```json|```/g, '').trim();
           const parsed = JSON.parse(jsonContent);
           
-          // 커밋 메시지 템플릿 적용
+          
           const template = (this.config as GitPluginConfig).commitMessageTemplate || 
                           '{{type}}: {{subject}}\n\n{{body}}';
           
@@ -793,7 +768,7 @@ JSON 형식으로만 응답해주세요.
             .replace('{{subject}}', parsed.subject || '')
             .replace('{{body}}', parsed.body || '');
         } else {
-          // JSON 파싱 실패 시 기본 메시지 사용
+          
           commitMessage = `${commitType}: 자동 생성된 커밋 메시지\n\n${contentStr.substring(0, 200)}`;
         }
       } catch (parseError) {
@@ -801,7 +776,7 @@ JSON 형식으로만 응답해주세요.
         commitMessage = `${commitType}: ${llmResult.content?.substring(0, 50) || '자동 생성된 커밋 메시지'}`;
       }
       
-      // 커밋 실행
+      
       const commitOptions = {
         message: commitMessage,
         all: options.all === true
@@ -835,7 +810,7 @@ JSON 형식으로만 응답해주세요.
    */
   private async manageBranch(args: string[], options: Record<string, any>): Promise<any> {
     try {
-      // 브랜치 생성
+      
       if (options.create) {
         const branchName = args[0];
         if (!branchName) {
@@ -854,7 +829,7 @@ JSON 형식으로만 응답해주세요.
         };
       }
       
-      // 브랜치 삭제
+      
       if (options.delete) {
         const branchName = args[0];
         if (!branchName) {
@@ -877,13 +852,13 @@ JSON 형식으로만 응답해주세요.
         };
       }
       
-      // 브랜치 목록 조회
+      
       const branches = await this.client.getBranches(true);
       
-      // 현재 브랜치 찾기
+      
       const currentBranch = branches.find(b => b.isCurrent);
       
-      // 로컬 브랜치와 원격 브랜치 분리
+      
       const localBranches = branches.filter(b => !b.name.includes('remotes/'));
       const remoteBranches = branches.filter(b => b.name.includes('remotes/'));
       
@@ -922,7 +897,7 @@ JSON 형식으로만 응답해주세요.
         throw new Error('브랜치 이름을 지정해야 합니다');
       }
       
-      // 새 브랜치 생성 및 전환
+      
       if (options.create) {
         const newBranchName = branchName || options.create;
         
@@ -941,7 +916,7 @@ JSON 형식으로만 응답해주세요.
         };
       }
       
-      // 기존 브랜치로 전환
+      
       const result = await this.client.executeGitCommand(['checkout', branchName]);
       
       if (!result.success) {
@@ -994,7 +969,7 @@ JSON 형식으로만 응답해주세요.
       const result = await this.client.push({
         remote,
         branch,
-        setUpstream: true  // 추적 브랜치 설정
+        setUpstream: true  
       });
       
       return {
@@ -1008,7 +983,7 @@ JSON 형식으로만 응답해주세요.
     } catch (error) {
       console.error('Git 푸시 중 오류 발생:', error);
       
-      // 인증 오류인 경우 안내 메시지 제공
+      
       if (error instanceof Error && 
           (error.message.includes('Authentication failed') ||
            error.message.includes('could not read Username'))) {
@@ -1030,7 +1005,7 @@ JSON 형식으로만 응답해주세요.
       const count = options.count ? parseInt(options.count) : 5;
       const args = ['log', `--max-count=${count}`, '--pretty=format:%H|%an|%ae|%at|%s'];
       
-      // 특정 작성자 필터링
+      
       if (options.author) {
         args.push(`--author=${options.author}`);
       }
@@ -1041,7 +1016,7 @@ JSON 형식으로만 응답해주세요.
         throw new Error(`Git log 명령어 실패: ${result.stderr}`);
       }
       
-      // 로그 파싱
+      
       const logs = result.stdout
         .split('\n')
         .filter(line => line.trim() !== '')
@@ -1088,12 +1063,9 @@ JSON 형식으로만 응답해주세요.
    */
   private async explainCommit(commitHash: string = 'HEAD'): Promise<any> {
     try {
-      // LLM 서비스 확인
-      if (!this.llmService) {
-        throw new Error('LLM 서비스가 초기화되지 않았습니다.');
-      }
+      // LLM 서비스는 생성자에서 항상 초기화되므로 검사 필요 없음
       
-      // 커밋 정보 가져오기
+      
       const commitInfoResult = await this.client.executeGitCommand([
         'show', 
         '--format=%H|%an|%ae|%at|%s|%b', 
@@ -1104,15 +1076,15 @@ JSON 형식으로만 응답해주세요.
         throw new Error(`커밋 정보 가져오기 실패: ${commitInfoResult.stderr}`);
       }
       
-      // 커밋 정보 파싱
+      
       const infoLines = commitInfoResult.stdout.split('\n');
       const [hash, authorName, authorEmail, timestamp, subject, ...bodyLines] = infoLines[0].split('|');
-      const body = bodyLines.join('|'); // body 부분에 | 문자가 포함될 수 있으므로
+      const body = bodyLines.join('|'); 
       
-      // 커밋 diff 부분 추출 (정보 행 이후부터)
+      
       const diffContent = infoLines.slice(1).join('\n');
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 Git 커밋 변경 내용을 분석하고 자세히 설명해주세요:
 
@@ -1137,7 +1109,7 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
 마크다운 형식으로 응답해주세요.
 `;
       
-      // LLM 요청
+      
       console.log('LLM을 사용하여 커밋 설명 생성 중...');
       
       const llmResult = await this.llmService.sendRequest({
@@ -1155,7 +1127,7 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
         temperature: 0.3
       });
       
-      // 결과 반환
+      
       return {
         content: `# 커밋 분석: ${subject}\n\n` +
                 `**커밋 해시**: ${hash.substring(0, 7)}\n` +
@@ -1185,19 +1157,16 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
    */
   private async summarizeCommits(options: Record<string, any>): Promise<any> {
     try {
-      // LLM 서비스 확인
-      if (!this.llmService) {
-        throw new Error('LLM 서비스가 초기화되지 않았습니다.');
-      }
+      // LLM 서비스는 생성자에서 항상 초기화되므로 검사 필요 없음
       
-      // 커밋 로그 가져오기
+      
       const args = ['log', '--pretty=format:%H|%an|%at|%s'];
       
-      // 커밋 수 제한
+      
       const count = options.count ? parseInt(options.count) : 10;
       args.push(`--max-count=${count}`);
       
-      // 특정 날짜 이후
+      
       if (options.since) {
         args.push(`--since=${options.since}`);
       }
@@ -1208,7 +1177,7 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
         throw new Error(`Git log 명령어 실패: ${result.stderr}`);
       }
       
-      // 로그 파싱
+      
       const logs = result.stdout
         .split('\n')
         .filter(line => line.trim() !== '')
@@ -1225,7 +1194,7 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
         };
       }
       
-      // 최근 변경 파일 확인
+      
       const filesResult = await this.client.executeGitCommand([
         'diff', '--name-only', `HEAD~${Math.min(logs.length, count)}`
       ]);
@@ -1234,7 +1203,7 @@ ${diffContent.substring(0, 4000)}${diffContent.length > 4000 ? '\n...(일부 생
         filesResult.stdout.split('\n').filter(f => f.trim() !== '') : 
         [];
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 최근 ${logs.length}개 Git 커밋을 분석하고 요약해주세요:
 
@@ -1253,7 +1222,7 @@ ${changedFiles.length > 0 ? changedFiles.map(file => `- ${file}`).join('\n') : '
 마크다운 형식으로 응답해주세요.
 `;
       
-      // LLM 요청
+      
       console.log('LLM을 사용하여 커밋 요약 생성 중...');
       
       const llmResult = await this.llmService.sendRequest({
@@ -1271,7 +1240,7 @@ ${changedFiles.length > 0 ? changedFiles.map(file => `- ${file}`).join('\n') : '
         temperature: 0.3
       });
       
-      // 결과 반환
+      
       return {
         content: `# 최근 ${logs.length}개 커밋 요약\n\n` +
                 `**기간**: ${logs[logs.length - 1].date.toLocaleString()} - ${logs[0].date.toLocaleString()}\n` +
@@ -1297,16 +1266,13 @@ ${changedFiles.length > 0 ? changedFiles.map(file => `- ${file}`).join('\n') : '
    */
   private async analyzeChanges(options: Record<string, any>): Promise<any> {
     try {
-      // LLM 서비스 확인
-      if (!this.llmService) {
-        throw new Error('LLM 서비스가 초기화되지 않았습니다.');
-      }
+      // LLM 서비스는 생성자에서 항상 초기화되므로 검사 필요 없음
       
-      // 변경 사항 확인
+      
       const isStaged = !!options.staged;
       const diff = await this.client.getDiff(isStaged);
       
-      // 변경 사항이 없는 경우
+      
       if (!diff.trim()) {
         return {
           content: `# 분석할 변경 사항 없음\n\n${isStaged ? '스테이징된' : '스테이징되지 않은'} 변경 사항이 없습니다.`,
@@ -1314,7 +1280,7 @@ ${changedFiles.length > 0 ? changedFiles.map(file => `- ${file}`).join('\n') : '
         };
       }
       
-      // 변경된 파일 목록 가져오기
+      
       const statusResult = await this.client.executeGitCommand([
         'status', '--porcelain', isStaged ? '--staged' : ''
       ]);
@@ -1328,7 +1294,7 @@ ${changedFiles.length > 0 ? changedFiles.map(file => `- ${file}`).join('\n') : '
           return { status, file };
         });
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 현재 Git ${isStaged ? '스테이징된' : '스테이징되지 않은'} 변경 사항을 분석해주세요:
 
@@ -1349,7 +1315,7 @@ ${diff.substring(0, 4000)}${diff.length > 4000 ? '\n...(일부 생략)' : ''}
 마크다운 형식으로 응답해주세요.
 `;
       
-      // LLM 요청
+      
       console.log('LLM을 사용하여 변경 사항 분석 중...');
       
       const llmResult = await this.llmService.sendRequest({
@@ -1367,7 +1333,7 @@ ${diff.substring(0, 4000)}${diff.length > 4000 ? '\n...(일부 생략)' : ''}
         temperature: 0.3
       });
       
-      // 결과 반환
+      
       return {
         content: `# ${isStaged ? '스테이징된' : '스테이징되지 않은'} 변경 사항 분석\n\n` +
                 `**변경된 파일 수**: ${changedFiles.length}\n\n` +
@@ -1391,7 +1357,7 @@ ${diff.substring(0, 4000)}${diff.length > 4000 ? '\n...(일부 생략)' : ''}
   private extractOptions(args: any[]): Record<string, any> {
     const options: Record<string, any> = {};
     
-    // 플래그 형식 옵션 추출 (--key=value 또는 --flag)
+    
     for (const arg of args) {
       if (typeof arg === 'string' && arg.startsWith('--')) {
         const [key, value] = arg.substring(2).split('=');

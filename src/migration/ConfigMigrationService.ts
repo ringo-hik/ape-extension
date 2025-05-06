@@ -27,7 +27,7 @@ export class ConfigMigrationService {
     this.logger.info('설정 마이그레이션 시작: APE → APE');
     
     try {
-      // 마이그레이션 매핑
+      
       const configMappings = [
         { from: 'ape.core.sslBypass', to: 'ape.core.sslBypass' },
         { from: 'ape.core.logLevel', to: 'ape.core.logLevel' },
@@ -39,19 +39,19 @@ export class ConfigMigrationService {
         { from: 'ape.llm.models', to: 'ape.llm.models' }
       ];
       
-      // 마이그레이션 실행
+      
       let migratedCount = 0;
       for (const mapping of configMappings) {
         try {
-          // 기존 설정 값 가져오기
+          
           const config = vscode.workspace.getConfiguration();
           const oldValue = config.get(mapping.from);
           
-          // 값이 존재하는 경우에만 마이그레이션
+          
           if (oldValue !== undefined) {
             this.logger.info(`설정 마이그레이션: ${mapping.from} → ${mapping.to}`);
             
-            // 새 네임스페이스에 값 설정
+            
             const parts = mapping.to.split('.');
             const section = parts.slice(0, 2).join('.');
             const key = parts.slice(2).join('.');
@@ -59,8 +59,8 @@ export class ConfigMigrationService {
             const sectionConfig = vscode.workspace.getConfiguration(section);
             await sectionConfig.update(key, oldValue, vscode.ConfigurationTarget.Global);
             
-            // 기존 설정 삭제 (사용자 선택에 따라 결정 가능)
-            // await config.update(mapping.from, undefined, vscode.ConfigurationTarget.Global);
+            
+            
             
             migratedCount++;
           }
@@ -71,7 +71,7 @@ export class ConfigMigrationService {
       
       this.logger.info(`설정 마이그레이션 완료: ${migratedCount}개 설정 마이그레이션됨`);
       
-      // 마이그레이션 완료 알림
+      
       if (migratedCount > 0) {
         vscode.window.showInformationMessage(
           `APE: ${migratedCount}개의 설정이 성공적으로 마이그레이션되었습니다. (APE → APE)`
@@ -82,7 +82,7 @@ export class ConfigMigrationService {
     } catch (error) {
       this.logger.error('설정 마이그레이션 중 오류 발생:', error);
       
-      // 사용자에게 오류 알림
+      
       vscode.window.showErrorMessage(
         'APE: 설정 마이그레이션 중 오류가 발생했습니다. 자세한 내용은 로그를 확인하세요.'
       );
@@ -100,7 +100,7 @@ export class ConfigMigrationService {
     try {
       const config = vscode.workspace.getConfiguration();
       
-      // 기존 APE 설정이 존재하는지 확인
+      
       const hasApeConfig = 
         config.has('ape.core.sslBypass') || 
         config.has('ape.llm.defaultModel') ||

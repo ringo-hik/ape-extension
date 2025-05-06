@@ -6,6 +6,6 @@
 
 export { activate, deactivate } from './extension';
 
-// 추가 내보내기
+
 export * from './services/ChatService';
 export * from './ui/ApeChatViewProvider';

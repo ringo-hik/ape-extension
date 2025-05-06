@@ -27,7 +27,7 @@ export class RulesEngineService implements IRulesEngine {
    * @param configLoader 설정 로더
    */
   constructor(private configLoader: IConfigLoader) {
-    // 기본 규칙 등록
+    
     this.registerDefaultRules();
   }
   
@@ -35,7 +35,7 @@ export class RulesEngineService implements IRulesEngine {
    * 기본 규칙 등록
    */
   private registerDefaultRules(): void {
-    // 코드 생성 규칙
+    
     this.registerRule({
       id: 'code_generation_rule',
       name: '코드 생성 규칙',
@@ -56,7 +56,7 @@ export class RulesEngineService implements IRulesEngine {
       tags: ['code', 'generation']
     });
     
-    // 코드 리팩토링 규칙
+    
     this.registerRule({
       id: 'code_refactoring_rule',
       name: '코드 리팩토링 규칙',
@@ -77,7 +77,7 @@ export class RulesEngineService implements IRulesEngine {
       tags: ['code', 'refactoring']
     });
     
-    // 버그 해결 규칙
+    
     this.registerRule({
       id: 'bug_fixing_rule',
       name: '버그 해결 규칙',
@@ -106,18 +106,18 @@ export class RulesEngineService implements IRulesEngine {
    */
   registerRule(rule: Rule): boolean {
     try {
-      // 중복 규칙 확인
+      
       const existingRuleIndex = this.rules.findIndex(r => r.id === rule.id);
       
       if (existingRuleIndex >= 0) {
-        // 기존 규칙 업데이트
+        
         this.rules[existingRuleIndex] = rule;
       } else {
-        // 새 규칙 추가
+        
         this.rules.push(rule);
       }
       
-      // 우선순위에 따라 정렬
+      
       this.rules.sort((a, b) => b.priority - a.priority);
       
       return true;
@@ -134,7 +134,7 @@ export class RulesEngineService implements IRulesEngine {
    */
   getApplicableRules(context: PromptContext): Rule[] {
     try {
-      // 모든 조건을 만족하는 규칙 필터링
+      
       return this.rules.filter(rule => {
         return rule.conditions.every(condition => this.evaluateCondition(condition, context));
       });
@@ -152,11 +152,11 @@ export class RulesEngineService implements IRulesEngine {
    */
   evaluateCondition(condition: RuleCondition, context: PromptContext): boolean {
     try {
-      // 필드 값 가져오기
+      
       let fieldValue: any;
       
       if (condition.field.includes('.')) {
-        // 중첩 필드 처리 (variables.xxx 등)
+        
         const parts = condition.field.split('.');
         let current: any = context;
         
@@ -169,11 +169,11 @@ export class RulesEngineService implements IRulesEngine {
         
         fieldValue = current;
       } else {
-        // 일반 필드
+        
         fieldValue = context[condition.field as keyof PromptContext];
       }
       
-      // 조건 평가
+      
       switch (condition.operator) {
         case 'equals':
           return fieldValue === condition.value;

@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { IConfigLoader, ConfigSection, CoreConfig, AgentConfig, PluginConfig } from '../../types/ConfigTypes';
 
-// VS Code 환경에서만 import되도록 타입 정의 분리
+
 type VSCodeExtensionContext = {
   extensionPath: string;
   globalStorageUri?: { fsPath: string };
@@ -21,18 +21,30 @@ type VSCodeExtensionContext = {
  * VS Code 확장 및 CLI 환경 모두 지원
  */
 export class ConfigService implements IConfigLoader {
-  /* === 싱글톤 인스턴스 === */
-  private static instance: ConfigService;
   
-  /* === 설정 로더 부분 === */
+  /**
+   * 설정 객체
+   */
   protected config: any = {};
+  
+  /**
+   * 설정 파일 경로
+   */
   protected configPath: string;
   
-  /* === 설정 검증기 부분 === */
+  /**
+   * JSON 스키마 맵
+   */
   private schemas: Map<string, any> = new Map();
   
   /**
+   * 싱글톤 인스턴스 (레거시 호환성 유지)
+   */
+  private static instance: ConfigService;
+  
+  /**
    * 싱글톤 인스턴스 가져오기
+   * @deprecated 싱글톤 패턴 대신 의존성 주입 사용 권장
    * @returns ConfigService 인스턴스
    */
   public static getInstance(): ConfigService {
@@ -41,17 +53,26 @@ export class ConfigService implements IConfigLoader {
     }
     return ConfigService.instance;
   }
+  
+  /**
+   * 팩토리 메서드: 인스턴스 생성
+   * @param context VSCode 확장 컨텍스트 (CLI 환경에서는 null)
+   * @returns ConfigService 인스턴스
+   */
+  public static createInstance(context?: VSCodeExtensionContext | null): ConfigService {
+    return new ConfigService(context);
+  }
 
   /**
    * ConfigService 생성자
    * @param context VSCode 확장 컨텍스트 (CLI 환경에서는 null)
    */
   constructor(private context?: VSCodeExtensionContext | null) {
-    // 설정 파일 경로 설정
+    
     if (context) {
-      // VS Code 환경
+      
       try {
-        // VS Code API가 존재하는 경우에만 실행
+        
         if (typeof require('vscode') !== 'undefined' && require('vscode').workspace) {
           const vscode = require('vscode');
           const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -61,26 +82,26 @@ export class ConfigService implements IConfigLoader {
           }
         }
       } catch (e) {
-        // VS Code API 접근 실패 - 기본 경로 사용
+        
       }
       
-      // 워크스페이스 없는 경우 확장 경로 사용
+      
       if (this.context && this.context.extensionPath) {
         this.configPath = path.join(this.context.extensionPath, 'settings.json');
       } else {
-        // 확장 경로도 없는 경우 현재 디렉토리 사용
+        
         this.configPath = path.join(process.cwd(), 'settings.json');
       }
     } else {
-      // CLI 환경 - 현재 디렉토리 사용
+      
       this.configPath = path.join(process.cwd(), 'settings.json');
     }
 
-    // 기본 스키마 로드
+    
     this.loadDefaultSchemas();
   }
 
-  /* === 설정 로더 메서드 === */
+  
   
   /**
    * 설정 로드
@@ -89,20 +110,20 @@ export class ConfigService implements IConfigLoader {
    */
   async load(): Promise<boolean> {
     try {
-      // 설정 파일 존재 여부 확인
+      
       if (!fs.existsSync(this.configPath)) {
         console.log('설정 파일이 없습니다. 템플릿 파일로부터 기본 설정을 생성합니다.');
         
-        // 템플릿 파일 경로 결정
+        
         let templatePath = '';
         if (this.context) {
-          // VS Code 환경에서는 확장 경로 사용
+          
           templatePath = path.join(this.context.extensionPath, 'settings.json.template');
         } else {
-          // CLI 환경에서는 현재 디렉토리 혹은 실행 파일 위치 사용
+          
           const possiblePaths = [
             path.join(process.cwd(), 'settings.json.template'),
-            path.join(__dirname, '..', '..', '..', 'settings.json.template') // dist 폴더에서 상위로 이동
+            path.join(__dirname, '..', '..', '..', 'settings.json.template') 
           ];
           
           for (const p of possiblePaths) {
@@ -113,38 +134,38 @@ export class ConfigService implements IConfigLoader {
           }
         }
         
-        // 템플릿 파일이 존재하는지 확인
+        
         if (!templatePath || !fs.existsSync(templatePath)) {
           console.error('템플릿 설정 파일을 찾을 수 없음');
           return false;
         }
         
-        // 템플릿 파일을 설정 파일로 복사
+        
         fs.copyFileSync(templatePath, this.configPath);
         console.log(`기본 설정 파일이 생성되었습니다: ${this.configPath}`);
       }
       
-      // 설정 파일 로드
+      
       const configContent = fs.readFileSync(this.configPath, 'utf8');
       this.config = JSON.parse(configContent);
       
-      // 로컬 설정 파일 로드 (있는 경우)
+      
       const localConfigPath = path.join(path.dirname(this.configPath), 'settings.local.json');
       if (fs.existsSync(localConfigPath)) {
         try {
           const localConfigContent = fs.readFileSync(localConfigPath, 'utf8');
           const localConfig = JSON.parse(localConfigContent);
           
-          // 로컬 설정을 기본 설정에 깊은 병합
+          
           this.mergeDeep(this.config, localConfig);
           console.log('로컬 설정이 로드되었습니다:', localConfigPath);
         } catch (localError) {
           console.warn('로컬 설정 로드 중 오류 발생:', localError);
-          // 로컬 설정 로드 실패는 전체 로드 실패로 간주하지 않음
+          
         }
       }
       
-      // 설정 유효성 검증
+      
       const isValid = await this.validate(this.config);
       if (!isValid) {
         console.error('설정 파일 유효성 검증 실패');
@@ -252,13 +273,13 @@ export class ConfigService implements IConfigLoader {
    */
   updateUserConfig(config: Record<string, any>): boolean {
     try {
-      // 기존 사용자 설정 가져오기
+      
       const userConfig = this.getUserConfig();
       
-      // 새 설정으로 업데이트
+      
       const updatedConfig = { ...userConfig, ...config };
       
-      // 설정 저장
+      
       this.set('user', updatedConfig);
       return this.save();
     } catch (error) {
@@ -283,13 +304,13 @@ export class ConfigService implements IConfigLoader {
    */
   updateConfig(section: string, config: Record<string, any>): boolean {
     try {
-      // 기존 설정 가져오기
+      
       const currentConfig = this.getSection(section);
       
-      // 새 설정으로 업데이트
+      
       const updatedConfig = { ...currentConfig, ...config };
       
-      // 설정 저장
+      
       this.set(section, updatedConfig);
       return this.save();
     } catch (error) {
@@ -333,7 +354,7 @@ export class ConfigService implements IConfigLoader {
       return value;
     }
     
-    // ${ENV_VAR} 패턴의 환경 변수를 실제 값으로 대체
+    
     return value.replace(/\${([^}]+)}/g, (match, varName) => {
       const envValue = process.env[varName];
       return envValue !== undefined ? envValue : match;
@@ -379,13 +400,13 @@ export class ConfigService implements IConfigLoader {
     }
   }
 
-  /* === 설정 검증기 메서드 === */
+  
 
   /**
    * 기본 스키마 로드
    */
   private loadDefaultSchemas(): void {
-    // 코어 스키마
+    
     this.schemas.set('core', {
       type: 'object',
       properties: {
@@ -409,7 +430,7 @@ export class ConfigService implements IConfigLoader {
       }
     });
     
-    // 플러그인 스키마
+    
     this.schemas.set('plugins', {
       type: 'object',
       additionalProperties: {
@@ -483,25 +504,25 @@ export class ConfigService implements IConfigLoader {
    */
   public async validate(config: any): Promise<boolean> {
     try {
-      // 기본적인 유효성 검사
+      
       if (!config || typeof config !== 'object') {
         console.error('유효하지 않은 설정 형식: 객체가 아님');
         return false;
       }
       
-      // 필수 섹션 확인
+      
       if (!config.core) {
         console.warn('코어 설정 섹션이 없음');
-        // 필수는 아니므로 경고만 출력
+        
       }
       
-      // 코어 설정 검증
+      
       if (config.core && !this.validateSection(config.core, this.schemas.get('core'))) {
         console.error('코어 설정 유효성 검증 실패');
         return false;
       }
       
-      // 플러그인 설정 검증
+      
       if (config.plugins && !this.validateSection(config.plugins, this.schemas.get('plugins'))) {
         console.error('플러그인 설정 유효성 검증 실패');
         return false;
@@ -520,13 +541,13 @@ export class ConfigService implements IConfigLoader {
    */
   public async validateConfig(): Promise<boolean> {
     try {
-      // 현재 로드된 설정 객체가 없다면 빈 객체로 검증
+      
       if (Object.keys(this.config).length === 0) {
         console.warn('설정이 로드되지 않았습니다. 빈 객체로 검증합니다.');
         return this.validate({});
       }
       
-      // 현재 로드된 설정 사용하여 검증
+      
       return this.validate(this.config);
     } catch (error) {
       console.error('설정 검증 중 오류 발생:', error);
@@ -542,16 +563,16 @@ export class ConfigService implements IConfigLoader {
    * @returns 유효성 여부
    */
   private validateSection(section: any, schema: any): boolean {
-    // 이 함수는 기본적인 검증만 수행합니다.
-    // 실제 구현에서는 ajv 같은 JSON 스키마 검증 라이브러리 사용을 권장합니다.
+    
+    
     
     try {
-      // 타입 확인
+      
       if (schema.type === 'object' && typeof section !== 'object') {
         return false;
       }
       
-      // 객체 속성 확인
+      
       if (schema.properties) {
         for (const [key, propSchema] of Object.entries<any>(schema.properties)) {
           if (section[key] !== undefined) {
@@ -567,7 +588,7 @@ export class ConfigService implements IConfigLoader {
               return false;
             }
             
-            // enum 확인
+            
             if (propSchema.enum && !propSchema.enum.includes(section[key])) {
               return false;
             }
@@ -575,7 +596,7 @@ export class ConfigService implements IConfigLoader {
         }
       }
       
-      // 필수 속성 확인
+      
       if (schema.required) {
         for (const requiredProp of schema.required) {
           if (section[requiredProp] === undefined) {

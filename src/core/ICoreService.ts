@@ -10,6 +10,7 @@ import { ChatMessage } from '../types/LlmTypes';
 import { Command } from '../types/CommandTypes';
 import { ConfigService } from './config/ConfigService';
 import { CommandService } from './command/CommandService';
+import { CommandRegistryService } from './command/CommandRegistryService';
 import { PluginRegistryService } from './plugin-system/PluginRegistryService';
 import { LlmService } from './llm/LlmService';
 import { VSCodeService } from './vscode/VSCodeService';
@@ -124,10 +125,16 @@ export interface ICoreService {
    * @param args 이벤트 인자
    */
   emit(event: string, ...args: any[]): boolean;
-
-  // 서비스 인스턴스 접근자
+  
+  /**
+   * 리소스 해제
+   * 확장 프로그램 비활성화 시 호출
+   */
+  dispose(): void;
+  
   readonly configService: ConfigService;
   readonly commandService: CommandService;
+  readonly commandRegistry: CommandRegistryService;
   readonly pluginRegistry: PluginRegistryService;
   readonly llmService: LlmService;
   readonly vsCodeService: VSCodeService;

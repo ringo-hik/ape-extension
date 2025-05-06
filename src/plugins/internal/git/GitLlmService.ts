@@ -11,16 +11,16 @@ import { LlmService } from '../../../core/llm/LlmService';
 import { GitClientService } from './GitClientService';
 
 interface CommitSuggestion {
-  type: string;       // commit type: feat, fix, docs, refactor 등
-  subject: string;    // commit 제목
-  body?: string;      // commit 본문 (옵션)
+  type: string;       
+  subject: string;    
+  body?: string;      
 }
 
 interface ChangeAnalysis {
-  summary: string;          // 변경사항 전체 요약
-  impactLevel: 'high' | 'medium' | 'low'; // 영향도 수준
-  modifiedFiles: string[];  // 변경된 파일 목록
-  suggestedReviewers?: string[]; // 추천 리뷰어 (옵션)
+  summary: string;          
+  impactLevel: 'high' | 'medium' | 'low'; 
+  modifiedFiles: string[];  
+  suggestedReviewers?: string[]; 
 }
 
 /**
@@ -48,7 +48,7 @@ export class GitLlmService {
    */
   async generateCommitMessage(staged: boolean = true, options: any = {}): Promise<CommitSuggestion> {
     try {
-      // 변경된 파일 목록 가져오기
+      
       const statusResult = await this.gitClient.executeGitCommand([
         'status', '--porcelain', staged ? '--staged' : ''
       ]);
@@ -66,22 +66,22 @@ export class GitLlmService {
         throw new Error('변경된 파일이 없습니다.');
       }
       
-      // diff 내용 가져오기
+      
       const diffContent = await this.gitClient.getDiff(staged);
       
-      // diff 내용이 없는 경우
+      
       if (!diffContent.trim()) {
         throw new Error('변경 내용이 없습니다.');
       }
       
-      // 이전 커밋 메시지 스타일 확인 (일관성 유지를 위해)
+      
       const logResult = await this.gitClient.executeGitCommand([
         'log', '-n', '5', '--pretty=format:%s'
       ]);
       
       const previousCommits = logResult.stdout.split('\n');
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 당신은 Git 커밋 메시지 전문가입니다. 제공된 변경 내용을 분석하여 의미 있는 커밋 메시지를 생성해주세요.
 
@@ -118,7 +118,7 @@ ${previousCommits.join('\n')}
 타입과 제목만으로 충분한 경우 body는 생략해도 됩니다.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: options.model || this.llmService.getDefaultModelId(),
         messages: [
@@ -134,9 +134,9 @@ ${previousCommits.join('\n')}
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -147,7 +147,7 @@ ${previousCommits.join('\n')}
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 포맷으로 반환
+        
         return {
           type: 'chore',
           subject: '변경 사항 커밋',
@@ -167,14 +167,14 @@ ${previousCommits.join('\n')}
    */
   async analyzePullRequest(branch: string = 'main'): Promise<ChangeAnalysis> {
     try {
-      // 현재 브랜치 확인
+      
       const currentBranchResult = await this.gitClient.executeGitCommand([
         'rev-parse', '--abbrev-ref', 'HEAD'
       ]);
       
       const currentBranch = currentBranchResult.stdout.trim();
       
-      // 브랜치 간 차이 확인
+      
       const diffResult = await this.gitClient.executeGitCommand([
         'diff', `${branch}...${currentBranch}`, '--name-status'
       ]);
@@ -194,21 +194,21 @@ ${previousCommits.join('\n')}
         throw new Error('변경된 파일이 없습니다.');
       }
       
-      // 커밋 로그 가져오기
+      
       const logResult = await this.gitClient.executeGitCommand([
         'log', `${branch}..${currentBranch}`, '--pretty=format:%h %s'
       ]);
       
       const commits = logResult.stdout.split('\n').filter(line => line.trim() !== '');
       
-      // diff 상세 내용 가져오기 (일부만)
+      
       const diffContentResult = await this.gitClient.executeGitCommand([
         'diff', `${branch}...${currentBranch}`
       ]);
       
       const diffContent = diffContentResult.stdout;
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 현재 브랜치(${currentBranch})와 대상 브랜치(${branch}) 간의 변경 사항을 분석하여 PR(Pull Request) 요약을 작성해주세요.
 
@@ -237,7 +237,7 @@ JSON 형식으로 응답해주세요:
   "suggestedReviewers": ["추천 리뷰어 (알고 있는 경우)"]
 }`;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -253,9 +253,9 @@ JSON 형식으로 응답해주세요:
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -266,7 +266,7 @@ JSON 형식으로 응답해주세요:
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 포맷으로 반환
+        
         return {
           summary: result.content,
           impactLevel: 'medium',
@@ -286,7 +286,7 @@ JSON 형식으로 응답해주세요:
    */
   async summarizeGitHistory(count: number = 10): Promise<string> {
     try {
-      // 커밋 로그 가져오기
+      
       const logResult = await this.gitClient.executeGitCommand([
         'log', '-n', count.toString(), '--pretty=format:%h|%an|%ad|%s', '--date=short'
       ]);
@@ -308,7 +308,7 @@ JSON 형식으로 응답해주세요:
         return '커밋 기록이 없습니다.';
       }
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 최근 ${commits.length}개의 Git 커밋 내역을 분석하여 현재 프로젝트 개발 상태를 요약해주세요.
 
@@ -323,7 +323,7 @@ ${commits.map(commit => `${commit.date} [${commit.hash}] ${commit.message} (${co
 
 최대 300자 내외로 간결하게 요약해주세요.`;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -353,7 +353,7 @@ ${commits.map(commit => `${commit.date} [${commit.hash}] ${commit.message} (${co
    */
   async reviewChanges(staged: boolean = true): Promise<string> {
     try {
-      // 변경된 파일 목록 가져오기
+      
       const statusResult = await this.gitClient.executeGitCommand([
         'status', '--porcelain', staged ? '--staged' : ''
       ]);
@@ -371,15 +371,15 @@ ${commits.map(commit => `${commit.date} [${commit.hash}] ${commit.message} (${co
         return '변경된 파일이 없습니다.';
       }
       
-      // diff 내용 가져오기
+      
       const diffContent = await this.gitClient.getDiff(staged);
       
-      // diff 내용이 없는 경우
+      
       if (!diffContent.trim()) {
         return '변경 내용이 없습니다.';
       }
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 현재 변경 사항에 대한 코드 리뷰를 제공해주세요.
 
@@ -400,7 +400,7 @@ ${diffContent.substring(0, 3000)}${diffContent.length > 3000 ? '\n...(생략됨)
 
 코드 리뷰 결과를 마크다운 형식으로 제공해주세요. 각 파일별로 섹션을 나누어 주세요.`;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [

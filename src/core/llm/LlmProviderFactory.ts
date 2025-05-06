@@ -9,7 +9,7 @@ import { EnvironmentService } from '../env/EnvironmentService';
 import { ModelConfig } from '../../types/LlmTypes';
 import { ILlmProvider } from './providers/ILlmProvider';
 
-// 실제 구현체는 별도 파일로 구현되어야 합니다
+
 
 export class LlmProviderFactory {
   /**
@@ -18,19 +18,12 @@ export class LlmProviderFactory {
   public static async createProvider(modelConfig: ModelConfig): Promise<ILlmProvider> {
     const envService = EnvironmentService.getInstance();
     
-    // 내부망 환경에서는 모델 유형에 따라 적절한 프로바이더 반환
+    // 내부망 또는 외부망에 따라 적절한 프로바이더 생성
     if (envService.isInternalNetwork()) {
-      if (modelConfig.name.toLowerCase().includes('llama')) {
-        // Llama 모델용 내부망 프로바이더
-        return this.createInternalProvider('llama', modelConfig);
-      } else if (modelConfig.name.toLowerCase().includes('narrans') || 
-                 modelConfig.provider === 'narrans') {
-        // NARRANS 모델용 내부망 프로바이더
-        return this.createInternalProvider('narrans', modelConfig);
-      }
+      return this.createInternalProvider(modelConfig.provider, modelConfig);
     }
     
-    // 외부망 환경에서는 OpenRouter 프로바이더 반환
+    // 외부망 환경에서는 외부망 프로바이더 사용
     return this.createExternalProvider(modelConfig);
   }
   
@@ -38,9 +31,9 @@ export class LlmProviderFactory {
    * 내부망 LLM 프로바이더 생성
    */
   private static createInternalProvider(type: string, modelConfig: ModelConfig): ILlmProvider {
-    // 임시 구현
     
-    // 임시 구현 (인터페이스 구현 필요)
+    
+    
     return {
       initialize: async () => {},
       supportsModel: () => true,
@@ -55,9 +48,9 @@ export class LlmProviderFactory {
    * 외부망 LLM 프로바이더 생성
    */
   private static createExternalProvider(modelConfig: ModelConfig): ILlmProvider {
-    // 임시 구현
     
-    // 임시 구현 (인터페이스 구현 필요)
+    
+    
     return {
       initialize: async () => {},
       supportsModel: () => true,

@@ -277,36 +277,60 @@ export class SwdpDomainService {
   /**
    * 캐시 유효 시간 (밀리초)
    */
-  private cacheTTL: number = 5 * 60 * 1000; // 5분
+  private cacheTTL: number = 5 * 60 * 1000; 
   
   /**
-   * 싱글톤 인스턴스 가져오기
-   * @returns SwdpDomainService 인스턴스
+   * 생성자
    */
-  public static getInstance(): SwdpDomainService {
-    if (!SwdpDomainService.instance) {
-      SwdpDomainService.instance = new SwdpDomainService();
-    }
-    return SwdpDomainService.instance;
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly userAuthService: UserAuthService,
+    private readonly swdpClient: SwdpClientService
+  ) {
+    // 이벤트 에미터 초기화는 유지
   }
-  
+
   /**
-   * 생성자 (private)
+   * 팩토리 메서드: 의존성 주입을 통한 인스턴스 생성
    */
-  private constructor() {
-    this.configService = ConfigService.getInstance();
-    this.userAuthService = UserAuthService.getInstance();
-    
-    // SWDP 클라이언트 생성
-    const config = this.configService.getPluginConfig();
+  public static createInstance(
+    configService: ConfigService,
+    userAuthService: UserAuthService
+  ): SwdpDomainService {
+    // 설정에서 SWDP 클라이언트 생성에 필요한 정보 얻기
+    const config = configService.getPluginConfig();
     const swdpConfig = config && typeof config === 'object' && 'swdp' in config 
       ? (config as Record<string, any>).swdp 
       : null;
     
-    const apeCoreUrl = swdpConfig?.apeCoreUrl || 'http://localhost:8001';
+    const apeCoreUrl = swdpConfig?.apeCoreUrl || 'http://localhost:8080';
     const bypassSsl = swdpConfig?.bypassSsl !== false;
     
-    this.swdpClient = new SwdpClientService(apeCoreUrl, bypassSsl);
+    // 클라이언트 생성
+    const swdpClient = new SwdpClientService(apeCoreUrl, bypassSsl);
+    
+    // 인스턴스 생성 및 반환
+    return new SwdpDomainService(configService, userAuthService, swdpClient);
+  }
+  
+  /**
+   * 레거시 싱글톤 접근 방식 - 점진적 마이그레이션을 위해 유지
+   * @deprecated 싱글톤 패턴 대신 의존성 주입 사용 권장
+   * @returns SwdpDomainService 인스턴스
+   */
+  public static getInstance(): SwdpDomainService {
+    if (!SwdpDomainService.instance) {
+      // 필요한 서비스 가져오기
+      const configService = ConfigService.getInstance();
+      const userAuthService = UserAuthService.getInstance();
+      
+      // 팩토리 메서드 사용
+      SwdpDomainService.instance = SwdpDomainService.createInstance(
+        configService,
+        userAuthService
+      );
+    }
+    return SwdpDomainService.instance;
   }
   
   /**
@@ -332,16 +356,16 @@ export class SwdpDomainService {
    */
   public async initialize(): Promise<void> {
     try {
-      // 사용자 인증 서비스 초기화
+      
       if (!this.userAuthService.isInitialized()) {
         await this.userAuthService.initialize();
       }
       
-      // 사용자 정보 가져오기
+      
       const userInfo = this.userAuthService.getUserInfo();
       const userSettings = this.userAuthService.getUserSettings();
       
-      // SWDP 클라이언트 초기화
+      
       await this.swdpClient.initialize({
         userId: userInfo.userId,
         gitUsername: userInfo.gitUsername,
@@ -349,10 +373,10 @@ export class SwdpDomainService {
         token: userInfo.token
       });
       
-      // 현재 프로젝트 설정
+      
       this.currentProject = userSettings.currentProject;
       
-      // 캐시 TTL 설정 (설정에서 가져오기)
+      
       const ttl = this.configService.getAppConfig()?.cache?.ttl;
       if (ttl && typeof ttl === 'number') {
         this.cacheTTL = ttl;
@@ -393,22 +417,22 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 캐시된 프로젝트 목록이 있고 강제 새로고침이 아닌 경우
+      
       if (this.projectsCache.size > 0 && !forceRefresh) {
         return Array.from(this.projectsCache.values());
       }
       
-      // 프로젝트 목록 가져오기
+      
       const result = await this.swdpClient.getProjects();
       const projects = result.projects || [];
       
-      // 캐시 업데이트
+      
       this.projectsCache.clear();
       for (const project of projects) {
         this.projectsCache.set(project.code, project);
       }
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(SwdpEvent.PROJECTS_LOADED, projects);
       
       return projects;
@@ -429,12 +453,12 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 캐시된 프로젝트 정보가 있고 강제 새로고침이 아닌 경우
+      
       if (this.projectsCache.has(projectCode) && !forceRefresh) {
         return this.projectsCache.get(projectCode)!;
       }
       
-      // 프로젝트 세부 정보 가져오기
+      
       const result = await this.swdpClient.getProjectDetails(projectCode);
       const project = result.project;
       
@@ -442,7 +466,7 @@ export class SwdpDomainService {
         throw new Error(`프로젝트를 찾을 수 없음: ${projectCode}`);
       }
       
-      // 캐시 업데이트
+      
       this.projectsCache.set(projectCode, project);
       
       return project;
@@ -461,13 +485,13 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // SWDP 서버에 현재 프로젝트 설정
+      
       await this.swdpClient.setCurrentProject(projectCode);
       
-      // 클라이언트 상태 업데이트
+      
       this.currentProject = projectCode;
       
-      // 사용자 설정 업데이트
+      
       await this.userAuthService.setCurrentProject(projectCode);
       
       console.log(`현재 프로젝트가 설정됨: ${projectCode}`);
@@ -496,31 +520,31 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 프로젝트 코드 결정
+      
       const targetProject = projectCode || this.currentProject;
       if (!targetProject) {
         throw new Error('프로젝트가 설정되지 않았습니다');
       }
       
-      // 캐시된 작업 목록이 있고 강제 새로고침이 아닌 경우
+      
       if (this.tasksCache.has(targetProject) && !forceRefresh) {
         return this.tasksCache.get(targetProject)!;
       }
       
-      // 작업 목록 가져오기
+      
       const result = await this.swdpClient.getTasks(targetProject);
       const tasks = result.tasks || [];
       
-      // 각 작업에 프로젝트 코드 추가
+      
       const tasksWithProject = tasks.map(task => ({
         ...task,
         projectCode: targetProject
       }));
       
-      // 캐시 업데이트
+      
       this.tasksCache.set(targetProject, tasksWithProject);
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(SwdpEvent.TASKS_LOADED, tasksWithProject);
       
       return tasksWithProject;
@@ -540,7 +564,7 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 작업 세부 정보 가져오기
+      
       const result = await this.swdpClient.getTaskDetails(taskId);
       const task = result.task;
       
@@ -548,12 +572,12 @@ export class SwdpDomainService {
         throw new Error(`작업을 찾을 수 없음: ${taskId}`);
       }
       
-      // 프로젝트 코드 확인
+      
       if (!task.projectCode && task.project) {
         task.projectCode = task.project;
       }
       
-      // 캐시 업데이트
+      
       if (task.projectCode) {
         if (!this.tasksCache.has(task.projectCode)) {
           this.tasksCache.set(task.projectCode, []);
@@ -589,13 +613,13 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 프로젝트 코드 결정
+      
       const targetProject = projectCode || this.currentProject;
       if (!targetProject) {
         throw new Error('프로젝트가 설정되지 않았습니다');
       }
       
-      // 작업 생성
+      
       const result = await this.swdpClient.createTask(title, description, targetProject, params);
       const task = result.task || {
         id: result.taskId,
@@ -605,7 +629,7 @@ export class SwdpDomainService {
         status: 'created'
       };
       
-      // 캐시 업데이트
+      
       if (!this.tasksCache.has(targetProject)) {
         this.tasksCache.set(targetProject, []);
       }
@@ -613,7 +637,7 @@ export class SwdpDomainService {
       const tasks = this.tasksCache.get(targetProject)!;
       tasks.push(task);
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(SwdpEvent.TASK_CHANGED, task);
       
       return task;
@@ -634,7 +658,7 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 작업 상태 업데이트
+      
       const result = await this.swdpClient.updateTaskStatus(taskId, status);
       const task = result.task;
       
@@ -642,12 +666,12 @@ export class SwdpDomainService {
         throw new Error(`작업을 찾을 수 없음: ${taskId}`);
       }
       
-      // 프로젝트 코드 확인
+      
       if (!task.projectCode && task.project) {
         task.projectCode = task.project;
       }
       
-      // 캐시 업데이트
+      
       if (task.projectCode) {
         if (!this.tasksCache.has(task.projectCode)) {
           this.tasksCache.set(task.projectCode, []);
@@ -663,7 +687,7 @@ export class SwdpDomainService {
         }
       }
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(SwdpEvent.TASK_CHANGED, task);
       
       return task;
@@ -684,31 +708,31 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 프로젝트 코드 결정
+      
       const targetProject = projectCode || this.currentProject;
       if (!targetProject) {
         throw new Error('프로젝트가 설정되지 않았습니다');
       }
       
-      // 캐시된 문서 목록이 있고 강제 새로고침이 아닌 경우
+      
       if (this.documentsCache.has(targetProject) && !forceRefresh) {
         return this.documentsCache.get(targetProject)!;
       }
       
-      // 문서 목록 가져오기
+      
       const result = await this.swdpClient.getDocuments(targetProject);
       const documents = result.documents || [];
       
-      // 각 문서에 프로젝트 코드 추가
+      
       const documentsWithProject = documents.map(doc => ({
         ...doc,
         projectCode: targetProject
       }));
       
-      // 캐시 업데이트
+      
       this.documentsCache.set(targetProject, documentsWithProject);
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(SwdpEvent.DOCUMENTS_LOADED, documentsWithProject);
       
       return documentsWithProject;
@@ -728,7 +752,7 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 문서 세부 정보 가져오기
+      
       const result = await this.swdpClient.getDocumentDetails(docId);
       const document = result.document;
       
@@ -736,12 +760,12 @@ export class SwdpDomainService {
         throw new Error(`문서를 찾을 수 없음: ${docId}`);
       }
       
-      // 프로젝트 코드 확인
+      
       if (!document.projectCode && document.project) {
         document.projectCode = document.project;
       }
       
-      // 캐시 업데이트
+      
       if (document.projectCode) {
         if (!this.documentsCache.has(document.projectCode)) {
           this.documentsCache.set(document.projectCode, []);
@@ -777,13 +801,13 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 프로젝트 코드 결정
+      
       const targetProject = projectCode || this.currentProject;
       if (!targetProject) {
         throw new Error('프로젝트가 설정되지 않았습니다');
       }
       
-      // 문서 생성
+      
       const result = await this.swdpClient.createDocument(title, type, content, targetProject);
       const document = result.document || {
         id: result.docId,
@@ -794,7 +818,7 @@ export class SwdpDomainService {
         createdAt: new Date().toISOString()
       };
       
-      // 캐시 업데이트
+      
       if (!this.documentsCache.has(targetProject)) {
         this.documentsCache.set(targetProject, []);
       }
@@ -822,7 +846,7 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 빌드 시작
+      
       const result = await this.swdpClient.startBuild({
         type: type as any,
         watchMode,
@@ -840,10 +864,10 @@ export class SwdpDomainService {
         logs: []
       };
       
-      // 캐시 업데이트
+      
       this.buildsCache.set(build.buildId, build);
       
-      // 빌드 상태 주기적 업데이트 시작 (완료 또는 오류 상태가 될 때까지)
+      
       this.startBuildStatusPolling(build.buildId);
       
       return build;
@@ -863,9 +887,9 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 빌드 ID가 없으면 최근 빌드 찾기
+      
       if (!buildId) {
-        // 빌드 캐시에서 가장 최근 빌드 찾기
+        
         let latestBuild: SwdpBuild | null = null;
         let latestTimestamp = 0;
         
@@ -880,7 +904,7 @@ export class SwdpDomainService {
         if (latestBuild) {
           buildId = latestBuild.buildId;
         } else {
-          // 캐시에 빌드가 없으면 서버에서 최근 빌드 조회
+          
           const result = await this.swdpClient.getBuildStatus();
           
           if (!result.buildId) {
@@ -891,10 +915,10 @@ export class SwdpDomainService {
         }
       }
       
-      // 빌드 상태 조회
+      
       const result = await this.swdpClient.getBuildStatus(buildId);
       
-      // 빌드 정보 업데이트
+      
       const build: SwdpBuild = {
         buildId,
         type: result.type || 'unknown',
@@ -904,10 +928,10 @@ export class SwdpDomainService {
         timestamp: result.timestamp || new Date().toISOString()
       };
       
-      // 캐시 업데이트
+      
       this.buildsCache.set(buildId, build);
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(SwdpEvent.BUILD_STATUS_CHANGED, build);
       
       return build;
@@ -927,13 +951,13 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 빌드 로그 조회
+      
       const result = await this.swdpClient.getBuildLogs(buildId);
       const logs = result.logs ? 
         (typeof result.logs === 'string' ? result.logs.split('\n') : result.logs) : 
         [];
       
-      // 캐시된 빌드 정보가 있으면 로그 업데이트
+      
       if (this.buildsCache.has(buildId)) {
         const build = this.buildsCache.get(buildId)!;
         build.logs = logs;
@@ -957,16 +981,16 @@ export class SwdpDomainService {
     this.checkInitialized();
     
     try {
-      // 빌드 취소
+      
       await this.swdpClient.cancelBuild(buildId);
       
-      // 캐시된 빌드 정보가 있으면 상태 업데이트
+      
       if (this.buildsCache.has(buildId)) {
         const build = this.buildsCache.get(buildId)!;
         build.status = 'canceled';
         this.buildsCache.set(buildId, build);
         
-        // 이벤트 발생
+        
         this.eventEmitter.emit(SwdpEvent.BUILD_STATUS_CHANGED, build);
       }
       
@@ -983,27 +1007,27 @@ export class SwdpDomainService {
    * @param buildId 빌드 ID
    */
   private startBuildStatusPolling(buildId: string): void {
-    // 상태 확인 간격 (초)
+    
     const interval = 5;
     
-    // 초기 딜레이 (빌드 시작 후 5초 후부터 폴링 시작)
+    
     setTimeout(async () => {
       try {
-        // 빌드 상태 확인
+        
         const build = await this.getBuildStatus(buildId);
         
-        // 완료 또는 오류 상태인지 확인
+        
         const isCompleted = ['success', 'failed', 'canceled'].includes(build.status);
         
         if (isCompleted) {
-          // 완료된 경우 로그 한 번만 가져오기
+          
           try {
             await this.getBuildLogs(buildId);
           } catch (error) {
             console.warn(`빌드 로그 조회 실패 (${buildId}):`, error);
           }
         } else {
-          // 완료되지 않은 경우 계속 폴링
+          
           setTimeout(() => this.startBuildStatusPolling(buildId), interval * 1000);
         }
       } catch (error) {

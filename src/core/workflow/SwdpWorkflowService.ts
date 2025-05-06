@@ -81,6 +81,7 @@ export interface WorkflowLogItem {
 export class SwdpWorkflowService {
   /**
    * 싱글톤 인스턴스
+   * @deprecated 싱글톤 패턴 대신 의존성 주입 사용 권장
    */
   private static instance: SwdpWorkflowService;
   
@@ -88,21 +89,6 @@ export class SwdpWorkflowService {
    * 이벤트 이미터
    */
   private eventEmitter = new EventEmitter();
-  
-  /**
-   * SWDP 도메인 서비스
-   */
-  private swdpDomainService: SwdpDomainService;
-  
-  /**
-   * 사용자 인증 서비스
-   */
-  private userAuthService: UserAuthService;
-  
-  /**
-   * 설정 서비스
-   */
-  private configService: ConfigService;
   
   /**
    * 워크플로우 로그
@@ -120,25 +106,46 @@ export class SwdpWorkflowService {
   private initialized: boolean = false;
   
   /**
-   * 싱글톤 인스턴스 가져오기
+   * 팩토리 메서드: 의존성 주입을 통한 인스턴스 생성
+   */
+  public static createInstance(
+    configService: ConfigService,
+    userAuthService: UserAuthService,
+    swdpDomainService: SwdpDomainService
+  ): SwdpWorkflowService {
+    return new SwdpWorkflowService(configService, userAuthService, swdpDomainService);
+  }
+  
+  /**
+   * 레거시 싱글톤 접근 방식 - 점진적 마이그레이션을 위해 유지
+   * @deprecated 싱글톤 패턴 대신 의존성 주입 사용 권장
    * @returns SwdpWorkflowService 인스턴스
    */
   public static getInstance(): SwdpWorkflowService {
     if (!SwdpWorkflowService.instance) {
-      SwdpWorkflowService.instance = new SwdpWorkflowService();
+      // 필요한 서비스 가져오기
+      const configService = ConfigService.getInstance();
+      const userAuthService = UserAuthService.getInstance();
+      const swdpDomainService = SwdpDomainService.getInstance();
+      
+      // 팩토리 메서드 사용
+      SwdpWorkflowService.instance = SwdpWorkflowService.createInstance(
+        configService,
+        userAuthService,
+        swdpDomainService
+      );
     }
     return SwdpWorkflowService.instance;
   }
   
   /**
-   * 생성자 (private)
+   * 생성자
    */
-  private constructor() {
-    this.swdpDomainService = SwdpDomainService.getInstance();
-    this.userAuthService = UserAuthService.getInstance();
-    this.configService = ConfigService.getInstance();
-    
-    // SWDP 이벤트 리스너 등록
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly userAuthService: UserAuthService,
+    private readonly swdpDomainService: SwdpDomainService
+  ) {
     this.swdpDomainService.on(SwdpEvent.TASK_CHANGED, (task) => {
       this.handleTaskChanged(task);
     });
@@ -167,17 +174,17 @@ export class SwdpWorkflowService {
    */
   public async initialize(): Promise<void> {
     try {
-      // 사용자 인증 서비스 초기화
+      
       if (!this.userAuthService.isInitialized()) {
         await this.userAuthService.initialize();
       }
       
-      // SWDP 도메인 서비스 초기화
+      
       if (!this.swdpDomainService.isInitialized()) {
         await this.swdpDomainService.initialize();
       }
       
-      // 사용자 설정에서 현재 작업 ID 가져오기
+      
       const userSettings = this.userAuthService.getUserSettings();
       if (userSettings.currentTask) {
         this.currentTaskId = userSettings.currentTask;
@@ -217,20 +224,20 @@ export class SwdpWorkflowService {
     this.checkInitialized();
     
     try {
-      // 작업 존재 여부 확인
+      
       const task = await this.swdpDomainService.getTaskDetails(taskId);
       
-      // 현재 작업 업데이트
+      
       this.currentTaskId = taskId;
       
-      // 사용자 설정 업데이트
+      
       await this.userAuthService.updateUserSettings({
         currentTask: taskId
       });
       
       console.log(`현재 작업이 설정됨: ${taskId} (${task.title})`);
       
-      // 작업 시작 워크플로우 로그 추가
+      
       this.addWorkflowLog(taskId, {
         timestamp: new Date().toISOString(),
         taskId,
@@ -285,18 +292,18 @@ export class SwdpWorkflowService {
     this.checkInitialized();
     
     try {
-      // 작업 ID 결정
+      
       const targetTaskId = taskId || this.currentTaskId;
       if (!targetTaskId) {
         throw new Error('작업이 설정되지 않았습니다');
       }
       
-      // 작업 존재 여부 확인
+      
       const task = await this.swdpDomainService.getTaskDetails(targetTaskId);
       
-      // 로그 기록 및 이벤트 발생
       
-      // 워크플로우 로그 추가
+      
+      
       this.addWorkflowLog(targetTaskId, {
         timestamp: new Date().toISOString(),
         taskId: targetTaskId,
@@ -310,7 +317,7 @@ export class SwdpWorkflowService {
         }
       });
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.TASK_LINKED, {
         taskId: targetTaskId,
         commitId,
@@ -334,18 +341,18 @@ export class SwdpWorkflowService {
     this.checkInitialized();
     
     try {
-      // 작업 ID 결정
+      
       const targetTaskId = taskId || this.currentTaskId;
       if (!targetTaskId) {
         throw new Error('작업이 설정되지 않았습니다');
       }
       
-      // 작업 존재 여부 확인
+      
       const task = await this.swdpDomainService.getTaskDetails(targetTaskId);
       
-      // 로그 기록 및 이벤트 발생
       
-      // 워크플로우 로그 추가
+      
+      
       this.addWorkflowLog(targetTaskId, {
         timestamp: new Date().toISOString(),
         taskId: targetTaskId,
@@ -358,7 +365,7 @@ export class SwdpWorkflowService {
         }
       });
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.TASK_LINKED, {
         taskId: targetTaskId,
         issueKey
@@ -381,16 +388,16 @@ export class SwdpWorkflowService {
     this.checkInitialized();
     
     try {
-      // 작업 ID 결정
+      
       const targetTaskId = taskId || this.currentTaskId;
       if (!targetTaskId) {
         throw new Error('작업이 설정되지 않았습니다');
       }
       
-      // 작업 상태 업데이트
+      
       const updatedTask = await this.swdpDomainService.updateTaskStatus(targetTaskId, status);
       
-      // 워크플로우 로그 추가
+      
       this.addWorkflowLog(targetTaskId, {
         timestamp: new Date().toISOString(),
         taskId: targetTaskId,
@@ -403,7 +410,7 @@ export class SwdpWorkflowService {
         }
       });
       
-      // 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.TASK_STATUS_CHANGED, {
         taskId: targetTaskId,
         status,
@@ -422,9 +429,9 @@ export class SwdpWorkflowService {
    * @param task 변경된 작업
    */
   private handleTaskChanged(task: SwdpTask): void {
-    // 현재 작업인 경우 처리
+    
     if (this.currentTaskId === task.id) {
-      // 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.TASK_STATUS_CHANGED, {
         taskId: task.id,
         status: task.status,
@@ -446,7 +453,7 @@ export class SwdpWorkflowService {
     const logs = this.workflowLogs.get(taskId)!;
     logs.push(logItem);
     
-    // 로그 저장
+    
     this.saveWorkflowLogs(taskId);
   }
   
@@ -456,18 +463,18 @@ export class SwdpWorkflowService {
    * @returns 워크플로우 로그
    */
   public getWorkflowLogs(taskId?: string): WorkflowLogItem[] {
-    // 작업 ID 결정
+    
     const targetTaskId = taskId || this.currentTaskId;
     if (!targetTaskId) {
       return [];
     }
     
-    // 캐시된 로그 가져오기
+    
     if (this.workflowLogs.has(targetTaskId)) {
       return [...this.workflowLogs.get(targetTaskId)!];
     }
     
-    // 로그 로드
+    
     this.loadWorkflowLogs(targetTaskId);
     
     return this.workflowLogs.has(targetTaskId) ? 
@@ -481,11 +488,11 @@ export class SwdpWorkflowService {
    */
   private saveWorkflowLogs(taskId: string): void {
     try {
-      // 작업별 로그 저장
+      
       const logs = this.workflowLogs.get(taskId);
       if (!logs) return;
       
-      // 사용자 설정에 워크플로우 로그 저장
+      
       const workflowLogsConfig = this.configService.getUserConfig()?.workflowLogs || {};
       workflowLogsConfig[taskId] = logs;
       
@@ -503,11 +510,11 @@ export class SwdpWorkflowService {
    */
   private loadWorkflowLogs(taskId: string): void {
     try {
-      // 사용자 설정에서 워크플로우 로그 로드
+      
       const workflowLogsConfig = this.configService.getUserConfig()?.workflowLogs || {};
       const logs = workflowLogsConfig[taskId] || [];
       
-      // 캐시 업데이트
+      
       this.workflowLogs.set(taskId, logs);
     } catch (error) {
       console.warn(`워크플로우 로그 로드 중 오류 발생 (${taskId}):`, error);
@@ -525,16 +532,16 @@ export class SwdpWorkflowService {
     this.checkInitialized();
     
     try {
-      // 작업 ID 결정
+      
       const targetTaskId = taskId || this.currentTaskId;
       if (!targetTaskId) {
         throw new Error('작업이 설정되지 않았습니다');
       }
       
-      // 작업 상태 업데이트
+      
       await this.swdpDomainService.updateTaskStatus(targetTaskId, status);
       
-      // 워크플로우 로그 추가
+      
       this.addWorkflowLog(targetTaskId, {
         timestamp: new Date().toISOString(),
         taskId: targetTaskId,
@@ -547,17 +554,17 @@ export class SwdpWorkflowService {
         }
       });
       
-      // 현재 작업이 종료된 경우 현재 작업 정보 초기화
+      
       if (targetTaskId === this.currentTaskId) {
         this.currentTaskId = undefined;
         
-        // 사용자 설정 업데이트
+        
         await this.userAuthService.updateUserSettings({
           currentTask: undefined
         });
       }
       
-      // 작업 종료 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.WORKFLOW_COMPLETED, {
         taskId: targetTaskId,
         status,
@@ -568,7 +575,7 @@ export class SwdpWorkflowService {
     } catch (error) {
       console.error(`작업 종료 중 오류 발생 (${taskId}):`, error);
       
-      // 워크플로우 실패 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.WORKFLOW_FAILED, {
         taskId,
         error
@@ -589,16 +596,16 @@ export class SwdpWorkflowService {
     this.checkInitialized();
     
     try {
-      // 작업 ID 결정
+      
       const targetTaskId = taskId || this.currentTaskId;
       if (!targetTaskId) {
         throw new Error('작업이 설정되지 않았습니다');
       }
       
-      // 작업 존재 여부 확인
+      
       const task = await this.swdpDomainService.getTaskDetails(targetTaskId);
       
-      // 워크플로우 로그 추가
+      
       this.addWorkflowLog(targetTaskId, {
         timestamp: new Date().toISOString(),
         taskId: targetTaskId,
@@ -612,7 +619,7 @@ export class SwdpWorkflowService {
         }
       });
       
-      // 워크플로우 시작 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.WORKFLOW_STARTED, {
         taskId: targetTaskId,
         workflowType,
@@ -624,7 +631,7 @@ export class SwdpWorkflowService {
     } catch (error) {
       console.error(`워크플로우 시작 중 오류 발생 (${taskId}, ${workflowType}):`, error);
       
-      // 워크플로우 실패 이벤트 발생
+      
       this.eventEmitter.emit(WorkflowEvent.WORKFLOW_FAILED, {
         taskId,
         workflowType,

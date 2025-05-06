@@ -12,11 +12,11 @@ import { ILoggerService } from '../../../core/utils/LoggerService';
  * 명령어 변환 결과 인터페이스
  */
 export interface CommandConversion {
-  command: string;    // 변환된 명령어 (예: git:status, git:auto-commit)
-  args: string[];     // 명령어 인자
-  confidence: number; // 변환 신뢰도 (0.0-1.0)
-  explanation: string; // 변환 설명
-  alternatives?: Array<{  // 대체 명령어 옵션
+  command: string;    
+  args: string[];     
+  confidence: number; 
+  explanation: string; 
+  alternatives?: Array<{  
     command: string;
     args: string[];
     confidence: number;
@@ -30,7 +30,7 @@ export class GitNaturalLanguageService {
   private llmService: LlmService;
   private logger: ILoggerService;
   
-  // 지원되는 Git 명령어와 그에 대한 자연어 표현 매핑
+  
   private commandPatterns: Record<string, string[]> = {
     'status': ['상태', '상황', '뭐 바뀌었어', '변경사항', '변경 내역', '현재 상태'],
     'diff': ['차이', '변경 내용', '뭐가 바뀌었어', '코드 변경', '변경점'],
@@ -67,7 +67,7 @@ export class GitNaturalLanguageService {
     try {
       this.logger.info(`자연어 Git 명령 변환 시작: "${naturalCommand}"`);
       
-      // 간단한 휴리스틱 매칭 시도 (빠른 응답을 위해)
+      
       const heuristicMatch = this.heuristicCommandMatch(naturalCommand);
       
       if (heuristicMatch && heuristicMatch.confidence > 0.8) {
@@ -75,12 +75,12 @@ export class GitNaturalLanguageService {
         return heuristicMatch;
       }
       
-      // LLM을 이용한 명령어 변환
+      
       return await this.llmCommandMatch(naturalCommand, heuristicMatch);
     } catch (error) {
       this.logger.error(`자연어 명령 변환 중 오류 발생: ${error}`);
       
-      // 오류 발생 시 상태 명령어로 기본 처리
+      
       return {
         command: 'status',
         args: [],
@@ -98,7 +98,7 @@ export class GitNaturalLanguageService {
   private heuristicCommandMatch(naturalCommand: string): CommandConversion | null {
     const normalizedInput = naturalCommand.toLowerCase().trim();
     
-    // 각 명령어 패턴별 점수 계산
+    
     let bestMatch = {
       command: '',
       score: 0,
@@ -121,7 +121,7 @@ export class GitNaturalLanguageService {
       }
     }
     
-    // 특수한 경우 처리 (commit 메시지)
+    
     if (bestMatch.command === 'commit' || bestMatch.command === 'auto-commit') {
       const messageMatch = normalizedInput.match(/["'](.+?)["']|메시지\s*[:\s]\s*(.+?)(?:\s|$)/i);
       if (messageMatch) {
@@ -131,7 +131,7 @@ export class GitNaturalLanguageService {
         }
       }
       
-      // 커밋 메시지 생성 관련 키워드가 있으면 auto-commit으로 변경
+      
       if (/메시지.*만들|자동.*생성|알아서.*커밋/.test(normalizedInput)) {
         bestMatch.command = 'auto-commit';
       }
@@ -141,7 +141,7 @@ export class GitNaturalLanguageService {
       return {
         command: bestMatch.command,
         args: bestMatch.args,
-        confidence: bestMatch.score * 0.8, // 휴리스틱 신뢰도는 약간 낮게 설정
+        confidence: bestMatch.score * 0.8, 
         explanation: `자연어 명령 "${naturalCommand}"을(를) @git:${bestMatch.command} 명령으로 변환했습니다.`
       };
     }
@@ -210,7 +210,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
     try {
       const response = await this.llmService.queryLlm(prompt);
       
-      // JSON 파싱
+      
       const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```|{[\s\S]*}/);
       
       if (!jsonMatch) {
@@ -225,7 +225,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
     } catch (error) {
       this.logger.error(`LLM 명령어 변환 중 오류 발생: ${error}`);
       
-      // LLM 오류 시 휴리스틱 결과 사용 또는 기본값 반환
+      
       if (heuristicMatch) {
         return heuristicMatch;
       }
@@ -248,10 +248,10 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
   private extractArguments(naturalCommand: string, command: string): string[] {
     const args: string[] = [];
     
-    // 명령어별 특화된 인자 추출 로직
+    
     switch (command) {
       case 'add':
-        // 파일 경로 추출 시도
+        
         const fileMatch = naturalCommand.match(/([./\\a-zA-Z0-9_-]+\.[a-zA-Z0-9]+)/g);
         if (fileMatch) {
           args.push(...fileMatch);
@@ -261,7 +261,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
         break;
         
       case 'commit':
-        // 커밋 메시지 추출 시도
+        
         const messageMatch = naturalCommand.match(/["'](.+?)["']|메시지\s*[:\s]\s*(.+?)(?:\s|$)/i);
         if (messageMatch) {
           const message = messageMatch[1] || messageMatch[2];
@@ -270,20 +270,20 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
           }
         }
         
-        // --all 플래그 확인
+        
         if (naturalCommand.includes('모든') || naturalCommand.includes('전체')) {
           args.push('--all');
         }
         break;
         
       case 'auto-commit':
-        // 커밋 타입 추출 시도
+        
         const typeMatch = naturalCommand.match(/타입[은:]?\s*([a-z]+)/i);
         if (typeMatch && typeMatch[1]) {
           args.push(`--type=${typeMatch[1].toLowerCase()}`);
         }
         
-        // --all 플래그 확인
+        
         if (naturalCommand.includes('모든') || naturalCommand.includes('전체')) {
           args.push('--all');
         }
@@ -291,7 +291,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
         
       case 'checkout':
       case 'branch':
-        // 브랜치명 추출 시도
+        
         const branchMatch = naturalCommand.match(/브랜치[는:]?\s*([a-zA-Z0-9_/-]+)/i);
         if (branchMatch && branchMatch[1]) {
           args.push(branchMatch[1]);
@@ -299,7 +299,7 @@ JSON 형식으로 다음 필드를 포함해 응답해주세요:
         break;
         
       case 'log':
-        // 로그 개수 추출 시도
+        
         const countMatch = naturalCommand.match(/(\d+)개/);
         if (countMatch && countMatch[1]) {
           args.push(`--count=${countMatch[1]}`);

@@ -237,49 +237,85 @@ export class ApeTestViewProvider implements vscode.WebviewViewProvider {
     try {
       let result;
       
-      // 명령어 유형에 따른 처리
-      switch (commandId) {
-        case 'api.test':
-          result = await this._testApiConnection();
-          break;
+      // 1. 먼저 테스트 명령어 사용 시도
+      try {
+        // 명령어 데이터 준비
+        const command = {
+          prefix: '/',
+          agentId: 'test',
+          command: commandId,
+          args: [],
+          flags: {}
+        };
+        
+        // 명령 실행
+        result = await this._coreService.executeCommand(command);
+        this._logger.info(`명령어 실행 성공: ${commandId}`);
+        return result;
+      } catch (commandError) {
+        this._logger.warn(`명령어 실행 실패: ${commandError}, 폴백 처리 사용`);
+        
+        // 2. 폴백: 모의 명령어 실행
+        try {
+          const { mockCommandHandlers, mockExecuteCommand } = await import('../core/command/__mocks__/mock-commands');
           
-        case 'api.models':
-          result = await this._getAvailableModels();
-          break;
+          if (mockCommandHandlers[commandId]) {
+            result = await mockCommandHandlers[commandId]();
+            this._logger.info(`모의 명령어 실행 성공: ${commandId}`);
+            return result;
+          } else {
+            result = await mockExecuteCommand(commandId);
+            this._logger.info(`일반 모의 명령어 실행: ${commandId}`);
+            return result;
+          }
+        } catch (mockError) {
+          this._logger.error(`모의 명령어 실행 실패: ${mockError}`);
           
-        case 'api.stream':
-          result = await this._testStreamingResponse();
-          break;
-          
-        case 'mode.toggle':
-          result = await this._toggleApeMode();
-          break;
-          
-        case 'mode.dev':
-          result = await this._toggleDevMode();
-          break;
-          
-        case 'chat.clear':
-          result = await this._clearChat();
-          break;
-          
-        case 'chat.save':
-          result = await this._saveChatSession();
-          break;
-          
-        case 'chat.history':
-          result = await this._loadChatHistory();
-          break;
-          
-        case 'test.git':
-        case 'test.jira':
-        case 'test.swdp':
-        case 'test.pocket':
-          result = await this._testPluginIntegration(commandId.split('.')[1]);
-          break;
-          
-        default:
-          result = { error: true, message: `알 수 없는 명령어: ${commandId}` };
+          // 3. 마지막 폴백: 구현된 메서드 직접 호출
+          switch (commandId) {
+            case 'api.test':
+              result = await this._testApiConnection();
+              break;
+              
+            case 'api.models':
+              result = await this._getAvailableModels();
+              break;
+              
+            case 'api.stream':
+              result = await this._testStreamingResponse();
+              break;
+              
+            case 'mode.toggle':
+              result = await this._toggleApeMode();
+              break;
+              
+            case 'mode.dev':
+              result = await this._toggleDevMode();
+              break;
+              
+            case 'chat.clear':
+              result = await this._clearChat();
+              break;
+              
+            case 'chat.save':
+              result = await this._saveChatSession();
+              break;
+              
+            case 'chat.history':
+              result = await this._loadChatHistory();
+              break;
+              
+            case 'test.git':
+            case 'test.jira':
+            case 'test.swdp':
+            case 'test.pocket':
+              result = await this._testPluginIntegration(commandId.split('.')[1]);
+              break;
+              
+            default:
+              result = { error: true, message: `알 수 없는 명령어: ${commandId}` };
+          }
+        }
       }
       
       // 결과 반환

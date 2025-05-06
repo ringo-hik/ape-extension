@@ -1,0 +1,175 @@
+/* model-selector.css - 모델 선택기 스타일 */
+
+.ape-model-selector,
+.model-selector {
+  position: relative;
+  display: inline-block;
+  min-width: 180px;
+  font-size: 0.9em;
+  z-index: 9999; /* 매우 높은 z-index로 설정하여 모든 요소 위에 표시되도록 */
+}
+
+.model-selector-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ape-spacing-sm, 8px);
+  padding: 6px 10px;
+  background-color: var(--ape-button-secondary-background, var(--vscode-button-secondaryBackground, rgba(60, 60, 60, 0.1)));
+  color: var(--ape-button-secondary-foreground, var(--vscode-button-secondaryForeground, var(--vscode-foreground)));
+  border: 1px solid var(--ape-border-color, var(--vscode-button-border, transparent));
+  border-radius: var(--ape-border-radius, 4px);
+  cursor: pointer;
+  width: 100%;
+  font-size: 0.9em;
+  transition: background-color var(--ape-transition-normal, 0.2s ease), border-color var(--ape-transition-normal, 0.2s ease);
+  user-select: none; /* 텍스트 선택 방지 */
+}
+
+.model-selector-button:hover {
+  background-color: var(--ape-button-secondary-hover-background, var(--vscode-button-secondaryHoverBackground, rgba(90, 90, 90, 0.1)));
+  border-color: var(--ape-focus-border, var(--vscode-focusBorder, transparent));
+}
+
+.model-selector-button:focus {
+  outline: 1px solid var(--ape-focus-border, var(--vscode-focusBorder, #007fd4));
+  outline-offset: 2px;
+}
+
+/* 버튼과 드롭다운 컨테이너가 외부 레이아웃에 영향을 받지 않도록 설정 */
+#modelSelector {
+  position: relative !important;
+  z-index: 9999 !important;
+}
+
+.model-selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: var(--ape-spacing-xs, 4px);
+  background-color: var(--ape-input-background, var(--vscode-dropdown-background));
+  border: 1px solid var(--ape-border-color, var(--vscode-dropdown-border, var(--vscode-widget-border)));
+  border-radius: var(--ape-border-radius, 4px);
+  box-shadow: var(--ape-shadow-medium, 0 3px 10px rgba(0, 0, 0, 0.3));
+  z-index: 9999; /* 매우 높은 z-index로 설정 */
+  max-height: 250px;
+  overflow-y: auto;
+  display: none;
+  width: 200px; /* 약간 더 넓게 설정 */
+}
+
+.model-selector-dropdown.show {
+  display: block !important;
+  animation: fadeIn var(--ape-transition-fast, 0.15s) ease-out;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.model-option {
+  padding: var(--ape-spacing-sm, 8px) var(--ape-spacing-md, 12px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--ape-spacing-sm, 8px);
+  transition: background-color var(--ape-transition-fast, 0.1s) ease;
+  border-bottom: 1px solid var(--ape-border-color, var(--vscode-dropdown-border, rgba(204, 204, 204, 0.2)));
+  user-select: none;
+}
+
+.model-option:last-child {
+  border-bottom: none;
+}
+
+.model-option:hover {
+  background-color: var(--ape-hover-background, var(--vscode-list-hoverBackground));
+}
+
+.model-option.selected {
+  background-color: var(--ape-active-background, var(--vscode-list-activeSelectionBackground));
+  color: var(--ape-active-foreground, var(--vscode-list-activeSelectionForeground));
+  font-weight: 600;
+}
+
+.model-name {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.model-provider-badge {
+  font-size: 0.8em;
+  padding: var(--ape-spacing-xs, 2px) var(--ape-spacing-xs, 6px);
+  border-radius: 10px;
+  background-color: var(--ape-secondary-background, var(--vscode-badge-background, rgba(60, 60, 60, 0.3)));
+  color: var(--ape-foreground, var(--vscode-badge-foreground, var(--vscode-foreground)));
+}
+
+.model-indicator {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+/* 모델 제공자별 색상 */
+.model-provider-custom .model-indicator {
+  background-color: #4caf50; /* 내부망: 녹색 */
+}
+
+.model-provider-openrouter .model-indicator {
+  background-color: #2196f3; /* OpenRouter: 파란색 */
+}
+
+.model-provider-local .model-indicator {
+  background-color: #ff9800; /* 로컬: 주황색 */
+}
+
+.model-provider-unknown .model-indicator {
+  background-color: #9e9e9e; /* 기타: 회색 */
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.7; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.7; }
+}
+
+@keyframes modelSelected {
+  0% { background-color: var(--ape-button-secondary-background); }
+  50% { background-color: var(--ape-success-background, var(--vscode-editorInfo-background, rgba(73, 156, 84, 0.3))); }
+  100% { background-color: var(--ape-button-secondary-background); }
+}
+
+/* 모델 선택 피드백 효과 */
+.model-selector-button.model-selected {
+  animation: modelSelected 1s ease;
+}
+
+/* 로딩 상태 스타일 */
+.model-selector-button.loading {
+  opacity: 0.7;
+  pointer-events: none;
+  animation: pulse var(--ape-transition-slow, 1.5s) infinite ease-in-out;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--ape-foreground, var(--vscode-foreground));
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-// 로그 레벨
+
 export enum LogLevel {
   DEBUG = 0,
   INFO = 1,
@@ -9,14 +9,14 @@ export enum LogLevel {
   NONE = 4
 }
 
-// 로그 설정
+
 export interface LoggerConfig {
   level: LogLevel;
   useConsole: boolean;
   useOutputChannel: boolean;
 }
 
-// 로거 서비스 인터페이스
+
 export interface ILoggerService {
   debug(message: string, ...optionalParams: any[]): void;
   info(message: string, ...optionalParams: any[]): void;
@@ -29,14 +29,14 @@ export interface ILoggerService {
   hide(): void;
 }
 
-// 로거 서비스
+
 export class LoggerService implements ILoggerService {
   private static _instance: LoggerService;
   private _outputChannel: vscode.OutputChannel | null = null;
   private _config: LoggerConfig = {
-    level: LogLevel.INFO,
+    level: LogLevel.DEBUG,  // DEBUG로 변경하여 모든 로그 출력
     useConsole: true,
-    useOutputChannel: false // VS Code 확장이 아닌 환경에서는 output channel 사용하지 않음
+    useOutputChannel: true  // VS Code 출력 채널 사용
   };
 
   constructor() {
@@ -46,7 +46,7 @@ export class LoggerService implements ILoggerService {
         this._config.useOutputChannel = true;
       }
     } catch (error) {
-      // VS Code 환경이 아닌 경우 콘솔만 사용
+      
       this._config.useOutputChannel = false;
     }
   }
@@ -83,32 +83,78 @@ export class LoggerService implements ILoggerService {
       return;
     }
 
+    const timestamp = new Date().toISOString();
     const levelStr = LogLevel[level];
-    const formattedMessage = `[${levelStr}] ${message}`;
+    const caller = this._getCallerInfo();
+    const formattedMessage = `[${timestamp}][${levelStr}][${caller}] ${message}`;
 
     if (this._config.useConsole) {
       switch (level) {
         case LogLevel.DEBUG:
-          console.debug(message);
+          console.debug(formattedMessage, ...optionalParams);
           break;
         case LogLevel.INFO:
-          console.info(message);
+          console.info(formattedMessage, ...optionalParams);
           break;
         case LogLevel.WARN:
-          console.warn(message);
+          console.warn(formattedMessage, ...optionalParams);
           break;
         case LogLevel.ERROR:
-          console.error(message, ...optionalParams);
+          console.error(formattedMessage, ...optionalParams);
           break;
       }
     }
-
-    if (this._config.useOutputChannel && this._outputChannel) {
-      let outputStr = formattedMessage;
+    
+    // 파일에도 로그 저장 (디버깅용)
+    this._writeToFile(formattedMessage, optionalParams);
+  }
+  
+  private _getCallerInfo(): string {
+    try {
+      const err = new Error();
+      const stack = err.stack || '';
+      const stackLines = stack.split('\n');
+      // 0: Error, 1: log 메서드, 2: debug/info/warn/error 메서드, 3: 실제 호출한 곳
+      const callerLine = stackLines[3] || '';
+      const match = callerLine.match(/at\s+(.*)\s+\(/);
+      return match ? match[1] : 'unknown';
+    } catch (e) {
+      return 'unknown';
+    }
+  }
+  
+  private _writeToFile(message: string, params: any[]): void {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const logDir = '/tmp/ape-logs';
+      const logFile = path.join(logDir, `ape-debug-${new Date().toISOString().split('T')[0]}.log`);
       
-      if (optionalParams.length > 0) {
+      let logMessage = message;
+      if (params.length > 0) {
         try {
-          outputStr += ' ' + optionalParams.map(p => {
+          logMessage += ' ' + params.map(p => {
+            if (typeof p === 'object') {
+              return JSON.stringify(p);
+            }
+            return String(p);
+          }).join(' ');
+        } catch (error) {
+          logMessage += ' [Parameter serialization error]';
+        }
+      }
+      
+      fs.appendFileSync(logFile, logMessage + '\n');
+    } catch (error) {
+      // 파일 로깅 실패해도 무시
+    }
+    
+    if (this._config.useOutputChannel && this._outputChannel) {
+      let outputStr = message; // formattedMessage -> message로 수정
+      
+      if (params.length > 0) { // optionalParams -> params로 수정
+        try {
+          outputStr += ' ' + params.map(p => {
             if (typeof p === 'object') {
               return JSON.stringify(p);
             }

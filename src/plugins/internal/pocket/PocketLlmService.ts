@@ -11,16 +11,16 @@ import { LlmService } from '../../../core/llm/LlmService';
 import { PocketClientService } from './PocketClientService';
 
 interface FileSummary {
-  title: string;        // 파일 제목/요약
-  contentType: string;  // 추론된 내용 유형
-  keyPoints: string[];  // 주요 포인트
-  structure?: string;   // 파일 구조 (선택 사항)
+  title: string;        
+  contentType: string;  
+  keyPoints: string[];  
+  structure?: string;   
 }
 
 interface FileRelationship {
-  relatedFiles: string[];  // 관련 파일 목록
-  relationship: string;    // 관계 설명
-  confidence: number;      // 관계 신뢰도 (0-1)
+  relatedFiles: string[];  
+  relationship: string;    
+  confidence: number;      
 }
 
 /**
@@ -48,27 +48,27 @@ export class PocketLlmService {
    */
   async analyzeFile(filePath: string, options: any = {}): Promise<FileSummary> {
     try {
-      // 파일 내용 가져오기
+      
       const fileData = await this.client.getObject(filePath);
       const fileInfo = await this.client.getObjectInfo(filePath);
       
-      // 텍스트 형식인지 확인
+      
       if (!this.isTextFormat(fileInfo.ContentType || '')) {
         throw new Error('이 파일은 텍스트 형식이 아니라 분석할 수 없습니다.');
       }
       
-      // 파일 내용을 문자열로 변환
+      
       const textContent = fileData.toString('utf-8');
       
-      // 내용이 너무 크면 일부만 사용
+      
       const maxLength = options.maxLength || 15000;
       const truncatedContent = textContent.length > maxLength ? 
         textContent.substring(0, maxLength) + '...(truncated)' : textContent;
       
-      // 파일 확장자 획득
+      
       const extension = filePath.split('.').pop()?.toLowerCase() || '';
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 파일을 분석하고 요약해주세요:
 
@@ -98,7 +98,7 @@ ${truncatedContent}
 4. 모든 응답은 JSON 형식으로만 제공해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: options.model || this.llmService.getDefaultModelId(),
         messages: [
@@ -114,9 +114,9 @@ ${truncatedContent}
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\{[\s\S]*\}/)?.[0];
         
         if (!jsonStr) {
@@ -127,7 +127,7 @@ ${truncatedContent}
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 요약 반환
+        
         return {
           title: filePath,
           contentType: fileInfo.ContentType || '알 수 없음',
@@ -152,7 +152,7 @@ ${truncatedContent}
         throw new Error('관계 분석을 위해서는 최소 2개 이상의 파일이 필요합니다.');
       }
       
-      // 각 파일의 내용과 메타데이터 가져오기
+      
       const fileContents: Record<string, any> = {};
       
       for (const filePath of filePaths) {
@@ -160,10 +160,10 @@ ${truncatedContent}
           const fileData = await this.client.getObject(filePath);
           const fileInfo = await this.client.getObjectInfo(filePath);
           
-          // 텍스트 파일만 내용 포함
+          
           if (this.isTextFormat(fileInfo.ContentType || '')) {
             const textContent = fileData.toString('utf-8');
-            // 내용이 너무 크면 일부만 사용
+            
             const truncatedContent = textContent.length > 5000 ? 
               textContent.substring(0, 5000) + '...(truncated)' : textContent;
             
@@ -189,7 +189,7 @@ ${truncatedContent}
         }
       }
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 파일들 간의 관계를 분석해주세요:
 
@@ -220,7 +220,7 @@ ${info.content}
 4. 모든 응답은 JSON 형식으로만 제공해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -236,9 +236,9 @@ ${info.content}
         temperature: 0.3
       });
       
-      // JSON 응답 파싱
+      
       try {
-        // 응답에서 JSON 부분 추출
+        
         const jsonStr = result.content.match(/\[[\s\S]*\]/)?.[0];
         
         if (!jsonStr) {
@@ -249,7 +249,7 @@ ${info.content}
       } catch (parseError) {
         console.error('JSON 파싱 오류:', parseError);
         
-        // 파싱 실패 시 기본 관계 정보 반환
+        
         return filePaths.slice(0, -1).map((file, index) => ({
           relatedFiles: [file, filePaths[index + 1]],
           relationship: '관계 분석 실패',
@@ -278,24 +278,24 @@ ${info.content}
         throw new Error('파일 경로는 필수입니다.');
       }
       
-      // 파일 내용 가져오기
+      
       const fileData = await this.client.getObject(filePath);
       const fileInfo = await this.client.getObjectInfo(filePath);
       
-      // 텍스트 형식인지 확인
+      
       if (!this.isTextFormat(fileInfo.ContentType || '')) {
         return '이 파일은 텍스트 형식이 아니라 질의에 답변할 수 없습니다.';
       }
       
-      // 파일 내용을 문자열로 변환
+      
       const textContent = fileData.toString('utf-8');
       
-      // 내용이 너무 크면 일부만 사용
+      
       const maxLength = 20000;
       const truncatedContent = textContent.length > maxLength ? 
         textContent.substring(0, maxLength) + '...(truncated)' : textContent;
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 파일 내용을 참고하여 질의에 답변해주세요:
 
@@ -314,7 +314,7 @@ ${query}
 파일 내용에 기반하여 정확하고 상세하게 답변해주세요. 파일 내용에서 답을 찾을 수 없는 경우, "파일 내용에서 해당 정보를 찾을 수 없습니다"라고 답변해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -349,7 +349,7 @@ ${query}
         throw new Error('분석할 파일이 없습니다.');
       }
       
-      // 파일 내용 수집
+      
       const fileContents: Record<string, any> = {};
       let totalContentSize = 0;
       
@@ -358,7 +358,7 @@ ${query}
           const fileData = await this.client.getObject(filePath);
           const fileInfo = await this.client.getObjectInfo(filePath);
           
-          // 텍스트 파일만 내용 포함
+          
           if (this.isTextFormat(fileInfo.ContentType || '')) {
             const textContent = fileData.toString('utf-8');
             fileContents[filePath] = {
@@ -384,15 +384,15 @@ ${query}
         }
       }
       
-      // 최대 컨텍스트 크기 제한
+      
       const maxContextSize = 30000;
       
-      // 내용 크기가 제한을 초과하는 경우 파일별로 내용 잘라내기
+      
       if (totalContentSize > maxContextSize) {
         const filesCount = Object.keys(fileContents).length;
         const avgSizePerFile = Math.floor(maxContextSize / filesCount);
         
-        // 각 파일 내용 잘라내기
+        
         for (const filePath in fileContents) {
           const fileInfo = fileContents[filePath];
           if (fileInfo.content.length > avgSizePerFile && fileInfo.content !== '[비텍스트 파일]' && fileInfo.content !== '[파일 내용 가져오기 실패]') {
@@ -401,7 +401,7 @@ ${query}
         }
       }
       
-      // LLM에 전송할 프롬프트 생성
+      
       const prompt = `
 다음 파일들을 통합적으로 분석하고 요약해주세요:
 
@@ -427,7 +427,7 @@ ${topic ? '5. 지정한 주제/관점에 따른 분석' : ''}
 가능한 구체적이고 명확한 분석을 제공해주세요.
 `;
 
-      // LLM 요청
+      
       const result = await this.llmService.sendRequest({
         model: this.llmService.getDefaultModelId(),
         messages: [
@@ -456,7 +456,7 @@ ${topic ? '5. 지정한 주제/관점에 따른 분석' : ''}
    * @returns 텍스트 형식 여부
    */
   private isTextFormat(contentType: string): boolean {
-    // 텍스트 기반 콘텐츠 타입
+    
     const textTypes = [
       'text/',
       'application/json',

@@ -10,6 +10,8 @@ import { PluginCommand } from '../../../types/PluginTypes';
 import { CommandType, CommandPrefix } from '../../../types/CommandTypes';
 import { IConfigLoader } from '../../../types/ConfigTypes';
 import { SwdpClientService, SwdpBuildType, SwdpBuildOptions, SwdpTestOptions, SwdpTROptions } from './SwdpClientService';
+import { SwdpDomainService } from '../../../core/domain/SwdpDomainService';
+import { SwdpWorkflowService } from '../../../core/workflow/SwdpWorkflowService';
 
 /**
  * SWDP 플러그인 서비스 클래스
@@ -52,16 +54,24 @@ export class SwdpPluginService extends PluginBaseService {
   /**
    * SwdpPluginService 생성자
    * @param configLoader 설정 로더
+   * @param swdpDomainService SWDP 도메인 서비스 (선택적)
+   * @param swdpWorkflowService SWDP 워크플로우 서비스 (선택적)
+   * @param swdpNaturalLanguageService SWDP 자연어 처리 서비스 (선택적)
    */
-  constructor(configLoader: IConfigLoader) {
+  constructor(
+    configLoader: IConfigLoader,
+    private readonly swdpDomainService?: SwdpDomainService,
+    private readonly swdpWorkflowService?: SwdpWorkflowService,
+    private readonly swdpNaturalLanguageService?: SwdpNaturalLanguageService
+  ) {
     super(configLoader);
     
-    // 내부 플러그인 설정 (고정값)
+    
     this.config = {
       enabled: true
     };
     
-    // 명령어 등록
+    
     this.registerCommands();
   }
   
@@ -70,24 +80,24 @@ export class SwdpPluginService extends PluginBaseService {
    */
   override async initialize(): Promise<void> {
     try {
-      // 설정에서 APE Core 및 SWDP 관련 정보 로드
+      
       const pluginConfig = this.configLoader?.getPluginConfig();
       
-      // 설정 객체 안전하게 접근
+      
       const swdpConfig = pluginConfig && typeof pluginConfig === 'object' && 'swdp' in pluginConfig 
         ? (pluginConfig as Record<string, any>)['swdp'] 
         : null;
       
-      // APE Core 엔드포인트 URL
-      const apeCoreUrl = swdpConfig?.apeCoreUrl || 'http://localhost:8001';
       
-      // SSL 우회 여부 설정
+      const apeCoreUrl = swdpConfig?.apeCoreUrl || 'http://localhost:8080';
+      
+      
       const bypassSsl = swdpConfig?.bypassSsl !== false;
       
-      // SWDP 클라이언트 초기화
+      
       this.swdpClient = new SwdpClientService(apeCoreUrl, bypassSsl);
       
-      // 사용자 정보 준비
+      
       const credentials = {
         userId: swdpConfig?.userId,
         token: swdpConfig?.token,
@@ -95,11 +105,11 @@ export class SwdpPluginService extends PluginBaseService {
         gitEmail: swdpConfig?.gitEmail
       };
       
-      // 사용자 정보가 없으면 Git에서 자동으로 가져오기 시도
+      
       if (!credentials.gitUsername || !credentials.gitEmail) {
         try {
-          // Git 사용자 정보 추출 로직 필요 (향후 구현)
-          // 일단은 기본값으로 진행
+          
+          
           if (!credentials.gitUsername) credentials.gitUsername = 'unknown';
           if (!credentials.gitEmail) credentials.gitEmail = 'unknown@example.com';
         } catch (error) {
@@ -107,10 +117,10 @@ export class SwdpPluginService extends PluginBaseService {
         }
       }
       
-      // SWDP 클라이언트 인증 설정
+      
       await this.swdpClient.initialize(credentials);
       
-      // 현재 프로젝트 설정 로드 (설정되어 있는 경우)
+      
       if (swdpConfig?.currentProject) {
         this.currentProject = swdpConfig.currentProject;
         console.log(`현재 프로젝트가 설정되었습니다: ${this.currentProject}`);
@@ -151,7 +161,7 @@ export class SwdpPluginService extends PluginBaseService {
    */
   protected override registerCommands(customCommands?: PluginCommand[]): boolean {
     this.commands = [
-      // 프로젝트 관련 명령어
+      
       {
         id: 'projects',
         name: 'projects',
@@ -182,7 +192,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 프로젝트 세부 정보 명령어
+      
       {
         id: 'project',
         name: 'project',
@@ -218,7 +228,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 현재 프로젝트 설정 명령어
+      
       {
         id: 'set-project',
         name: 'set-project',
@@ -240,7 +250,7 @@ export class SwdpPluginService extends PluginBaseService {
             const projectCode = args[0].toString();
             const result = await this.getClient().setCurrentProject(projectCode);
             
-            // 현재 프로젝트 업데이트
+            
             this.currentProject = projectCode;
             
             return {
@@ -257,7 +267,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 작업 목록 조회 명령어
+      
       {
         id: 'tasks',
         name: 'tasks',
@@ -294,7 +304,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 작업 세부 정보 조회 명령어
+      
       {
         id: 'task',
         name: 'task',
@@ -330,7 +340,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 작업 생성 명령어
+      
       {
         id: 'create-task',
         name: 'create-task',
@@ -373,7 +383,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 작업 상태 업데이트 명령어
+      
       {
         id: 'update-task',
         name: 'update-task',
@@ -411,7 +421,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 빌드 시작 명령어
+      
       {
         id: 'build',
         name: 'build',
@@ -426,7 +436,7 @@ export class SwdpPluginService extends PluginBaseService {
               throw new Error('SWDP 플러그인이 초기화되지 않았습니다.');
             }
             
-            // 빌드 타입 처리
+            
             let buildType = SwdpBuildType.LOCAL;
             if (args.length > 0) {
               const type = args[0].toString().toLowerCase();
@@ -435,7 +445,7 @@ export class SwdpPluginService extends PluginBaseService {
               }
             }
             
-            // 빌드 옵션 처리
+            
             const options: SwdpBuildOptions = {
               type: buildType,
               watchMode: args.includes('--watch'),
@@ -443,7 +453,7 @@ export class SwdpPluginService extends PluginBaseService {
               params: {}
             };
             
-            // 파라미터 처리
+            
             for (let i = 0; i < args.length; i++) {
               const arg = args[i];
               if (typeof arg === 'string' && arg.startsWith('--') && arg.includes('=')) {
@@ -454,7 +464,7 @@ export class SwdpPluginService extends PluginBaseService {
               }
             }
             
-            // 빌드 시작
+            
             const result = await this.getClient().startBuild(options);
             
             return {
@@ -471,7 +481,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 빌드 상태 확인 명령어
+      
       {
         id: 'build-status',
         name: 'build:status',
@@ -503,7 +513,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 문서 목록 조회 명령어
+      
       {
         id: 'documents',
         name: 'documents',
@@ -540,7 +550,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 문서 세부 정보 조회 명령어
+      
       {
         id: 'document',
         name: 'document',
@@ -576,7 +586,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // 문서 생성 명령어
+      
       {
         id: 'create-document',
         name: 'create-document',
@@ -620,7 +630,7 @@ export class SwdpPluginService extends PluginBaseService {
         }
       },
       
-      // Git 사용자 정보 조회 명령어
+      
       {
         id: 'git-user-info',
         name: 'git:user-info',

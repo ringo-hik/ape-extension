@@ -18,33 +18,43 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
   /**
    * SWDP 도메인 서비스
    */
-  private swdpDomainService: SwdpDomainService;
+  private readonly swdpDomainService: SwdpDomainService;
   
   /**
    * SWDP 워크플로우 서비스
    */
-  private swdpWorkflowService: SwdpWorkflowService;
+  private readonly swdpWorkflowService: SwdpWorkflowService;
   
   /**
    * 설정 서비스
    */
-  private configService: ConfigService;
+  private readonly configService: ConfigService;
   
   /**
    * 사용자 인증 서비스
    */
-  private userAuthService: UserAuthService;
+  private readonly userAuthService: UserAuthService;
   
   /**
    * SWDP 자연어 처리 서비스 생성자
+   * @param swdpDomainService SWDP 도메인 서비스 (선택적)
+   * @param swdpWorkflowService SWDP 워크플로우 서비스 (선택적)
+   * @param configService 설정 서비스 (선택적)
+   * @param userAuthService 사용자 인증 서비스 (선택적)
    */
-  constructor() {
+  constructor(
+    swdpDomainService?: SwdpDomainService,
+    swdpWorkflowService?: SwdpWorkflowService,
+    configService?: ConfigService,
+    userAuthService?: UserAuthService
+  ) {
     super('swdp');
     
-    this.swdpDomainService = SwdpDomainService.getInstance();
-    this.swdpWorkflowService = SwdpWorkflowService.getInstance();
-    this.configService = ConfigService.getInstance();
-    this.userAuthService = UserAuthService.getInstance();
+    // 주입되지 않은 경우 싱글톤 인스턴스 사용 (레거시 호환성)
+    this.swdpDomainService = swdpDomainService || SwdpDomainService.getInstance();
+    this.swdpWorkflowService = swdpWorkflowService || SwdpWorkflowService.getInstance();
+    this.configService = configService || ConfigService.getInstance();
+    this.userAuthService = userAuthService || UserAuthService.getInstance();
   }
   
   /**
@@ -53,30 +63,30 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
    * @returns SWDP 명령어 또는 null (처리할 수 없는 경우)
    */
   public async processNaturalLanguage(question: string): Promise<string | null> {
-    // 질문 전처리 및 소문자 변환
+    
     const normalizedQuestion = question.trim().toLowerCase();
     
-    // 프로젝트 관련 질문 처리
+    
     if (this.isProjectRelatedQuestion(normalizedQuestion)) {
       return this.processProjectQuestion(normalizedQuestion);
     }
     
-    // 작업 관련 질문 처리
+    
     if (this.isTaskRelatedQuestion(normalizedQuestion)) {
       return this.processTaskQuestion(normalizedQuestion);
     }
     
-    // 빌드 관련 질문 처리
+    
     if (this.isBuildRelatedQuestion(normalizedQuestion)) {
       return this.processBuildQuestion(normalizedQuestion);
     }
     
-    // 문서 관련 질문 처리
+    
     if (this.isDocumentRelatedQuestion(normalizedQuestion)) {
       return this.processDocumentQuestion(normalizedQuestion);
     }
     
-    // 기타 명령어로 변환할 수 없는 경우
+    
     return null;
   }
   
@@ -142,14 +152,14 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
    * @returns SWDP 명령어
    */
   private processProjectQuestion(question: string): string {
-    // 프로젝트 목록 요청
+    
     if (question.includes('목록') || question.includes('리스트') || 
         question.includes('list') || question.match(/프로젝트(\s+)?$/) || 
         question.match(/projects?(\s+)?$/)) {
       return '@swdp:projects';
     }
     
-    // 프로젝트 상세 정보 요청
+    
     const projectCodeMatch = question.match(/프로젝트\s+정보\s+(\w+)/) || 
                              question.match(/프로젝트\s+(\w+)/) || 
                              question.match(/project\s+info\s+(\w+)/) || 
@@ -159,7 +169,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       return `@swdp:project ${projectCodeMatch[1]}`;
     }
     
-    // 현재 프로젝트 설정 요청
+    
     const setProjectMatch = question.match(/프로젝트\s+설정\s+(\w+)/) || 
                            question.match(/프로젝트\s+선택\s+(\w+)/) || 
                            question.match(/set\s+project\s+(\w+)/);
@@ -168,7 +178,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       return `@swdp:set-project ${setProjectMatch[1]}`;
     }
     
-    // 기본값: 프로젝트 목록
+    
     return '@swdp:projects';
   }
   
@@ -178,11 +188,11 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
    * @returns SWDP 명령어
    */
   private processTaskQuestion(question: string): string {
-    // 작업 목록 요청
+    
     if (question.includes('목록') || question.includes('리스트') || 
         question.includes('list') || question.match(/작업(\s+)?$/) || 
         question.match(/tasks?(\s+)?$/)) {
-      // 프로젝트 코드가 있는지 확인
+      
       const projectCodeMatch = question.match(/프로젝트\s+(\w+)/) || 
                               question.match(/project\s+(\w+)/);
       
@@ -191,7 +201,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         '@swdp:tasks';
     }
     
-    // 작업 상세 정보 요청
+    
     const taskIdMatch = question.match(/작업\s+정보\s+(\w+)/) || 
                        question.match(/작업\s+(\w+)/) || 
                        question.match(/task\s+info\s+(\w+)/) || 
@@ -201,7 +211,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       return `@swdp:task ${taskIdMatch[1]}`;
     }
     
-    // 작업 생성 요청
+    
     if (question.includes('생성') || question.includes('추가') || 
         question.includes('create') || question.includes('add')) {
       const titleMatch = question.match(/"([^"]+)"/) || question.match(/'([^']+)'/);
@@ -214,7 +224,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         const title = titleMatch[1];
         const description = descriptionMatch ? descriptionMatch[1] : '자동 생성된 작업';
         
-        // 프로젝트 코드가 있는지 확인
+        
         const projectCodeMatch = question.match(/프로젝트\s+(\w+)/) || 
                                 question.match(/project\s+(\w+)/);
         
@@ -224,7 +234,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       }
     }
     
-    // 작업 상태 업데이트 요청
+    
     if (question.includes('상태') || question.includes('업데이트') || 
         question.includes('변경') || question.includes('update') || 
         question.includes('status') || question.includes('change')) {
@@ -239,7 +249,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       }
     }
     
-    // 기본값: 작업 목록
+    
     return '@swdp:tasks';
   }
   
@@ -249,11 +259,11 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
    * @returns SWDP 명령어
    */
   private processBuildQuestion(question: string): string {
-    // 빌드 시작 요청
+    
     if (question.includes('시작') || question.includes('실행') || 
         question.includes('start') || question.includes('run')) {
-      // 빌드 타입 확인
-      let buildType = 'local'; // 기본 타입
+      
+      let buildType = 'local'; 
       
       if (question.includes('전체') || question.includes('all')) {
         buildType = 'all';
@@ -263,7 +273,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         buildType = 'layer';
       }
       
-      // 옵션 확인
+      
       const options = [];
       
       if (question.includes('워치') || question.includes('watch')) {
@@ -277,7 +287,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       return `@swdp:build ${buildType} ${options.join(' ')}`.trim();
     }
     
-    // 빌드 상태 확인 요청
+    
     if (question.includes('상태') || question.includes('status')) {
       const buildIdMatch = question.match(/빌드\s+(\w+)/) || 
                           question.match(/build\s+(\w+)/);
@@ -287,7 +297,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         '@swdp:build:status';
     }
     
-    // 빌드 로그 확인 요청
+    
     if (question.includes('로그') || question.includes('log')) {
       const buildIdMatch = question.match(/빌드\s+(\w+)/) || 
                           question.match(/build\s+(\w+)/);
@@ -297,7 +307,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       }
     }
     
-    // 빌드 취소 요청
+    
     if (question.includes('취소') || question.includes('중단') || 
         question.includes('cancel') || question.includes('stop')) {
       const buildIdMatch = question.match(/빌드\s+(\w+)/) || 
@@ -308,7 +318,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       }
     }
     
-    // 기본값: 빌드 상태
+    
     return '@swdp:build:status';
   }
   
@@ -318,11 +328,11 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
    * @returns SWDP 명령어
    */
   private processDocumentQuestion(question: string): string {
-    // 문서 목록 요청
+    
     if (question.includes('목록') || question.includes('리스트') || 
         question.includes('list') || question.match(/문서(\s+)?$/) || 
         question.match(/documents?(\s+)?$/)) {
-      // 프로젝트 코드가 있는지 확인
+      
       const projectCodeMatch = question.match(/프로젝트\s+(\w+)/) || 
                               question.match(/project\s+(\w+)/);
       
@@ -331,7 +341,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         '@swdp:documents';
     }
     
-    // 문서 상세 정보 요청
+    
     const docIdMatch = question.match(/문서\s+정보\s+(\w+)/) || 
                       question.match(/문서\s+(\w+)/) || 
                       question.match(/document\s+info\s+(\w+)/) || 
@@ -341,7 +351,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       return `@swdp:document ${docIdMatch[1]}`;
     }
     
-    // 문서 생성 요청
+    
     if (question.includes('생성') || question.includes('추가') || 
         question.includes('create') || question.includes('add')) {
       const titleMatch = question.match(/"([^"]+)"/) || question.match(/'([^']+)'/);
@@ -353,7 +363,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         const title = titleMatch[1];
         const type = typeMatch[1];
         
-        // 내용 처리
+        
         const contentMatch = question.match(/내용[은|이]?\s+"([^"]+)"/) || 
                             question.match(/내용[은|이]?\s+'([^']+)'/) || 
                             question.match(/content\s+"([^"]+)"/) || 
@@ -361,7 +371,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
         
         const content = contentMatch ? contentMatch[1] : '# ' + title + '\n\n자동 생성된 문서';
         
-        // 프로젝트 코드가 있는지 확인
+        
         const projectCodeMatch = question.match(/프로젝트\s+(\w+)/) || 
                                 question.match(/project\s+(\w+)/);
         
@@ -371,7 +381,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
       }
     }
     
-    // 기본값: 문서 목록
+    
     return '@swdp:documents';
   }
   
@@ -383,7 +393,7 @@ export class SwdpNaturalLanguageService extends PluginNaturalLanguageService {
   public canProcessQuestion(question: string): boolean {
     const normalizedQuestion = question.trim().toLowerCase();
     
-    // SWDP 관련 키워드 확인
+    
     const swdpKeywords = [
       'swdp', '프로젝트', '작업', '빌드', '문서', '태스크',
       'project', 'task', 'build', 'document'

@@ -14,9 +14,46 @@
   
   <!-- Phosphor 아이콘 -->
   <link href="${phosphorIconsCssUri}" rel="stylesheet">
+  
+  <!-- 테마 상태 클래스 추가를 위한 스크립트 -->
+  <script>
+    // VS Code 테마 감지 및 body에 클래스 추가
+    document.addEventListener('DOMContentLoaded', () => {
+      // 시스템 테마 감지
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // VSCode API가 있는 경우 테마 정보 가져오기
+      try {
+        const vscode = acquireVsCodeApi();
+        window.addEventListener('message', (event) => {
+          const message = event.data;
+          if (message.type === 'theme-update') {
+            updateThemeClasses(message.theme);
+          }
+        });
+        
+        // 초기 테마 정보 요청
+        vscode.postMessage({ command: 'getTheme' });
+      } catch (error) {
+        // VSCode API를 사용할 수 없는 경우 (예: 독립 실행 모드)
+        // 시스템 테마를 기본값으로 사용
+        if (prefersDark) {
+          document.body.classList.add('vscode-dark');
+        } else {
+          document.body.classList.add('vscode-light');
+        }
+      }
+    });
+    
+    // 테마 클래스 업데이트
+    function updateThemeClasses(theme) {
+      document.body.classList.remove('vscode-dark', 'vscode-light', 'vscode-high-contrast');
+      document.body.classList.add(theme);
+    }
+  </script>
 </head>
 <body>
-  <div class="ape-container">
+  <div class="ape-container" id="apeContainer">
     <div class="ape-header">
       <h1><span class="ape-icon-badge"><i class="codicon codicon-terminal"></i></span> APE 채팅</h1>
       <div id="modelSelector" class="ape-model-selector"></div>
@@ -33,10 +70,24 @@
       <!-- 메시지는 여기에 추가됩니다 -->
     </div>
     
+    <!-- 크기 조절 핸들 추가 (경계 및 클릭 영역 개선) -->
+    <div class="ape-resize-handle" id="resizeHandle" title="이곳을 드래그하여 크기 조절">
+      <div class="ape-resize-handle-line"></div>
+      <div class="ape-resize-handle-line"></div>
+      <div class="ape-resize-handle-line"></div>
+      <span class="ape-resize-handle-label">드래그하여 크기 조절</span>
+    </div>
+    
     <div class="ape-footer">
-      <div class="ape-flex ape-gap-sm ape-mb-md">
+      <div class="ape-flex ape-gap-sm ape-mb-md" id="toolbar-left">
+        <button class="ape-btn-toolbar" id="newChatButton" title="새 대화 시작">
+          <i class="ph ph-plus-circle ape-icon"></i> 새 채팅
+        </button>
         <button class="ape-btn-toolbar" id="clearButton" title="대화 내용 지우기">
           <i class="ph ph-trash ape-icon"></i> 지우기
+        </button>
+        <button class="ape-btn-toolbar" id="saveButton" title="현재 대화 저장">
+          <i class="ph ph-floppy-disk ape-icon"></i> 저장
         </button>
         <button class="ape-btn-toolbar" id="embedDevButton" title="심층 분석 모드 켜기/끄기">
           <i class="ph ph-scanner ape-icon"></i> 심층 분석

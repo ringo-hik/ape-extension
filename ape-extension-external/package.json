@@ -26,7 +26,7 @@
     "onWebviewPanel:ape.welcomeView",
     "onWebviewPanel:ape.commandDetailView"
   ],
-  "main": "./dist/extension.js",
+  "main": "./extension.js",
   "contributes": {
     "commands": [
       {
@@ -75,6 +75,30 @@
         "title": "트리뷰 새로고침",
         "category": "APE",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "ape.saveChatSession",
+        "title": "현재 대화 저장",
+        "category": "APE",
+        "icon": "$(save)"
+      },
+      {
+        "command": "ape.loadChatSession",
+        "title": "대화 세션 불러오기",
+        "category": "APE",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "ape.deleteChatSession",
+        "title": "대화 세션 삭제",
+        "category": "APE",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "ape.clearAllHistory",
+        "title": "모든 대화 기록 삭제",
+        "category": "APE",
+        "icon": "$(clear-all)"
       },
       {
         "command": "ape.refreshFileExplorer",
@@ -141,7 +165,8 @@
         {
           "id": "ape.chatView",
           "name": "APE 채팅",
-          "type": "webview"
+          "type": "webview",
+          "when": "ape:showChatView"
         }
       ]
     },
@@ -152,6 +177,16 @@
       "view/title": [
         {
           "command": "ape.refreshTreeView",
+          "when": "view == ape.treeView",
+          "group": "navigation"
+        },
+        {
+          "command": "ape.saveChatSession",
+          "when": "view == ape.treeView",
+          "group": "navigation"
+        },
+        {
+          "command": "ape.clearAllHistory",
           "when": "view == ape.treeView",
           "group": "navigation"
         },
@@ -177,6 +212,16 @@
         }
       ],
       "view/item/context": [
+        {
+          "command": "ape.loadChatSession",
+          "when": "view == ape.treeView && viewItem == chatHistorySession",
+          "group": "inline"
+        },
+        {
+          "command": "ape.deleteChatSession",
+          "when": "view == ape.treeView && viewItem == chatHistorySession",
+          "group": "inline"
+        },
         {
           "command": "ape.showCommandDetails",
           "when": "view == ape.treeView && viewItem == command",
@@ -303,16 +348,16 @@
     "watch": "node esbuild.config.js --watch",
     "package": "node esbuild.config.js --production",
     "test": "node ./tests/runTest.js",
-    "build": "node esbuild.config.js",
-    "build:internal": "node build.js --env=internal",
-    "build:external": "node build.js --env=external",
+    "build": "node esbuild.config.js --env=external",
+    "build:internal": "node esbuild.config.js --env=internal",
+    "build:external": "node esbuild.config.js --env=external",
     "build:clean": "node esbuild.config.js --clean --build",
     "build:analyze": "node esbuild.config.js --production --analyze",
     "build:prod": "node esbuild.config.js --production",
     "build:dev": "node esbuild.config.js --clean --build",
     "prebuild": "rimraf dist",
     "dev": "npm run watch",
-    "dev:internal": "node esbuild.config.js --clean --build && echo Internal mode ready - Press F5 to debug",
+    "dev:internal": "node esbuild.config.js --clean --env=internal && echo Internal mode ready - Press F5 to debug",
     "quick": "copy /Y extension.env.internal.js dist\\extension.env.js && copy /Y config\\internal\\settings.json dist\\settings.json && npm run build",
     "pretest": "npm run build",
     "typecheck": "tsc --noEmit"
@@ -336,6 +381,6 @@
     "glob": "^8.1.0",
     "rimraf": "^4.4.1",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.8.3"
   }
 }

@@ -10,11 +10,23 @@ import logger from './logger.js';
  * ID로 요소를 가져오고 결과를 로깅합니다.
  */
 export function getElement(id) {
-  const element = document.getElementById(id);
-  if (!element) {
-    logger.warn(`요소를 찾을 수 없음: ${id}`);
+  if (!id) {
+    logger.error('getElement 호출 시 id가 제공되지 않음');
+    return null;
   }
-  return element;
+  
+  try {
+    const element = document.getElementById(id);
+    if (!element) {
+      logger.warn(`요소를 찾을 수 없음: ${id}`);
+    } else {
+      logger.debug(`요소 발견: #${id}`);
+    }
+    return element;
+  } catch (error) {
+    logger.error(`getElement 오류 (id: ${id}):`, error);
+    return null;
+  }
 }
 
 /**

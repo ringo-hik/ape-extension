@@ -57,7 +57,7 @@ export class PluginRegistryService implements IPluginRegistry {
    * @param configLoader 설정 로더
    */
   constructor(private configLoader: IConfigLoader) {
-    // EventEmitter 생성은 클래스 속성 선언에서 수행됨
+    
   }
   
   /**
@@ -73,7 +73,7 @@ export class PluginRegistryService implements IPluginRegistry {
         return false;
       }
       
-      // 플러그인 인터페이스 디버깅
+      
       console.log('플러그인 등록 시도:', {
         id: plugin.id,
         name: plugin.name,
@@ -81,20 +81,20 @@ export class PluginRegistryService implements IPluginRegistry {
         type: type
       });
       
-      // 문자열로 전달된 경우 PluginType 열거형으로 변환
+      
       const pluginType = typeof type === 'string' ? 
         (type === 'internal' ? PluginType.INTERNAL : PluginType.EXTERNAL) : type;
       
       const pluginMap = pluginType === PluginType.INTERNAL ? 
         this._internalPlugins : this._externalPlugins;
       
-      // 이미 등록된 플러그인 확인
+      
       if (pluginMap.has(plugin.id)) {
         console.warn(`이미 등록된 플러그인: ${plugin.id}`);
         return false;
       }
       
-      // 플러그인 등록
+      
       pluginMap.set(plugin.id, plugin);
       console.log(`플러그인 등록 성공: ${plugin.id} (${pluginType})`);
       this.eventEmitter.emit('plugin-registered', { id: plugin.id, type: pluginType });
@@ -114,7 +114,7 @@ export class PluginRegistryService implements IPluginRegistry {
    */
   unregisterPlugin(pluginId: string, type: PluginType | string = PluginType.EXTERNAL): boolean {
     try {
-      // 문자열로 전달된 경우 PluginType 열거형으로 변환
+      
       const pluginType = typeof type === 'string' ? 
         (type === 'internal' ? PluginType.INTERNAL : PluginType.EXTERNAL) : type;
       
@@ -262,9 +262,9 @@ export class PluginRegistryService implements IPluginRegistry {
    */
   async loadExternalPlugins(): Promise<number> {
     try {
-      // ExternalPluginLoader 클래스에서 실제 로직 구현
-      // 이 메서드는 호환성을 위해 유지
-      // this._externalPlugins.clear()는 ExternalPluginLoader에서 처리
+      
+      
+      
       
       const pluginsConfig = this.configLoader.getPluginConfig();
       if (!pluginsConfig) {
@@ -272,8 +272,8 @@ export class PluginRegistryService implements IPluginRegistry {
         return 0;
       }
       
-      // 외부 플러그인 로더가 이 클래스를 참조하고 로드 프로세스를 처리함
-      // src/plugins/external/ExternalPluginLoader.ts 참조
+      
+      
       
       return this._externalPlugins.size;
     } catch (error) {

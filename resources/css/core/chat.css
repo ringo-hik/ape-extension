@@ -1,0 +1,470 @@
+/**
+ * chat.css - 채팅 인터페이스 스타일
+ * 
+ * 기본 채팅 UI 스타일을 정의합니다.
+ */
+
+@import url('./theme-vars.css');
+
+/* 컨테이너 스타일 */
+.ape-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--ape-font-family);
+  font-size: var(--ape-font-size);
+  line-height: var(--ape-line-height);
+  color: var(--ape-foreground);
+  background-color: var(--ape-background);
+  /* Important for proper size handling in VSCode webview */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* 헤더 스타일 */
+.ape-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ape-spacing-md);
+  background-color: var(--ape-secondary-background);
+  border-bottom: 1px solid var(--ape-border-color);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.ape-header h1 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--ape-spacing-sm);
+}
+
+.ape-icon-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--ape-button-background);
+  color: var(--ape-button-foreground);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 0.8em;
+}
+
+/* 콘텐츠 영역 스타일 */
+.ape-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--ape-spacing-md);
+  position: relative;
+  min-height: 100px; /* 최소 높이 설정 */
+  resize: vertical; /* 수직 리사이징 가능하도록 설정 */
+}
+
+/* 메시지 스타일 */
+.ape-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ape-spacing-md);
+}
+
+.ape-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  padding: var(--ape-spacing-md);
+  border-radius: var(--ape-border-radius);
+  animation: fadeIn var(--ape-transition-normal);
+}
+
+.ape-message.user {
+  background-color: var(--ape-user-message-background);
+  color: var(--ape-user-message-foreground);
+  border-left: 3px solid var(--ape-button-background);
+  align-self: flex-end;
+  margin-left: 20%;
+}
+
+.ape-message.assistant {
+  background-color: var(--ape-assistant-message-background);
+  color: var(--ape-assistant-message-foreground);
+  border-left: 3px solid var(--ape-border-color);
+  align-self: flex-start;
+  margin-right: 20%;
+}
+
+.ape-message.system {
+  background-color: var(--ape-system-message-background);
+  color: var(--ape-system-message-foreground);
+  border: none;
+  font-size: 0.9em;
+  padding: var(--ape-spacing-sm) var(--ape-spacing-md);
+  align-self: center;
+  max-width: 80%;
+  border-radius: var(--ape-border-radius);
+  text-align: center;
+}
+
+.ape-message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--ape-spacing-sm);
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.ape-message-content {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.ape-message-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ape-spacing-sm);
+  margin-top: var(--ape-spacing-sm);
+  opacity: 0;
+  transition: opacity var(--ape-transition-fast);
+}
+
+.ape-message:hover .ape-message-actions {
+  opacity: 1;
+}
+
+.ape-message-action-btn {
+  background: transparent;
+  color: var(--ape-foreground);
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: var(--ape-border-radius);
+  font-size: 0.8em;
+  opacity: 0.6;
+  transition: all var(--ape-transition-fast);
+}
+
+.ape-message-action-btn:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 빈 상태 스타일 */
+.ape-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  opacity: 0.7;
+  animation: fadeIn var(--ape-transition-slow);
+}
+
+.ape-icon {
+  font-size: 2em;
+  margin-bottom: var(--ape-spacing-md);
+  opacity: 0.8;
+}
+
+.ape-icon-xl {
+  font-size: 3em;
+}
+
+.ape-text-lg {
+  font-size: 1.2em;
+}
+
+.ape-text-bold {
+  font-weight: 600;
+}
+
+.ape-text-secondary {
+  color: var(--vscode-descriptionForeground, rgba(204, 204, 204, 0.7));
+}
+
+/* 푸터 스타일 */
+.ape-footer {
+  padding: var(--ape-spacing-md);
+  background-color: var(--ape-secondary-background);
+  border-top: 1px solid var(--ape-border-color);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.ape-input-wrapper {
+  display: flex;
+  gap: var(--ape-spacing-sm);
+  align-items: flex-end;
+  position: relative;
+}
+
+.ape-textarea {
+  flex: 1;
+  background-color: var(--ape-input-background);
+  color: var(--ape-input-foreground);
+  border: 1px solid var(--ape-input-border);
+  border-radius: var(--ape-border-radius);
+  padding: var(--ape-spacing-sm) var(--ape-spacing-md);
+  resize: none;
+  min-height: 38px;
+  max-height: 200px;
+  line-height: 1.5;
+  font-family: var(--ape-font-family);
+  font-size: var(--ape-font-size);
+  overflow-y: auto;
+  transition: all var(--ape-transition-normal);
+}
+
+.ape-textarea:focus {
+  outline: 1px solid var(--ape-focus-border);
+  outline-offset: -1px;
+}
+
+.ape-textarea::placeholder {
+  color: var(--ape-input-placeholder-foreground);
+}
+
+.ape-btn-send {
+  background-color: var(--ape-button-background);
+  color: var(--ape-button-foreground);
+  border: none;
+  border-radius: var(--ape-border-radius);
+  padding: var(--ape-spacing-sm) var(--ape-spacing-md);
+  cursor: pointer;
+  transition: all var(--ape-transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 38px;
+}
+
+.ape-btn-send:hover:not(:disabled) {
+  background-color: var(--ape-button-hover-background);
+}
+
+.ape-btn-send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ape-btn-send i {
+  font-size: 1.2em;
+}
+
+/* 툴바 스타일 */
+.ape-flex {
+  display: flex;
+}
+
+.ape-gap-sm {
+  gap: var(--ape-spacing-sm);
+}
+
+.ape-mb-sm {
+  margin-bottom: var(--ape-spacing-sm);
+}
+
+.ape-mb-md {
+  margin-bottom: var(--ape-spacing-md);
+}
+
+.ape-btn-toolbar {
+  background-color: var(--ape-button-secondary-background);
+  color: var(--ape-button-secondary-foreground);
+  border: 1px solid var(--ape-border-color);
+  border-radius: var(--ape-border-radius);
+  padding: 4px 8px;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all var(--ape-transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ape-btn-toolbar:hover {
+  background-color: var(--ape-button-secondary-hover-background);
+}
+
+.ape-btn-toolbar.active {
+  background-color: var(--ape-active-background);
+  color: var(--ape-active-foreground);
+}
+
+.ape-btn-toolbar .ape-icon {
+  font-size: 1em;
+  margin: 0;
+}
+
+/* 패널 스타일 */
+.ape-panel {
+  background-color: var(--ape-secondary-background);
+  border: 1px solid var(--ape-border-color);
+  border-radius: var(--ape-border-radius);
+  margin-bottom: var(--ape-spacing-md);
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height var(--ape-transition-normal);
+}
+
+.ape-panel.open {
+  max-height: 300px;
+}
+
+.ape-width-full {
+  width: 100%;
+}
+
+.ape-height-full {
+  height: 100%;
+}
+
+/* 스크롤바 스타일 */
+.ape-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ape-scrollbar-thumb-background) var(--ape-scrollbar-track-background);
+}
+
+.ape-scrollbar::-webkit-scrollbar {
+  width: var(--ape-scrollbar-width);
+  height: var(--ape-scrollbar-width);
+}
+
+.ape-scrollbar::-webkit-scrollbar-track {
+  background-color: var(--ape-scrollbar-track-background);
+}
+
+.ape-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--ape-scrollbar-thumb-background);
+  border-radius: var(--ape-scrollbar-width);
+}
+
+.ape-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ape-scrollbar-thumb-hover-background);
+}
+
+/* 스트리밍 애니메이션 */
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: var(--ape-border-radius);
+  margin-top: var(--ape-spacing-sm);
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: currentColor;
+  border-radius: 50%;
+  opacity: 0.6;
+  animation: typingAnimation 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingAnimation {
+  0%, 100% {
+    transform: translateY(0);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 반응형 조정 */
+@media (max-width: 576px) {
+  .ape-message.user,
+  .ape-message.assistant {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 100%;
+  }
+  
+  .ape-header h1 {
+    font-size: 1em;
+  }
+  
+  .ape-footer {
+    padding: var(--ape-spacing-sm);
+  }
+}
+
+/* iframe을 위한 스타일 */
+iframe {
+  border: none;
+  background-color: var(--ape-secondary-background);
+}
+
+/* 크기 조절 핸들 스타일 */
+.ape-resize-handle {
+  height: 8px;
+  background-color: var(--ape-secondary-background);
+  border-top: 1px solid var(--ape-border-color);
+  border-bottom: 1px solid var(--ape-border-color);
+  cursor: row-resize;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2px 0;
+  transition: background-color var(--ape-transition-fast);
+  user-select: none;
+}
+
+.ape-resize-handle:hover {
+  background-color: var(--ape-hover-background);
+}
+
+.ape-resize-handle:active {
+  background-color: var(--ape-active-background);
+}
+
+.ape-resize-handle-line {
+  height: 1px;
+  width: 20px;
+  background-color: var(--ape-foreground);
+  opacity: 0.4;
+  margin: 1px 0;
+}
+
+.ape-resize-handle:hover .ape-resize-handle-line {
+  opacity: 0.6;
+}

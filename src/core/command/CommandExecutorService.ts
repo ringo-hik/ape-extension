@@ -59,14 +59,14 @@ export class CommandExecutorService implements ICommandExecutor {
    * @returns 명령어 실행 결과
    */
   async execute(command: Command): Promise<CommandResult> {
-    // 명령어 ID 생성 (취소 및 추적용)
+    
     const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     
     try {
-      // 타이머 시작
+      
       const startTime = Date.now();
       
-      // 취소 가능한 작업으로 등록
+      
       const cancelController = new AbortController();
       const signal = cancelController.signal;
       
@@ -76,10 +76,10 @@ export class CommandExecutorService implements ICommandExecutor {
         timestamp: startTime
       });
       
-      // 접두사에 따라 다른 처리
+      
       let result: CommandResult;
       
-      // 이미 취소된 경우 확인
+      
       if (signal.aborted) {
         return {
           success: false,
@@ -89,19 +89,19 @@ export class CommandExecutorService implements ICommandExecutor {
       }
       
       try {
-        // 도메인 기반 명령어 실행
+        
         if (command.domain && command.domain !== CommandDomain.NONE) {
           result = await this.executeDomainCommand(command, signal);
         } else {
-          // 기존 방식의 명령어 실행
+          
           switch (command.prefix) {
             case CommandPrefix.AT:
-              // @ 명령어는 플러그인 시스템으로 실행 (외부 시스템 상호작용)
+              
               result = await this.executePluginCommand(command, signal);
               break;
               
             case CommandPrefix.SLASH:
-              // / 명령어는 내부 명령어로 실행 (내부 기능)
+              
               result = await this.executeInternalCommand(command, signal);
               break;
               
@@ -121,16 +121,16 @@ export class CommandExecutorService implements ICommandExecutor {
             displayMode: 'text'
           };
         }
-        throw error; // 재처리를 위해 외부 catch로 전달
+        throw error; 
       }
       
-      // 타이머 종료
+      
       const executionTime = Date.now() - startTime;
       
-      // 결과가 CommandResult 형식이 아닌 경우 표준 형식으로 변환
+      
       const normalizedResult = this.normalizeResult(result);
       
-      // 이력에 추가
+      
       this.executionHistory.push({
         command,
         result: normalizedResult,
@@ -138,26 +138,26 @@ export class CommandExecutorService implements ICommandExecutor {
         id: commandId
       });
       
-      // 진행 중 명령어 목록에서 제거
+      
       this.pendingCommands.delete(commandId);
       
-      // 실행 로그
+      
       console.log(`명령어 실행 완료 (${executionTime}ms): ${command.prefix}${command.domain !== CommandDomain.NONE ? command.domain : command.agentId}:${command.command}`);
       
-      // 결과 반환
+      
       return normalizedResult;
     } catch (error) {
-      // 진행 중 명령어 목록에서 제거
+      
       this.pendingCommands.delete(commandId);
       
-      // 오류 결과 생성
+      
       const errorResult: CommandResult = {
         success: false,
         error: error instanceof Error ? error.message : String(error),
         displayMode: 'text'
       };
       
-      // 이력에 추가
+      
       this.executionHistory.push({
         command,
         result: errorResult,
@@ -165,7 +165,7 @@ export class CommandExecutorService implements ICommandExecutor {
         id: commandId
       });
       
-      // 오류 처리
+      
       console.error(`명령어 실행 실패 (${command.prefix}${command.domain !== CommandDomain.NONE ? command.domain : command.agentId}:${command.command}):`, error);
       
       return errorResult;
@@ -186,12 +186,12 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 이미 CommandResult 형식인 경우
+    
     if (typeof result === 'object' && 'success' in result) {
       return result as CommandResult;
     }
     
-    // 문자열인 경우
+    
     if (typeof result === 'string') {
       return {
         success: true,
@@ -200,7 +200,7 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // content 키가 있는 객체인 경우 (레거시 형식)
+    
     if (typeof result === 'object' && 'content' in result) {
       const hasError = 'error' in result && result.error === true;
       return {
@@ -212,7 +212,7 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 기타 객체인 경우
+    
     return {
       success: true,
       data: result,
@@ -227,7 +227,7 @@ export class CommandExecutorService implements ICommandExecutor {
    * @returns 실행 결과
    */
   private async executePluginCommand(command: Command, signal?: AbortSignal): Promise<CommandResult> {
-    // 명령어 취소 확인
+    
     if (signal?.aborted) {
       return {
         success: false,
@@ -236,11 +236,11 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 플러그인 존재 여부 확인
+    
     const plugin = this.pluginRegistry.getPlugin(command.agentId);
     
     if (!plugin) {
-      // 플러그인 설정 안내 메시지
+      
       if (command.agentId === 'jira') {
         return {
           success: false,
@@ -266,7 +266,7 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 플러그인 초기화 상태 확인 (Jira 플러그인인 경우)
+    
     if (command.agentId === 'jira' && !plugin.isInitialized()) {
       return {
         success: false,
@@ -279,11 +279,11 @@ export class CommandExecutorService implements ICommandExecutor {
     }
     
     try {
-      // 플러그인 명령어 실행
+      
       console.log(`플러그인 명령어 실행: ${command.agentId}:${command.command}`);
       const result = await plugin.executeCommand(command.command, command.args);
       
-      // 명령어 취소 확인
+      
       if (signal?.aborted) {
         return {
           success: false,
@@ -292,7 +292,7 @@ export class CommandExecutorService implements ICommandExecutor {
         };
       }
       
-      // 결과 반환
+      
       return this.normalizeResult(result);
     } catch (error) {
       return {
@@ -310,7 +310,7 @@ export class CommandExecutorService implements ICommandExecutor {
    * @returns 실행 결과
    */
   private async executeInternalCommand(command: Command, signal?: AbortSignal): Promise<CommandResult> {
-    // 명령어 취소 확인
+    
     if (signal?.aborted) {
       return {
         success: false,
@@ -319,7 +319,7 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 명령어 핸들러 조회
+    
     const handler = this.commandRegistry.getHandler(command.agentId, command.command);
     
     if (!handler) {
@@ -332,11 +332,11 @@ export class CommandExecutorService implements ICommandExecutor {
     }
     
     try {
-      // 내부 명령어 실행
+      
       console.log(`내부 명령어 실행: ${command.agentId}:${command.command}`);
       const result = await handler(command.args, command.flags);
       
-      // 명령어 취소 확인
+      
       if (signal?.aborted) {
         return {
           success: false,
@@ -345,7 +345,7 @@ export class CommandExecutorService implements ICommandExecutor {
         };
       }
       
-      // 결과 반환
+      
       return this.normalizeResult(result);
     } catch (error) {
       return {
@@ -363,7 +363,7 @@ export class CommandExecutorService implements ICommandExecutor {
    * @returns 실행 결과
    */
   private async executeDomainCommand(command: Command, signal?: AbortSignal): Promise<CommandResult> {
-    // 명령어 취소 확인
+    
     if (signal?.aborted) {
       return {
         success: false,
@@ -372,7 +372,7 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 도메인 제공 확인
+    
     if (!command.domain || command.domain === CommandDomain.NONE) {
       return {
         success: false,
@@ -381,11 +381,11 @@ export class CommandExecutorService implements ICommandExecutor {
       };
     }
     
-    // 도메인 핸들러 조회
+    
     const handler = this.commandRegistry.getDomainHandler(command.domain, command.command);
     
     if (!handler) {
-      // 도메인 플러그인 조회 시도 (대체 방법)
+      
       try {
         const domainPlugin = this.pluginRegistry.getPluginByDomain(command.domain);
         
@@ -396,10 +396,10 @@ export class CommandExecutorService implements ICommandExecutor {
           }, signal);
         }
       } catch (e) {
-        // 플러그인 조회 오류 무시 (기본 에러 메시지 사용)
+        
       }
       
-      // 비슷한 명령어 제안
+      
       const domainCommands = this.commandRegistry.getDomainCommands(command.domain);
       const suggestions = domainCommands.length > 0
         ? domainCommands.slice(0, 3).map(u => `@${command.domain}:${u.command}`)
@@ -414,11 +414,11 @@ export class CommandExecutorService implements ICommandExecutor {
     }
     
     try {
-      // 도메인 명령어 실행
+      
       console.log(`도메인 명령어 실행: @${command.domain}:${command.command}`);
       const result = await handler(command.args, command.flags);
       
-      // 명령어 취소 확인
+      
       if (signal?.aborted) {
         return {
           success: false,
@@ -427,7 +427,7 @@ export class CommandExecutorService implements ICommandExecutor {
         };
       }
       
-      // 결과 반환
+      
       return this.normalizeResult(result);
     } catch (error) {
       return {
@@ -451,10 +451,10 @@ export class CommandExecutorService implements ICommandExecutor {
     flags: Record<string, any> = {}
   ): Promise<CommandResult> {
     try {
-      // 명령어 파싱 사용
+      
       const parsedCommand = this.parser.parseWithSuggestions(commandString);
       
-      // 파싱 오류 확인
+      
       if (parsedCommand.hasError) {
         return {
           success: false,
@@ -464,7 +464,7 @@ export class CommandExecutorService implements ICommandExecutor {
         };
       }
       
-      // Command 객체 생성 (파싱된 정보 사용)
+      
       const command: Command = {
         prefix: parsedCommand.prefix,
         type: parsedCommand.type,
@@ -478,7 +478,7 @@ export class CommandExecutorService implements ICommandExecutor {
         rawInput: parsedCommand.raw
       };
       
-      // 명령어 실행
+      
       return await this.execute(command);
     } catch (error) {
       return {

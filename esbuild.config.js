@@ -1,6 +1,8 @@
 /**
  * esbuild.config.js
  * VS Code Extension build configuration
+ * 
+ * 내부망/외부망 환경에 따라 설정 파일만 달리 사용하고 코드는 동일하게 유지
  */
 
 const esbuild = require('esbuild');
@@ -17,6 +19,11 @@ const isWatch = args.includes('--watch');
 const isClean = args.includes('--clean');
 const isAnalyze = args.includes('--analyze');
 const isBuild = args.includes('--build') || isProduction;
+const isInternal = args.includes('--env=internal');
+const isExternal = args.includes('--env=external') || (!isInternal); // Default to external
+
+// 환경 설정
+console.log(`빌드 환경: ${isInternal ? '내부망' : '외부망'}`);
 
 // Output directory
 const outdir = 'dist';
@@ -45,6 +52,9 @@ const buildOptions = {
   platform: 'node',
   external: ['vscode'],
   logLevel: 'info',
+  banner: {
+    js: '// APE Extension - Agentic Pipeline Engine\n// Generated: ' + new Date().toISOString(),
+  },
   plugins: [
     // Exclude node_modules from bundling
     nodeExternalsPlugin(),
@@ -53,11 +63,8 @@ const buildOptions = {
     copy({
       resolveFrom: 'cwd',
       assets: [
-        { from: 'resources/**/*', to: 'resources' },
-        { from: 'package.json', to: './' },
-        { from: 'README.md', to: './' },
-        { from: 'LICENSE', to: './' },
-      ],
+        { from: ['resources/**/*'], to: ['./dist/resources'] }
+      ]
     }),
   ],
   define: {
@@ -87,20 +94,43 @@ else {
     .then(() => {
       console.log('Build completed successfully');
       
-      // Copy environment file based on environment
+      // Copy environment file
       try {
-        const envFile = fs.existsSync('extension.env.js') 
-          ? 'extension.env.js'
-          : (fs.existsSync('extension.env.external.js') 
-              ? 'extension.env.external.js' 
-              : null);
+        const envFile = 'extension.env.js';
         
-        if (envFile) {
+        if (fs.existsSync(envFile)) {
           fs.copyFileSync(envFile, path.join(outdir, 'extension.env.js'));
           console.log(`Copied environment file: ${envFile}`);
+        } else {
+          console.warn(`Warning: Environment file ${envFile} not found`);
+        }
+        
+        // Copy settings
+        const settingsDestDir = path.join(outdir, 'config');
+        
+        if (!fs.existsSync(settingsDestDir)) {
+          fs.mkdirSync(settingsDestDir, { recursive: true });
+        }
+        
+        // Create a default settings.json if it doesn't exist
+        const settingsDestFile = path.join(settingsDestDir, 'settings.json');
+        
+        if (!fs.existsSync(settingsDestFile)) {
+          const defaultSettings = {
+            "environment": "unified",
+            "apiBaseUrl": "https://api.example.com",
+            "logLevel": "info",
+            "features": {
+              "streamingEnabled": true,
+              "sslVerification": true
+            }
+          };
+          
+          fs.writeFileSync(settingsDestFile, JSON.stringify(defaultSettings, null, 2));
+          console.log(`Created default settings.json`);
         }
       } catch (err) {
-        console.warn('Warning: Could not copy environment file:', err.message);
+        console.warn('Warning: Could not copy environment files:', err.message);
       }
     })
     .catch(err => {

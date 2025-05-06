@@ -47,17 +47,17 @@ export class JiraPluginService extends PluginBaseService {
   constructor(configLoader: IConfigLoader) {
     super(configLoader);
     
-    // 내부 플러그인 설정 (고정값)
+    
     this.config = {
       enabled: true,
       endpoint: this.config?.endpoint || 'https://jira.example.com',
       defaultIssueType: this.config?.defaultIssueType || 'Task'
     };
     
-    // API 클라이언트 생성
-    this.client = new JiraClientService(this.config.endpoint, true); // SSL 우회 활성화
     
-    // 명령어 등록
+    this.client = new JiraClientService(this.config.endpoint, true); 
+    
+    
     this.registerCommands();
   }
   
@@ -80,14 +80,14 @@ export class JiraPluginService extends PluginBaseService {
    */
   async initialize(): Promise<void> {
     try {
-      // 인증 설정 (내부 플러그인은 환경 변수 또는 설정 파일에서 인증 정보 로드)
+      
       const credentials = this.config.credentials || {
         username: process.env.JIRA_USERNAME,
         password: process.env.JIRA_PASSWORD,
         token: process.env.JIRA_API_TOKEN
       };
       
-      // 인증 정보가 유효한지 확인
+      
       const hasValidCredentials = 
         (credentials.token && credentials.token !== '${JIRA_API_TOKEN}') || 
         (credentials.username && credentials.password);
@@ -98,12 +98,12 @@ export class JiraPluginService extends PluginBaseService {
         console.log('Jira 플러그인 초기화 완료');
       } else {
         console.warn('Jira 플러그인 인증 정보가 없습니다. 일부 기능이 제한됩니다.');
-        // 인증 정보 없이 초기화는 성공으로 처리하지만 _initialized는 false로 유지
+        
         this._initialized = false;
       }
     } catch (error) {
       console.error('Jira 플러그인 초기화 중 오류 발생:', error);
-      // 오류를 던지지 않고 경고만 출력
+      
       this._initialized = false;
     }
   }
@@ -116,7 +116,7 @@ export class JiraPluginService extends PluginBaseService {
    */
   protected registerCommands(customCommands?: PluginCommand[]): boolean {
     this.commands = [
-      // 이슈 조회 명령어
+      
       {
         id: 'issue',
         name: 'issue',
@@ -128,7 +128,7 @@ export class JiraPluginService extends PluginBaseService {
         execute: async (args) => this.getIssue(args[0])
       },
       
-      // 이슈 생성 명령어
+      
       {
         id: 'create',
         name: 'create',
@@ -143,7 +143,7 @@ export class JiraPluginService extends PluginBaseService {
         execute: async (args) => this.createIssue(args)
       },
       
-      // 이슈 검색 명령어
+      
       {
         id: 'search',
         name: 'search',
@@ -158,7 +158,7 @@ export class JiraPluginService extends PluginBaseService {
         execute: async (args) => this.searchIssues(args[0], this.extractOptions(args))
       },
       
-      // 이슈 업데이트 명령어
+      
       {
         id: 'update',
         name: 'update',
@@ -173,7 +173,7 @@ export class JiraPluginService extends PluginBaseService {
         execute: async (args) => this.updateIssue(args[0], args[1], args[2])
       },
       
-      // 이슈 코멘트 추가 명령어
+      
       {
         id: 'comment',
         name: 'comment',
@@ -197,7 +197,7 @@ export class JiraPluginService extends PluginBaseService {
     try {
       const issue = await this.client.getIssue(issueKey);
       
-      // 인증 오류 처리
+      
       if (issue && issue.error) {
         return {
           content: `# Jira 인증 오류\n\n${issue.message}\n\n` +
@@ -208,7 +208,7 @@ export class JiraPluginService extends PluginBaseService {
         };
       }
       
-      // 응답 포맷팅
+      
       return {
         content: `# ${issue.key}: ${issue.fields.summary}\n\n` +
                  `**상태**: ${issue.fields.status.name}\n` +
@@ -239,12 +239,12 @@ export class JiraPluginService extends PluginBaseService {
     try {
       const options = this.extractOptions(args);
       
-      // 필수 인자 확인
+      
       if (!args[0] || !args[1]) {
         throw new Error('프로젝트와 제목은 필수입니다');
       }
       
-      // 이슈 데이터 구성
+      
       const issueData: JiraIssueData = {
         projectKey: args[0],
         summary: args[1],
@@ -252,7 +252,7 @@ export class JiraPluginService extends PluginBaseService {
         issueType: options.type || this.config.defaultIssueType || 'Task'
       };
       
-      // 추가 필드 설정
+      
       if (options.priority) {
         issueData.priority = options.priority;
       }
@@ -265,7 +265,7 @@ export class JiraPluginService extends PluginBaseService {
         issueData.labels = options.labels.split(',').map((label: string) => label.trim());
       }
       
-      // 사용자 정의 필드 처리
+      
       if (this.config.customFields) {
         issueData.customFields = {};
         
@@ -276,10 +276,10 @@ export class JiraPluginService extends PluginBaseService {
         }
       }
       
-      // 이슈 생성
+      
       const issue = await this.client.createIssue(issueData);
       
-      // 응답 포맷팅
+      
       return {
         content: `# 이슈 생성 완료\n\n` +
                  `**키**: [${issue.key}](${this.config.endpoint}/browse/${issue.key})\n` +
@@ -306,7 +306,7 @@ export class JiraPluginService extends PluginBaseService {
       const limit = options.limit ? parseInt(options.limit, 10) : 10;
       const results = await this.client.searchIssues(query, limit);
       
-      // 응답 포맷팅
+      
       const issueList = results.issues.map((issue: any) => 
         `- [${issue.key}](${this.config.endpoint}/browse/${issue.key}): ${issue.fields.summary} (${issue.fields.status.name})`
       ).join('\n');
@@ -335,7 +335,7 @@ export class JiraPluginService extends PluginBaseService {
     try {
       const issue = await this.client.updateIssue(issueKey, field, value);
       
-      // 응답 포맷팅
+      
       return {
         content: `# 이슈 업데이트 완료\n\n` +
                  `**키**: [${issue.key}](${this.config.endpoint}/browse/${issue.key})\n` +
@@ -363,7 +363,7 @@ export class JiraPluginService extends PluginBaseService {
     try {
       const result = await this.client.addComment(issueKey, comment);
       
-      // 응답 포맷팅
+      
       return {
         content: `# 코멘트 추가 완료\n\n` +
                  `**이슈**: [${issueKey}](${this.config.endpoint}/browse/${issueKey})\n` +
@@ -386,7 +386,7 @@ export class JiraPluginService extends PluginBaseService {
   private extractOptions(args: any[]): Record<string, any> {
     const options: Record<string, any> = {};
     
-    // 플래그 형식 옵션 추출 (--key=value)
+    
     for (const arg of args) {
       if (typeof arg === 'string' && arg.startsWith('--')) {
         const [key, value] = arg.substring(2).split('=');

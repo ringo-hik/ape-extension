@@ -1,0 +1,9 @@
+{
+  "environment": "external",
+  "apiBaseUrl": "https://api-external.example.com",
+  "logLevel": "info",
+  "features": {
+    "streamingEnabled": true,
+    "sslVerification": true
+  }
+}

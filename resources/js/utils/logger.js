@@ -12,22 +12,51 @@ class Logger {
 
   log(message, ...args) {
     if (!this.isEnabled) return;
-    console.log(`[${this.prefix}]:`, message, ...args);
+    const timestamp = new Date().toISOString();
+    const caller = this._getCallerInfo();
+    console.log(`[${timestamp}][${this.prefix}][${caller}]:`, message, ...args);
   }
 
   error(message, ...args) {
     if (!this.isEnabled) return;
-    console.error(`[${this.prefix} 오류]:`, message, ...args);
+    const timestamp = new Date().toISOString();
+    const caller = this._getCallerInfo();
+    console.error(`[${timestamp}][${this.prefix} 오류][${caller}]:`, message, ...args);
   }
 
   warn(message, ...args) {
     if (!this.isEnabled) return;
-    console.warn(`[${this.prefix} 경고]:`, message, ...args);
+    const timestamp = new Date().toISOString();
+    const caller = this._getCallerInfo();
+    console.warn(`[${timestamp}][${this.prefix} 경고][${caller}]:`, message, ...args);
   }
 
   info(message, ...args) {
     if (!this.isEnabled) return;
-    console.info(`[${this.prefix} 정보]:`, message, ...args);
+    const timestamp = new Date().toISOString();
+    const caller = this._getCallerInfo();
+    console.info(`[${timestamp}][${this.prefix} 정보][${caller}]:`, message, ...args);
+  }
+  
+  debug(message, ...args) {
+    if (!this.isEnabled) return;
+    const timestamp = new Date().toISOString();
+    const caller = this._getCallerInfo();
+    console.debug(`[${timestamp}][${this.prefix} 디버그][${caller}]:`, message, ...args);
+  }
+  
+  _getCallerInfo() {
+    try {
+      const err = new Error();
+      const stack = err.stack || '';
+      const stackLines = stack.split('\n');
+      // 0: Error, 1: _getCallerInfo, 2: log/error/warn/info 메서드, 3: 실제 호출한 곳
+      const callerLine = stackLines[3] || '';
+      const match = callerLine.match(/at\s+(.*)\s+\(/);
+      return match ? match[1] : 'unknown';
+    } catch (e) {
+      return 'unknown';
+    }
   }
 
   enable() {

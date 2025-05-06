@@ -85,7 +85,7 @@ export class VSCodeService {
         if (position) {
           editBuilder.insert(position, text);
         } else {
-          // 현재 선택 범위에 삽입 (또는 커서 위치)
+          
           const selections = editor.selections;
           selections.forEach(selection => {
             editBuilder.replace(selection, text);
@@ -202,24 +202,24 @@ export class VSCodeService {
       const selectedText = this.getSelectedText();
       const activeFileContent = editor ? editor.document.getText() : '';
       
-      // 워크스페이스 정보 수집
+      
       const workspaceFolders = vscode.workspace.workspaceFolders || [];
       const workspaceInfo = workspaceFolders.map(folder => ({
         name: folder.name,
         path: folder.uri.fsPath
       }));
       
-      // VS Code 설정 정보
+      
       const config = vscode.workspace.getConfiguration('ape');
       
-      // 언어 모드 확인
+      
       const languageId = editor?.document.languageId;
       
-      // 커서 위치 정보
+      
       const cursorPosition = editor?.selection.active;
       const line = cursorPosition ? editor.document.lineAt(cursorPosition.line).text : '';
       
-      // 에디터 컨텍스트 정보 구성
+      
       const editorContext = {
         activeFile: {
           path: activeFilePath,

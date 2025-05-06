@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} https://unpkg.com 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline' 'unsafe-eval'; img-src ${cspSource} data:; connect-src ${cspSource}; font-src ${cspSource} https://unpkg.com;">
+  <title>APE 명령어 테스트</title>
+  
+  <!-- 통합 스타일 시스템 -->
+  <link href="${webviewResourceBaseUri}/css/main.css" rel="stylesheet">
+  
+  <!-- Phosphor 아이콘 -->
+  <link href="${phosphorIconsCssUri}" rel="stylesheet">
+</head>
+<body>
+  <div class="ape-container">
+    <div class="ape-header">
+      <h2>APE 명령어 테스트</h2>
+    </div>
+    
+    <div class="ape-content">
+      <!-- 테스트 버튼 모음 -->
+      <div class="ape-flex-col ape-gap-md">
+        <div class="ape-section">
+          <h3>시나리오 테스트 버튼</h3>
+          <div class="buttons-grid">
+            <button class="command-button" data-command-id="test.git">
+              <div class="button-icon"><i class="ph ph-git-branch"></i></div>
+              <div class="button-text" title="Git 통합 테스트">Git 통합 테스트</div>
+            </button>
+            
+            <button class="command-button" data-command-id="test.jira">
+              <div class="button-icon"><i class="ph ph-note"></i></div>
+              <div class="button-text" title="Jira 통합 테스트">Jira 통합 테스트</div>
+            </button>
+            
+            <button class="command-button" data-command-id="test.swdp">
+              <div class="button-icon"><i class="ph ph-code"></i></div>
+              <div class="button-text" title="SWDP 통합 테스트">SWDP 통합 테스트</div>
+            </button>
+            
+            <button class="command-button" data-command-id="test.pocket">
+              <div class="button-icon"><i class="ph ph-bookmark-simple"></i></div>
+              <div class="button-text" title="Pocket 통합 테스트">Pocket 통합 테스트</div>
+            </button>
+          </div>
+        </div>
+        
+        <div class="ape-section">
+          <h3>API 통합 테스트</h3>
+          <div class="buttons-grid">
+            <button class="command-button" data-command-id="api.test">
+              <div class="button-icon"><i class="ph ph-link"></i></div>
+              <div class="button-text" title="API 연결 테스트">API 연결 테스트</div>
+            </button>
+            
+            <button class="command-button" data-command-id="api.models">
+              <div class="button-icon"><i class="ph ph-robot"></i></div>
+              <div class="button-text" title="사용 가능한 모델 목록">모델 목록 가져오기</div>
+            </button>
+            
+            <button class="command-button" data-command-id="api.stream">
+              <div class="button-icon"><i class="ph ph-chat-dots"></i></div>
+              <div class="button-text" title="스트리밍 응답 테스트">스트리밍 응답 테스트</div>
+            </button>
+          </div>
+        </div>
+        
+        <div class="ape-section">
+          <h3>모드 테스트</h3>
+          <div class="buttons-grid">
+            <button class="command-button" data-command-id="mode.toggle">
+              <div class="button-icon"><i class="ph ph-toggle-left"></i></div>
+              <div class="button-text" title="APE 모드 토글">APE 모드 토글</div>
+            </button>
+            
+            <button class="command-button" data-command-id="mode.dev">
+              <div class="button-icon"><i class="ph ph-code"></i></div>
+              <div class="button-text" title="심층 분석 모드 토글">심층 분석 모드 토글</div>
+            </button>
+          </div>
+        </div>
+        
+        <div class="ape-section">
+          <h3>채팅 기능 테스트</h3>
+          <div class="buttons-grid">
+            <button class="command-button" data-command-id="chat.clear">
+              <div class="button-icon"><i class="ph ph-trash"></i></div>
+              <div class="button-text" title="채팅 내용 지우기">채팅 내용 지우기</div>
+            </button>
+            
+            <button class="command-button" data-command-id="chat.save">
+              <div class="button-icon"><i class="ph ph-floppy-disk"></i></div>
+              <div class="button-text" title="채팅 내용 저장">채팅 내용 저장</div>
+            </button>
+            
+            <button class="command-button" data-command-id="chat.history">
+              <div class="button-icon"><i class="ph ph-clock-clockwise"></i></div>
+              <div class="button-text" title="채팅 히스토리 보기">채팅 히스토리 보기</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="ape-footer">
+      <div>테스트 결과는 개발자 도구 콘솔(Console)에서 확인하세요.</div>
+    </div>
+  </div>
+  
+  <!-- 유틸리티 스크립트 -->
+  <script type="module" src="${webviewResourceBaseUri}/js/utils/logger.js"></script>
+  <script type="module" src="${webviewResourceBaseUri}/js/utils/dom-utils.js"></script>
+  
+  <!-- 테스트 버튼 스크립트 -->
+  <script type="module" src="${webviewResourceBaseUri}/js/components/test-buttons.js"></script>
+</body>
+</html>

@@ -147,7 +147,7 @@ export class GitClientService {
    */
   private initWorkingDirectory(): void {
     try {
-      // 1. VS Code 워크스페이스 폴더 확인 (확장 실행 시)
+      
       try {
         const workspaceFolders = vscode.workspace.workspaceFolders;
         
@@ -155,7 +155,7 @@ export class GitClientService {
           this.workingDirectory = workspaceFolders[0].uri.fsPath;
           console.log(`VS Code 워크스페이스 디렉토리 설정: ${this.workingDirectory}`);
           
-          // Git 저장소인지 확인
+          
           this.isGitRepository(this.workingDirectory).then(isRepo => {
             if (!isRepo) {
               console.warn(`워크스페이스 디렉토리(${this.workingDirectory})는 Git 저장소가 아닙니다. 대체 경로를 찾습니다.`);
@@ -169,11 +169,11 @@ export class GitClientService {
         console.error('VS Code 워크스페이스 접근 중 오류 발생:', workspaceError);
       }
       
-      // 2. 현재 프로세스 작업 디렉토리 확인 (CLI 모드)
+      
       this.workingDirectory = process.cwd();
       console.log(`현재 작업 디렉토리 설정: ${this.workingDirectory}`);
       
-      // Git 저장소인지 확인
+      
       this.isGitRepository(this.workingDirectory).then(isRepo => {
         if (!isRepo) {
           console.warn(`현재 디렉토리(${this.workingDirectory})는 Git 저장소가 아닙니다. 대체 경로를 찾습니다.`);
@@ -183,7 +183,7 @@ export class GitClientService {
     } catch (error) {
       console.error('Git 작업 디렉토리 초기화 중 오류 발생:', error);
       
-      // 3. 최후의 방법: 홈 디렉토리
+      
       this.workingDirectory = os.homedir();
       console.log(`홈 디렉토리로 설정: ${this.workingDirectory}`);
     }
@@ -221,22 +221,22 @@ export class GitClientService {
    */
   private async findGitRepository(): Promise<void> {
     try {
-      // 현재 디렉토리
+      
       let currentDir = this.workingDirectory || process.cwd();
       
-      // 최대 5단계 상위 디렉토리까지 탐색
+      
       for (let i = 0; i < 5; i++) {
         const parentDir = path.dirname(currentDir);
         
-        // 루트 디렉토리인 경우 중단
+        
         if (parentDir === currentDir) {
           break;
         }
         
-        // 상위 디렉토리로 이동
+        
         currentDir = parentDir;
         
-        // Git 저장소 확인
+        
         const isRepo = await this.isGitRepository(currentDir);
         if (isRepo) {
           this.workingDirectory = currentDir;
@@ -245,12 +245,12 @@ export class GitClientService {
         }
       }
       
-      // 가장 가능성 높은 경로: 확장 프로그램 디렉토리
+      
       try {
-        // __dirname은 컴파일된 JS 파일 위치이므로 적절한 상위 디렉토리로 이동
+        
         let extensionDir = __dirname;
         
-        // dist/extension.js, out/extension.js 등의 패턴 처리
+        
         if (extensionDir.includes('dist') || extensionDir.includes('out')) {
           extensionDir = path.resolve(extensionDir, '..', '..');
         }
@@ -264,7 +264,7 @@ export class GitClientService {
         console.error('확장 프로그램 디렉토리 확인 중 오류:', dirError);
       }
       
-      // 대체 위치: 프로젝트 루트 (package.json이 있는 위치)
+      
       let currentSearchDir = this.workingDirectory || process.cwd();
       
       for (let i = 0; i < 5; i++) {
@@ -296,30 +296,30 @@ export class GitClientService {
       try {
         const cwd = workingDir || this.workingDirectory || os.homedir();
         
-        // 명령어 로깅
+        
         console.log(`Git 명령어 실행: git ${args.join(' ')} (in ${cwd})`);
         
-        // Git 프로세스 생성
+        
         const gitProcess = spawn('git', args, { cwd });
         
         let stdout = '';
         let stderr = '';
         
-        // 표준 출력 수집
+        
         gitProcess.stdout.on('data', (data) => {
           stdout += data.toString();
         });
         
-        // 표준 오류 수집
+        
         gitProcess.stderr.on('data', (data) => {
           stderr += data.toString();
         });
         
-        // 프로세스 종료 처리
+        
         gitProcess.on('close', (code) => {
           const success = code === 0;
           
-          // 결과 로깅
+          
           if (success) {
             console.log(`Git 명령어 성공: git ${args.join(' ')}`);
           } else {
@@ -335,7 +335,7 @@ export class GitClientService {
           });
         });
         
-        // 오류 처리
+        
         gitProcess.on('error', (error) => {
           console.error(`Git 프로세스 실행 오류:`, error);
           
@@ -371,7 +371,7 @@ export class GitClientService {
         throw new Error(`Git status 명령어 실패: ${result.stderr}`);
       }
       
-      // 상태 파싱
+      
       const statusLines = result.stdout.split('\n').filter(line => line.trim() !== '');
       const status: any = {
         branch: '',
@@ -379,35 +379,35 @@ export class GitClientService {
         changes: []
       };
       
-      // 브랜치 정보 추출
+      
       const branchLine = statusLines.find(line => line.startsWith('# branch.head'));
       if (branchLine) {
         status.branch = branchLine.split(' ')[2];
       }
       
-      // 트래킹 브랜치 정보
+      
       const trackingLine = statusLines.find(line => line.startsWith('# branch.upstream'));
       if (trackingLine) {
         status.tracking = trackingLine.split(' ')[2];
       }
       
-      // 변경 사항 추출
+      
       const changeLines = statusLines.filter(line => !line.startsWith('#'));
       status.changes = changeLines.map(line => {
         const parts = line.split(' ');
         let type = '';
         let path = '';
         
-        if (line.startsWith('1 ')) {  // 변경된 파일
+        if (line.startsWith('1 ')) {  
           type = parts[1];
           path = parts.slice(8).join(' ');
-        } else if (line.startsWith('2 ')) {  // 이름 변경된 파일
+        } else if (line.startsWith('2 ')) {  
           type = parts[1];
           path = `${parts[9]} -> ${parts[10]}`;
-        } else if (line.startsWith('? ')) {  // Untracked 파일
+        } else if (line.startsWith('? ')) {  
           type = '?';
           path = parts.slice(1).join(' ');
-        } else if (line.startsWith('u ')) {  // Unmerged 파일
+        } else if (line.startsWith('u ')) {  
           type = 'u';
           path = parts.slice(10).join(' ');
         }
@@ -431,30 +431,30 @@ export class GitClientService {
     try {
       const args = ['diff'];
       
-      // 버전 호환성을 위한 옵션 선택 (--staged 또는 --cached)
+      
       if (staged) {
-        // 먼저 --staged 옵션이 지원되는지 확인
+        
         try {
           const stagedCheck = await this.executeGitCommand(['diff', '--staged', '--quiet']);
           
           if (stagedCheck.stderr && stagedCheck.stderr.includes('unknown option')) {
-            // --staged가 지원되지 않는 경우 --cached 사용
+            
             console.log('Git diff --staged 옵션이 지원되지 않아 --cached 사용');
             args.push('--cached');
           } else {
             args.push('--staged');
           }
         } catch (optError) {
-          // 오류 발생 시 기본적으로 --cached 사용 (더 오래된 Git 버전과 호환)
+          
           console.log('옵션 확인 실패, 안전하게 --cached 사용');
           args.push('--cached');
         }
       }
       
-      // Git 명령어 실행 로그
+      
       console.log(`Git diff 명령어 실행: git ${args.join(' ')}`);
       
-      // 명령어 실행
+      
       const result = await this.executeGitCommand(args);
       
       if (!result.success) {
@@ -489,7 +489,7 @@ export class GitClientService {
         throw new Error(`Git add 명령어 실패: ${result.stderr}`);
       }
       
-      // 상태 조회 및 반환
+      
       return await this.getStatus();
     } catch (error) {
       console.error('Git 파일 스테이징 중 오류 발생:', error);
@@ -506,12 +506,12 @@ export class GitClientService {
     try {
       const args = ['commit', '-m', options.message];
       
-      // 모든 변경 사항 스테이징
+      
       if (options.all) {
         args.push('-a');
       }
       
-      // 작성자 정보 설정
+      
       if (options.authorName && options.authorEmail) {
         args.push(`--author="${options.authorName} <${options.authorEmail}>"`);
       }
@@ -522,7 +522,7 @@ export class GitClientService {
         throw new Error(`Git commit 명령어 실패: ${result.stderr}`);
       }
       
-      // 커밋 정보 반환
+      
       const commitInfo = await this.executeGitCommand(['log', '-1', '--format=%H%n%an%n%ae%n%at%n%s']);
       
       if (!commitInfo.success) {
@@ -600,7 +600,7 @@ export class GitClientService {
         throw new Error(`Git branch 명령어 실패: ${result.stderr}`);
       }
       
-      // 브랜치 목록 파싱
+      
       const branches = result.stdout.split('\n')
         .filter(branch => branch.trim() !== '')
         .map(branch => {
@@ -699,14 +699,14 @@ export class GitClientService {
    */
   async createPR(options: GitPROptions): Promise<any> {
     try {
-      // GitHub CLI (gh) 설치 확인
+      
       const ghVersionResult = await this.executeGitCommand(['--no-git-dir', 'gh', 'version'], process.cwd());
       
       if (!ghVersionResult.success) {
         throw new Error('GitHub CLI (gh)가 설치되어 있지 않습니다');
       }
       
-      // PR 생성 명령어 구성
+      
       const args = [
         '--no-git-dir',
         'gh',
@@ -740,7 +740,7 @@ export class GitClientService {
         throw new Error(`PR 생성 실패: ${result.stderr}`);
       }
       
-      // PR URL 추출
+      
       const prUrl = result.stdout.trim();
       
       return {

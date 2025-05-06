@@ -87,19 +87,9 @@ export enum UserAuthEvent {
  */
 export class UserAuthService {
   /**
-   * 싱글톤 인스턴스
-   */
-  private static instance: UserAuthService;
-  
-  /**
    * 이벤트 이미터
    */
   private eventEmitter = new EventEmitter();
-  
-  /**
-   * 설정 서비스
-   */
-  private configService: ConfigService;
   
   /**
    * 사용자 정보
@@ -117,21 +107,36 @@ export class UserAuthService {
   private initialized: boolean = false;
   
   /**
+   * 싱글톤 인스턴스 (레거시 호환성 유지)
+   */
+  private static instance: UserAuthService;
+  
+  /**
    * 싱글톤 인스턴스 가져오기
+   * @deprecated 싱글톤 패턴 대신 의존성 주입 사용 권장
    * @returns UserAuthService 인스턴스
    */
   public static getInstance(): UserAuthService {
     if (!UserAuthService.instance) {
-      UserAuthService.instance = new UserAuthService();
+      UserAuthService.instance = new UserAuthService(ConfigService.getInstance());
     }
     return UserAuthService.instance;
   }
   
   /**
-   * 생성자 (private)
+   * 팩토리 메서드: 인스턴스 생성
+   * @param configService 설정 서비스
+   * @returns UserAuthService 인스턴스
    */
-  private constructor() {
-    this.configService = ConfigService.getInstance();
+  public static createInstance(configService: ConfigService): UserAuthService {
+    return new UserAuthService(configService);
+  }
+  
+  /**
+   * 생성자
+   * @param configService 설정 서비스
+   */
+  constructor(private readonly configService: ConfigService) {
   }
   
   /**
@@ -157,10 +162,10 @@ export class UserAuthService {
    */
   public async initialize(): Promise<void> {
     try {
-      // 설정에서 사용자 정보 로드
+      
       await this.loadUserInfo();
       
-      // 사용자 정보가 없으면 Git에서 자동으로 추출
+      
       if (!this.userInfo.gitUsername || !this.userInfo.gitEmail) {
         try {
           const gitInfo = await this.extractGitUserInfo();
@@ -170,7 +175,7 @@ export class UserAuthService {
               ...gitInfo
             };
             
-            // 설정에 사용자 정보 저장
+            
             await this.saveUserInfo();
           }
         } catch (error) {
@@ -178,7 +183,7 @@ export class UserAuthService {
         }
       }
       
-      // 사용자 설정 로드
+      
       await this.loadUserSettings();
       
       this.initialized = true;
@@ -303,7 +308,7 @@ export class UserAuthService {
   public async logout(): Promise<void> {
     this.checkInitialized();
     
-    // 토큰만 제거
+    
     delete this.userInfo.token;
     
     await this.saveUserInfo();
@@ -318,7 +323,7 @@ export class UserAuthService {
    */
   private async extractGitUserInfo(): Promise<{ gitUsername?: string, gitEmail?: string }> {
     try {
-      // 워크스페이스 루트 디렉토리 가져오기
+      
       const workspaceFolders = vscode.workspace.workspaceFolders;
       if (!workspaceFolders || workspaceFolders.length === 0) {
         throw new Error('열린 워크스페이스가 없습니다');
@@ -327,15 +332,15 @@ export class UserAuthService {
       const workspaceRoot = workspaceFolders[0].uri.fsPath;
       const gitConfigPath = path.join(workspaceRoot, '.git', 'config');
       
-      // .git/config 파일이 있는지 확인
+      
       if (!fs.existsSync(gitConfigPath)) {
         throw new Error('Git 저장소가 아닙니다');
       }
       
-      // .git/config 파일 읽기
+      
       const configContent = fs.readFileSync(gitConfigPath, 'utf8');
       
-      // 사용자 이름과 이메일 추출
+      
       const usernameMatch = configContent.match(/\[user\][^\[]*name\s*=\s*([^\n\r]*)/);
       const emailMatch = configContent.match(/\[user\][^\[]*email\s*=\s*([^\n\r]*)/);
       

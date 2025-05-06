@@ -69,12 +69,12 @@ export class MockService {
       return false;
     }
     
-    // Mock URL 패턴 확인 (mock:// 프로토콜)
-    if (url.startsWith('mock://')) {
+    // mock: URL 스키마 직접 사용하는 경우
+    if (url.startsWith('mock:')) {
       return true;
     }
     
-    // 내부망 도메인 패턴 확인
+    // 내부망 도메인인 경우 (외부망에서 내부망 서비스 접근 시 모킹 필요)
     const internalDomains = [
       'narrans.internal',
       'llama4.internal',
@@ -99,18 +99,37 @@ export class MockService {
    * @returns 서비스 타입 문자열
    */
   private extractServiceType(url: string): string {
-    // mock:// URL 처리
-    if (url.startsWith('mock://')) {
-      const mockPath = url.substring(7);
-      const serviceName = mockPath.split('.')[0];
-      return serviceName.toUpperCase();
+    // mock: URL 스키마 사용 시 직접 추출
+    if (url.startsWith('mock:')) {
+      const mockPath = url.substring(5);
+      const parts = mockPath.split('.');
+      
+      // Llama4의 경우 세부 모델 구분
+      if (parts[0] === 'llama4') {
+        if (parts[1] === 'maverick') {
+          return 'LLAMA4_MAVERICK';
+        } else if (parts[1] === 'scout') {
+          return 'LLAMA4_SCOUT';
+        } else {
+          return 'LLAMA4'; 
+        }
+      }
+      
+      return parts[0].toUpperCase();
     }
     
-    // 도메인 기반 처리
+    // URL에서 서비스 타입 추출
     if (url.includes('narrans')) {
       return 'NARRANS';
     } else if (url.includes('llama4')) {
-      return 'LLAMA4';
+      // Llama4 서브타입 구분
+      if (url.includes('scout')) {
+        return 'LLAMA4_SCOUT';
+      } else if (url.includes('maverick')) {
+        return 'LLAMA4_MAVERICK';
+      } else {
+        return 'LLAMA4'; 
+      }
     } else if (url.includes('swdp')) {
       return 'SWDP';
     } else if (url.includes('pocket')) {
@@ -135,19 +154,27 @@ export class MockService {
     const serviceType = this.extractServiceType(url);
     this._logger.info(`Mock 응답 생성: ${serviceType} (${method} ${url})`);
     
-    // 기본 응답 헤더
+    // 기본 헤더
     const headers = {
       'Content-Type': 'application/json',
       'X-Mock-Response': 'true',
       'X-Mock-Service': serviceType
     };
     
-    // 서비스 타입에 따른 응답 생성
+    // 서비스별 응답 생성
     let responseData: any;
     
     switch (serviceType) {
       case 'NARRANS':
         responseData = this._mockData.NARRANS_RESPONSE || this.getDefaultNarransResponse();
+        break;
+        
+      case 'LLAMA4_MAVERICK':
+        responseData = this._mockData.LLAMA4_MAVERICK_RESPONSE || this.getDefaultLlama4MaverickResponse();
+        break;
+        
+      case 'LLAMA4_SCOUT':
+        responseData = this._mockData.LLAMA4_SCOUT_RESPONSE || this.getDefaultLlama4ScoutResponse();
         break;
         
       case 'LLAMA4':
@@ -171,7 +198,7 @@ export class MockService {
         break;
         
       default:
-        // 알 수 없는 서비스는 기본 Mock 응답 반환
+        // 알 수 없는 서비스의 경우 기본 응답
         responseData = {
           status: 'success',
           message: 'Mock 응답 (알 수 없는 서비스)',
@@ -214,7 +241,7 @@ export class MockService {
   }
   
   /**
-   * Llama4 기본 Mock 응답
+   * Llama4 기본 Mock 응답 (이전 버전 호환용)
    */
   private getDefaultLlama4Response(): any {
     return {
@@ -228,6 +255,60 @@ export class MockService {
           message: {
             role: 'assistant',
             content: '이것은 Llama4 API의 Mock 응답입니다. 실제 내부망 환경에서는 실제 API에 연결됩니다.'
+          },
+          finish_reason: 'stop'
+        }
+      ],
+      usage: {
+        prompt_tokens: 15,
+        completion_tokens: 25,
+        total_tokens: 40
+      }
+    };
+  }
+  
+  /**
+   * Llama4 Maverick 기본 Mock 응답
+   */
+  private getDefaultLlama4MaverickResponse(): any {
+    return {
+      id: 'mock-llama4-maverick-response-' + Date.now(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: 'llama-4-maverick-mock',
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: '이것은 Llama4 Maverick API의 Mock 응답입니다. 실제 내부망 환경에서는 실제 API에 연결됩니다.'
+          },
+          finish_reason: 'stop'
+        }
+      ],
+      usage: {
+        prompt_tokens: 15,
+        completion_tokens: 25,
+        total_tokens: 40
+      }
+    };
+  }
+  
+  /**
+   * Llama4 Scout 기본 Mock 응답
+   */
+  private getDefaultLlama4ScoutResponse(): any {
+    return {
+      id: 'mock-llama4-scout-response-' + Date.now(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: 'llama-4-scout-mock',
+      choices: [
+        {
+          index: 0,
+          message: {
+            role: 'assistant',
+            content: '이것은 Llama4 Scout API의 Mock 응답입니다. 실제 내부망 환경에서는 실제 API에 연결됩니다.'
           },
           finish_reason: 'stop'
         }
@@ -317,5 +398,4 @@ export class MockService {
   }
 }
 
-// 싱글톤 인스턴스 내보내기
 export default MockService.getInstance();
