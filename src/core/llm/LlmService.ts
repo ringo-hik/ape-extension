@@ -158,16 +158,9 @@ export class LlmService {
       // 설정된 모델이 있으면 그것들을 사용
       if (Object.keys(modelsConfig).length > 0) {
         for (const [id, modelConfig] of Object.entries(modelsConfig)) {
-          // OpenRouter 모델인 경우 apiModel 필드 추가
-          if (modelConfig.provider === 'openrouter') {
-            // 이미 apiModel이 있는지 확인
-            if (!modelConfig.apiModel) {
-              // 모델 이름이 gemini 관련인 경우 apiModel 설정
-              if (id.includes('gemini') || modelConfig.name.includes('Gemini')) {
-                modelConfig.apiModel = 'google/gemini-2.5-flash-preview';
-              }
-              // 다른 모델들에 대한 apiModel 매핑 추가 가능
-            }
+          // 커스텀 모델인 경우 추가 설정
+          if (modelConfig.provider === 'custom') {
+            // 필요한 추가 설정이 있으면 여기에 추가
           }
           
           console.log(`모델 등록: ${id} (${modelConfig.name} - ${modelConfig.provider})`);
@@ -177,18 +170,6 @@ export class LlmService {
         // 설정이 없는 경우 기본값 사용 - 철칙: 내부망 모델은 항상 포함해야 함
         console.log('설정된 모델 없음. 기본 모델 등록 (철칙: 내부망 모델은 항상 포함)');
         
-        // [TODO-내부망-삭제] 외부망 테스트용 OpenRouter 모델 정의
-        // ===== OpenRouter - Google Gemini 2.5 Flash Preview (외부망 테스트용) =====
-        this.models.set('gemini-2.5-flash', {
-          name: 'Google Gemini 2.5 Flash',
-          provider: 'openrouter',
-          apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-          contextWindow: 32000,
-          maxTokens: 8192,
-          temperature: 0.7,
-          systemPrompt: defaultSystemPrompt,
-          apiModel: 'google/gemini-2.5-flash-preview' // API 요청 시 사용할 정확한 모델 ID
-        });
         
         // ===== NARRANS (내부망 기본 모델) - 철칙: 절대 수정/삭제 불가 =====
         this.models.set('narrans', {
@@ -252,11 +233,25 @@ export class LlmService {
   
   /**
    * LLM API로 요청 전송
+   * 타입 안전성 강화 및 null/undefined 체크 개선
    */
   public async sendRequest(options: LlmRequestOptions): Promise<LlmResponse> {
-    const { model = this.defaultModel, messages = [], temperature, maxTokens, stream, onUpdate } = options;
+    // 옵션 객체 자체가 유효한지 검증
+    if (!options) {
+      console.error('sendRequest: options object is undefined or null');
+      throw new Error('요청 옵션이 제공되지 않았습니다.');
+    }
     
-    // 메시지 배열이 유효한지 확인
+    const { 
+      model = this.defaultModel, 
+      messages = [], 
+      temperature, 
+      maxTokens, 
+      stream, 
+      onUpdate 
+    } = options;
+    
+    // 메시지 배열이 유효한지 확인 (강화된 체크)
     if (!Array.isArray(messages)) {
       console.error('sendRequest: messages is not an array:', messages);
       throw new Error('요청 메시지가 유효하지 않습니다.');
@@ -271,19 +266,22 @@ export class LlmService {
       });
     }
     
-    console.log(`sendRequest: 요청 모델 ID - '${model}'`);
+    // 모델 ID 로깅 - 안전하게 문자열 변환
+    const modelId = String(model || this.defaultModel);
+    console.log(`sendRequest: 요청 모델 ID - '${modelId}'`);
     console.log(`sendRequest: 등록된 모델 목록 - ${Array.from(this.models.keys()).join(', ')}`);
     
-    const modelConfig = this.models.get(model);
+    // 모델 설정 가져오기
+    const modelConfig = this.models.get(modelId);
     if (!modelConfig) {
-      console.error(`sendRequest: model '${model}' not found`);
+      console.error(`sendRequest: model '${modelId}' not found`);
       // 오류 발생 시 로컬 모델로 대체
       console.log(`sendRequest: 모델을 찾을 수 없어 로컬 시뮬레이션 모델로 대체합니다.`);
-      return this.simulateLocalModel({
+      return this.simulateLocalModel(this.createSafeModelConfig({
         name: '임시 대체 모델',
         provider: 'local',
         systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-      }, messages);
+      }), messages);
     }
     
     // 시스템 프롬프트가 제공되지 않은 경우 기본값 추가
@@ -299,11 +297,8 @@ export class LlmService {
     // API 키가 없을 경우 로컬 시뮤레이션 모드로 전환
     try {
       // 모델 제공자에 따라 적절한 요청 생성 및 전송
-      // 내부망 정책에 따라 외부 API 제공자는 제거하고 테스트용 OpenRouter 및 내부 API만 유지
+      // 내부망 정책에 따라 내부 API만 유지
       switch (modelConfig.provider) {
-        case 'openrouter':
-          // [TODO-내부망-삭제] OpenRouter 관련 코드는 내부망 이관 시 삭제 예정
-          return this.sendOpenRouterRequest(modelConfig, messages, temperature, maxTokens, stream, onUpdate);
         case 'custom':
           return this.sendCustomRequest(modelConfig, messages, temperature, maxTokens, stream, onUpdate);
         case 'local':
@@ -322,246 +317,6 @@ export class LlmService {
     }
   }
   
-  /**
-   * [REMOVED: 외부 API 구현부 삭제함]
-   * 내부망 환경에서만 작동하도록 변경하여 언급된 외부 API 제공자 구현부 삭제
-   * 테스트용 OpenRouter 및 내부 API용 구현만 유지
-   */
-  
-  /**
-   * OpenRouter API 요청
-   * [TODO-내부망-삭제] 내분망 이관 시 이 함수 삭제 예정
-   */
-  private async sendOpenRouterRequest(
-    modelConfig: ModelConfig, 
-    messages: ChatMessage[], 
-    temperature?: number, 
-    maxTokens?: number,
-    stream?: boolean,
-    onUpdate?: (chunk: string) => void
-  ): Promise<LlmResponse> {
-    const apiKey = modelConfig.apiKey || this.getApiKey('openrouter');
-    if (!apiKey) {
-      throw this.createApiKeyError('missing_api_key', modelConfig.name, 'openrouter');
-    }
-    
-    const apiUrl = modelConfig.apiUrl || 'https://openrouter.ai/api/v1/chat/completions';
-    
-    try {
-      // 요청 모델 설정 (OpenRouter API 모델명 포맷으로 변환)
-      // apiModel 속성을 최우선적으로 사용, 항상 설정 파일에서 로드
-      let requestModel = modelConfig.apiModel || "google/gemini-2.5-flash-preview";
-      
-      console.log(`OpenRouter API 요청 - 모델: ${modelConfig.name} → API 요청 모델: ${requestModel}`);
-      console.log(`메시지 수: ${messages.length}, 온도: ${temperature ?? modelConfig.temperature ?? 0.7}, 스트리밍: ${stream ? '켜짐' : '꺼짐'}`);
-      
-      // 스트리밍 모드인 경우
-      if (stream && onUpdate) {
-        return await this.handleOpenRouterStream(
-          apiUrl,
-          apiKey,
-          modelConfig,
-          messages,
-          temperature,
-          maxTokens,
-          onUpdate
-        );
-      }
-      
-      // 일반 모드 (비스트리밍)
-      console.log('일반 모드(비스트리밍)로 요청 전송');
-      
-      // SSL 인증서 검증 오류 회피를 위해 fetch API 직접 사용
-      console.log(`OpenRouter 요청 세부정보:
-      URL: ${apiUrl}
-      모델: ${requestModel}
-      API 키: ${apiKey ? apiKey.substring(0, 10) + '...' : 'undefined'}
-      메시지 수: ${messages.length}
-      온도: ${temperature ?? modelConfig.temperature ?? 0.7}
-      최대 토큰: ${maxTokens ?? modelConfig.maxTokens ?? 4096}`);
-      
-      const fetchResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://github.com/anthropics/claude-code',
-          'X-Title': 'APE VSCode Extension'
-        },
-        body: JSON.stringify({
-          model: requestModel,
-          messages,
-          temperature: temperature ?? modelConfig.temperature ?? 0.7,
-          max_tokens: maxTokens ?? modelConfig.maxTokens ?? 4096,
-          stream: false
-        })
-      });
-      
-      if (!fetchResponse.ok) {
-        const responseText = await fetchResponse.text();
-        console.error(`OpenRouter API 응답 오류 (${fetchResponse.status}): ${responseText}`);
-        throw new Error(`OpenRouter API 응답 오류: ${fetchResponse.status} ${fetchResponse.statusText}`);
-      }
-      
-      console.log(`OpenRouter API 응답 성공 - 상태 코드: ${fetchResponse.status}`);
-      
-      const responseData = await fetchResponse.json();
-      
-      // Headers 객체를 일반 객체로 변환
-      const headersObj: Record<string, string> = {};
-      fetchResponse.headers.forEach((value, key) => {
-        headersObj[key] = value;
-      });
-      
-      const response = {
-        data: responseData,
-        statusCode: fetchResponse.status,
-        headers: headersObj,
-        ok: fetchResponse.ok
-      };
-      
-      // 응답 처리
-      return {
-        id: response.data.id || this.generateId(),
-        content: response.data.choices[0].message.content,
-        model: modelConfig.name,
-        usage: {
-          promptTokens: response.data.usage?.prompt_tokens || 0,
-          completionTokens: response.data.usage?.completion_tokens || 0,
-          totalTokens: response.data.usage?.total_tokens || 0
-        }
-      };
-    } catch (error) {
-      console.error('OpenRouter API 요청 오류:', error);
-      throw error;
-    }
-  }
-  
-  /**
-   * OpenRouter 스트리밍 응답 처리
-   */
-  private async handleOpenRouterStream(
-    apiUrl: string,
-    apiKey: string,
-    modelConfig: ModelConfig,
-    messages: ChatMessage[],
-    temperature?: number, 
-    maxTokens?: number,
-    onUpdate: (chunk: string) => void
-  ): Promise<LlmResponse> {
-    try {
-      // 요청 모델 설정 (OpenRouter API 모델명 포맷으로 변환)
-      // apiModel 속성을 최우선적으로 사용
-      const requestModel = modelConfig.apiModel || "google/gemini-2.5-flash-preview";
-      
-      console.log(`OpenRouter 스트리밍 요청 - 모델: ${modelConfig.name} → API 요청 모델: ${requestModel}`);
-      console.log(`메시지 수: ${messages.length}, 온도: ${temperature ?? modelConfig.temperature ?? 0.7}`);
-      
-      // 스트리밍 요청 전송
-      console.log(`OpenRouter 스트리밍 요청 세부정보:
-      URL: ${apiUrl}
-      모델: ${requestModel}
-      API 키: ${apiKey ? apiKey.substring(0, 10) + '...' : 'undefined'}
-      메시지 수: ${messages.length}
-      온도: ${temperature ?? modelConfig.temperature ?? 0.7}
-      최대 토큰: ${maxTokens ?? modelConfig.maxTokens ?? 4096}`);
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'HTTP-Referer': 'https://github.com/anthropics/claude-code',
-          'X-Title': 'APE VSCode Extension'
-        },
-        body: JSON.stringify({
-          model: requestModel,
-          messages,
-          temperature: temperature ?? modelConfig.temperature ?? 0.7,
-          max_tokens: maxTokens ?? modelConfig.maxTokens ?? 4096,
-          stream: true
-        })
-      });
-      
-      if (!response.ok || !response.body) {
-        const responseText = await response.text();
-        console.error(`OpenRouter 스트리밍 API 응답 오류 (${response.status}): ${responseText}`);
-        throw new Error(`OpenRouter 스트리밍 API 응답 오류: ${response.status} ${response.statusText}`);
-      }
-      
-      console.log('OpenRouter 스트리밍 연결 성공 - 응답 처리 시작');
-      
-      // 응답 ID 및 누적 콘텐츠
-      let responseId = this.generateId();
-      let accumulatedContent = '';
-      
-      // 스트림 리더 생성
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      // 스트림 처리
-      let done = false;
-      let eventCount = 0;
-      let contentChunks = 0;
-      
-      while (!done) {
-        const { value, done: readerDone } = await reader.read();
-        done = readerDone;
-        
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        
-        // Server-Sent Events 형식 파싱
-        const events = chunk
-          .split('\n\n')
-          .filter(line => line.trim() !== '' && line.trim() !== 'data: [DONE]');
-        
-        eventCount += events.length;
-        
-        for (const event of events) {
-          // 'data: ' 접두사 제거 및 JSON 파싱
-          if (event.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(event.slice(6));
-              
-              if (data.id) {
-                responseId = data.id;
-              }
-              
-              // 실제 콘텐츠 추출
-              const content = data.choices[0]?.delta?.content || '';
-              if (content) {
-                accumulatedContent += content;
-                onUpdate(content);
-                contentChunks++;
-                
-                // 처음 몇 개의 청크만 로깅
-                if (contentChunks <= 3 || contentChunks % 50 === 0) {
-                  console.log(`스트리밍 청크 수신 #${contentChunks}: ${content.length > 20 ? content.substring(0, 20) + '...' : content}`);
-                }
-              }
-            } catch (error) {
-              console.warn('스트리밍 데이터 파싱 오류:', error);
-            }
-          }
-        }
-      }
-      
-      console.log(`스트리밍 완료 - 총 이벤트: ${eventCount}, 콘텐츠 청크: ${contentChunks}, 응답 길이: ${accumulatedContent.length}자`);
-      
-      // 완료된 응답 반환
-      return {
-        id: responseId,
-        content: accumulatedContent,
-        model: modelConfig.name
-      };
-    } catch (error) {
-      console.error('OpenRouter 스트리밍 오류:', error);
-      throw error;
-    }
-  }
   
   /**
    * Custom API 요청 (Narrans, Llama 등 온프레미스 모델)
@@ -598,9 +353,9 @@ export class LlmService {
         return await this.handleCustomStream(
           modelConfig,
           messages,
+          onUpdate,
           temperature,
-          maxTokens,
-          onUpdate
+          maxTokens
         );
       }
       
@@ -673,7 +428,7 @@ export class LlmService {
       if (modelConfig.name.includes('Llama 4 Maverick')) {
         modelId = 'meta-llama/llama-4-maverick-17b-128e-instruct';
       } else if (modelConfig.name.includes('Llama 4 Scout')) {
-        modelId = 'meta-llama/llama-4-scout-17b-16e-instruct';
+        modelId = 'meta-llama/llama-4-scout-17b-15e-instruct';
       } else if (!modelId) {
         modelId = modelConfig.name.toLowerCase();
       }
@@ -750,9 +505,9 @@ export class LlmService {
   private async handleCustomStream(
     modelConfig: ModelConfig,
     messages: ChatMessage[],
+    onUpdate: (chunk: string) => void,
     temperature?: number, 
-    maxTokens?: number,
-    onUpdate: (chunk: string) => void
+    maxTokens?: number
   ): Promise<LlmResponse> {
     try {
       // 환경 변수 모듈 로드 (API URL 오버라이드를 위해)
@@ -794,7 +549,19 @@ export class LlmService {
       };
       
       // API 키 정보 설정
-      const apiKey = modelConfig.apiKey || this.getApiKey(modelConfig.provider as ModelProvider);
+      let apiKey = modelConfig.apiKey || this.getApiKey(modelConfig.provider as ModelProvider);
+      
+      // 내부망 Llama4 모델인 경우 환경 변수에서 API 키 가져오기 시도
+      if (isLlamaModel && envModule && envModule.LLAMA4_API_KEY) {
+        apiKey = envModule.LLAMA4_API_KEY;
+        console.log('환경 변수에서 Llama4 API 키 로드됨');
+      } else if (isNarransModel && envModule && envModule.INTERNAL_API_KEY) {
+        // 내부망 NARRANS 모델인 경우 환경 변수에서 API 키 가져오기 시도
+        apiKey = envModule.INTERNAL_API_KEY;
+        console.log('환경 변수에서 NARRANS API 키 로드됨');
+      }
+      
+      // ===== 내부망 헤더 설정 - 중요: 절대 수정 금지 (INTERNAL_NETWORK_WARNING.md 참조) =====
       
       // 내부망 모델인 Llama나 NARRANS일 경우 특수 헤더 추가
       if (isLlamaModel || apiUrl.includes('apigw-stg')) {
@@ -802,28 +569,32 @@ export class LlmService {
         
         // 고유 ID 생성
         const requestId = this.generateId();
+        const userId = "user-id"; // 정확한 요구사항대로 설정
         
         Object.assign(headers, {
+          'Content-Type': 'application/json',
           'Send-System-Name': 'swdp',
-          'user-id': 'ape_ext',
-          'user-type': 'ape_ext',
+          'user-id': userId,
+          'user-type': userId, // user-id와 동일한 값 사용
           'Prompt-Msg-Id': requestId,
-          'Completion-msg-Id': requestId,
-          'accept': 'text/event-stream, charset=utf-8'
+          'Completion-Msg-Id': requestId, // 대소문자 수정 (M 대문자)
+          'accept': 'text/event-stream'
         });
         
-        // API 키가 있으면 티켓 헤더에 추가
+        // API 키가 있으면 x-dep-ticket 헤더에 추가 (내부망 Llama4 API 요구사항)
         if (apiKey) {
           headers['x-dep-ticket'] = apiKey;
+          console.log('Llama4 API 요청에 x-dep-ticket 헤더 추가');
         }
       } else if (isNarransModel) {
         // NARRANS 모델 헤더 설정
         console.log('NARRANS 모델 스트리밍 요청을 위한 헤더 추가');
         headers['Accept'] = 'text/event-stream, charset=utf-8';
         
-        // API 키가 있으면 인증 헤더 추가
+        // API 키가 있으면 Authorization 헤더 추가 (내부망 NARRANS API 요구사항)
         if (apiKey) {
           headers['Authorization'] = `Bearer ${apiKey}`;
+          console.log('NARRANS API 요청에 Authorization 헤더 추가');
         }
       } else if (apiKey) {
         // 다른 모델의 경우 일반 인증 헤더 사용
@@ -837,7 +608,7 @@ export class LlmService {
       if (modelConfig.name.includes('Llama 4 Maverick')) {
         modelId = 'meta-llama/llama-4-maverick-17b-128e-instruct';
       } else if (modelConfig.name.includes('Llama 4 Scout')) {
-        modelId = 'meta-llama/llama-4-scout-17b-16e-instruct';
+        modelId = 'meta-llama/llama-4-scout-17b-15e-instruct';
       } else if (!modelId) {
         modelId = modelConfig.name.toLowerCase();
       }
@@ -845,13 +616,13 @@ export class LlmService {
       console.log(`스트리밍 사용 모델 ID: ${modelId}`);
       console.log(`스트리밍 요청 URL: ${apiUrl}`);
       
-      // 추가 요청 파라미터
+      // ===== 요청 파라미터 설정 - 중요: 절대 수정 금지 (INTERNAL_NETWORK_WARNING.md 참조) =====
       const requestBody: any = {
         model: modelId,
         messages,
         temperature: temperature ?? modelConfig.temperature ?? 0,
         max_tokens: maxTokens ?? modelConfig.maxTokens ?? 4096,
-        stream: true
+        stream: true // 스트리밍은 고정값으로 true 사용 - 절대 변경 금지
       };
       
       // 내부망 모델별 특수 처리 (필요시)
@@ -966,37 +737,56 @@ export class LlmService {
 
   /**
    * 로컬 모델 시뮤레이션 (실제 API 호출 없이 데모용)
+   * TypeScript 타입 안전성 향상 및 null/undefined 체크 강화
    */
   private async simulateLocalModel(modelConfig: ModelConfig, messages: ChatMessage[]): Promise<LlmResponse> {
-    // 마지막 메시지 추출
+    // 메시지 배열 검증 강화
+    if (!Array.isArray(messages) || messages.length === 0) {
+      console.warn('simulateLocalModel: 메시지 배열이 비어있거나 유효하지 않음, 기본 메시지 사용');
+      messages = [{
+        role: 'user',
+        content: '안녕하세요'
+      }];
+    }
+    
+    // 마지막 메시지 추출 (안전하게)
     const lastMessage = messages[messages.length - 1];
+    const userMessage = lastMessage?.content || '';
     
     // 간단한 질의응답 패턴 구현
     let responseText = '';
     
-    if (lastMessage.content.match(/안녕|반가워|헬로|하이/i)) {
+    if (userMessage.match(/안녕|반가워|헬로|하이/i)) {
       responseText = '안녕하세요! 무엇을 도와드릴까요?';
     } 
-    else if (lastMessage.content.match(/시간|날짜|오늘|몇 시/i)) {
+    else if (userMessage.match(/시간|날짜|오늘|몇 시/i)) {
       responseText = `현재 시간은 ${new Date().toLocaleString()} 입니다.`;
     }
-    else if (lastMessage.content.match(/코드|프로그램|개발|버그/i)) {
+    else if (userMessage.match(/코드|프로그램|개발|버그/i)) {
       responseText = '코드에 대해 질문이 있으신가요? 어떤 부분에서 도움이 필요하신지 자세히 알려주세요.';
     }
-    else if (lastMessage.content.match(/도움|도와줘|어떻게|사용법/i)) {
+    else if (userMessage.match(/도움|도와줘|어떻게|사용법/i)) {
       responseText = '무엇을 도와드릴까요? 더 구체적인 질문을 해주시면 더 정확한 답변을 드릴 수 있습니다.';
     }
     else {
-      responseText = `"${lastMessage.content}"에 대한 답변을 찾고 있습니다. 로컬 모델 시뮤레이션 모드에서는 제한된 응답만 제공합니다.`;
+      responseText = `"${userMessage}"에 대한 답변을 찾고 있습니다. 로컬 모델 시뮤레이션 모드에서는 제한된 응답만 제공합니다.`;
     }
     
     // 응답 대기 시간 시뮤레이션
     await new Promise(resolve => setTimeout(resolve, 500));
     
+    // 안전한 모델 이름 사용
+    const modelName = this.getSafeModelProperty(modelConfig, 'name', '로컬 시뮤레이션');
+    
     return {
       id: this.generateId(),
       content: responseText,
-      model: modelConfig.name
+      model: modelName,
+      usage: {
+        promptTokens: userMessage.length,
+        completionTokens: responseText.length,
+        totalTokens: userMessage.length + responseText.length
+      }
     };
   }
   
@@ -1018,23 +808,6 @@ export class LlmService {
     
     // 프로바이더별 API 키 처리
     switch(provider) {
-      // OpenRouter 키 (외부망 테스트용)
-      case 'openrouter':
-        try {
-          // 환경 변수에서 키 확인
-          if (envModule && envModule.OPENROUTER_API_KEY && 
-              envModule.OPENROUTER_API_KEY !== 'your_openrouter_api_key_here') {
-            console.log('extension.env.js에서 OpenRouter API 키를 로드했습니다.');
-            return envModule.OPENROUTER_API_KEY;
-          }
-          
-          // VS Code 설정에서 확인
-          const config = vscode.workspace.getConfiguration('ape.llm');
-          return config.get<string>('openrouterApiKey');
-        } catch (e) {
-          console.warn('외부 테스트용 OpenRouter API 키를 가져오는 중 오류 발생:', e);
-        }
-        break;
         
       // 내부 커스텀 API 키 (Narrans, Llama 등)
       case 'custom':
@@ -1075,6 +848,30 @@ export class LlmService {
     error.model = modelName;
     error.provider = provider;
     return error;
+  }
+  
+  /**
+   * 타입 안전한 ModelConfig 생성 유틸리티
+   * 최소한의 필수 속성을 보장
+   */
+  private createSafeModelConfig(config: Partial<ModelConfig>): ModelConfig {
+    return {
+      name: config.name || '알 수 없는 모델',
+      provider: config.provider || 'local',
+      ...config
+    };
+  }
+
+  /**
+   * 안전한 모델 속성 접근 유틸리티
+   * 모델이 undefined이거나 속성이 없는 경우 기본값 반환
+   */
+  private getSafeModelProperty<K extends keyof ModelConfig>(
+    model: ModelConfig | undefined,
+    property: K,
+    defaultValue: ModelConfig[K]
+  ): ModelConfig[K] {
+    return model && model[property] !== undefined ? model[property] : defaultValue;
   }
   
   /**
@@ -1119,14 +916,15 @@ export class LlmService {
       console.log('getAvailableModels 호출됨 - 모델 목록 수집 시작');
       
       // 1. 먼저 설정에서 모델 가져오기
-      const configModels = this.getModelsFromConfig();
-      console.log(`설정에서 ${configModels.length}개의 모델 로드됨`);
+      const configModels = this.getModelConfig();
+      const configModelArray = Array.isArray(configModels) ? configModels : [];
+      console.log(`설정에서 ${configModelArray.length}개의 모델 로드됨`);
       
       // 2. models 맵에 있는 모든 모델 수집
       let allModels = new Map<string, ModelConfig>(this.models);
       
       // 3. 설정에서 가져온 모델 추가
-      for (const model of configModels) {
+      for (const model of configModelArray) {
         if (model.id) {
           allModels.set(model.id, model);
         }
@@ -1254,19 +1052,7 @@ export class LlmService {
     }
     
     // 가장 기본적인 모델들 제공 (최후의 수단)
-    // [TODO-내부망-삭제] 내부망 이관 시 OpenRouter 관련 정의 삭제 필요
-    // 중요: OpenRouter는 외부망 테스트용으로만 사용됩니다. 내부망에서는 내부망 모델로 대체됩니다.
     return [
-      {
-        id: 'gemini-2.5-flash',
-        modelId: 'gemini-2.5-flash',
-        name: 'Google Gemini 2.5 Flash (외부망 테스트용)',
-        provider: 'openrouter',
-        temperature: 0.7,
-        apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-        apiModel: 'google/gemini-2.5-flash-preview',
-        systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-      },
       {
         id: 'narrans',
         modelId: 'narrans',
@@ -1375,26 +1161,29 @@ export class LlmService {
         continue;
       }
       
+      // TypeScript 타입 단언 추가
+      const typedModelData = modelData as any;
+      
       // 필수 속성 검증
-      if (!modelData.name) {
+      if (!typedModelData.name) {
         console.log(`모델 ID ${id}: 필수 속성 'name'이 없음`);
         continue;
       }
       
-      console.log(`모델 추가 중: ${id} (${modelData.name}) - ${modelData.provider || 'local'}`);
+      console.log(`모델 추가 중: ${id} (${typedModelData.name}) - ${typedModelData.provider || 'local'}`);
       
       // ModelConfig 형식으로 변환하여 추가
       const modelConfig: ModelConfig = {
         id: id,
         modelId: id,
-        name: modelData.name,
-        provider: modelData.provider || 'local',
-        apiUrl: modelData.apiUrl,
-        contextWindow: modelData.contextWindow,
-        maxTokens: modelData.maxTokens,
-        temperature: modelData.temperature || 0.7,
-        apiModel: modelData.apiModel,
-        systemPrompt: modelData.systemPrompt || '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+        name: typedModelData.name,
+        provider: typedModelData.provider || 'local',
+        apiUrl: typedModelData.apiUrl,
+        contextWindow: typedModelData.contextWindow,
+        maxTokens: typedModelData.maxTokens,
+        temperature: typedModelData.temperature || 0.7,
+        apiModel: typedModelData.apiModel,
+        systemPrompt: typedModelData.systemPrompt || '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
       };
       
       // 모델 목록에 추가
@@ -1413,9 +1202,18 @@ export class LlmService {
   // 이전 메서드 getAvailableModels() 구현과 중복된 메서드를 제거함
   
   /**
-   * 모델 설정 가져오기
+   * 모델 설정 가져오기 - 오버로딩 구현
+   * 1. 매개변수 없이 호출하면 모든 모델 설정 반환
+   * 2. 모델 ID를 지정하면 해당 모델 설정 반환
    */
-  public getModelConfig(modelId: string): ModelConfig | undefined {
+  public getModelConfig(): ModelConfig[];
+  public getModelConfig(modelId: string): ModelConfig | undefined;
+  public getModelConfig(modelId?: string): ModelConfig[] | ModelConfig | undefined {
+    if (modelId === undefined) {
+      // 모든 모델 설정 반환
+      return Array.from(this.models.values());
+    }
+    // 특정 모델 설정 반환
     return this.models.get(modelId);
   }
 }

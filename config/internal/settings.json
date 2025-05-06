@@ -1,0 +1,50 @@
+{
+  "ape": {
+    "uiMode": "standard",
+    "core": {
+      "sslBypass": false,
+      "logLevel": "info",
+      "allow": {
+        "all": true
+      }
+    },
+    "llm": {
+      "defaultModel": "llama-4-maverick",
+      "supportsStreaming": true,
+      "models": {
+        "narrans": {
+          "name": "NARRANS (Default)",
+          "provider": "custom",
+          "apiUrl": "https://api-se-dev.narrans.samsungds.net/v1/chat/completions",
+          "contextWindow": 10000,
+          "maxTokens": 10000,
+          "temperature": 0,
+          "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+        },
+        "llama-4-maverick": {
+          "name": "Llama 4 Maverick",
+          "provider": "custom",
+          "apiUrl": "http://apigw-stg.samsungds.net:8000/llama4/1/llama/aiserving/llama-4/maverick/v1/chat/completions",
+          "contextWindow": 50000,
+          "maxTokens": 50000,
+          "temperature": 0,
+          "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+        },
+        "llama-4-scout": {
+          "name": "Llama 4 Scout",
+          "provider": "custom",
+          "apiUrl": "http://apigw-stg.samsungds.net:8000/llama4/1/llama/aiserving/llama-4/scout/v1/chat/completions",
+          "contextWindow": 50000,
+          "maxTokens": 50000,
+          "temperature": 0,
+          "systemPrompt": "당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다."
+        }
+      }
+    },
+    "swdp": {
+      "enabled": true,
+      "baseUrl": "http://localhost:8001",
+      "defaultProject": ""
+    }
+  }
+}

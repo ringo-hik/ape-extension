@@ -14,8 +14,7 @@ export interface ChatMessage {
 /**
  * 모델 제공자 타입
  */
-// [TODO-내부망-삭제] 내부망 이관 시 'openrouter'와 관련 전체 코드 삭제 예정, 'custom'과 'local'만 유지
-export type ModelProvider = 'openrouter' | 'custom' | 'local';
+export type ModelProvider = 'custom' | 'local';
 
 // 내부망 서비스를 위한 설정이므로 외부 API 제공자(openai/anthropic/azure 등)은 제거됨
 

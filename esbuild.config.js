@@ -1,6 +1,7 @@
 const esbuild = require('esbuild');
 const { nodeExternalsPlugin } = require('esbuild-node-externals');
-const eslintPlugin = require('esbuild-plugin-eslint');
+// ESLint 플러그인은 현재 사용하지 않음
+// const eslintPlugin = require('esbuild-plugin-eslint');
 const { copy } = require('esbuild-plugin-copy');
 const path = require('path');
 const fs = require('fs');
