@@ -48,24 +48,24 @@
     },
     {
       "type": "shell",
-      "command": "cp -f extension.env.internal.js extension.env.js && npm run build",
+      "command": "cp -f extension.env.internal.js extension.env.js && mkdir -p dist && cp -f extension.env.js dist/extension.env.js && npm run build",
       "group": "build",
       "problemMatcher": "$tsc",
       "label": "build-debug-internal",
       "detail": "내부망 환경으로 디버그용 빌드 (Linux/macOS)",
       "windows": {
-        "command": "copy /Y extension.env.internal.js extension.env.js && npm run build"
+        "command": "copy /Y extension.env.internal.js extension.env.js && if not exist dist mkdir dist && copy /Y extension.env.js dist\\extension.env.js && npm run build"
       }
     },
     {
       "type": "shell",
-      "command": "cp -f extension.env.external.js extension.env.js && npm run build",
+      "command": "cp -f extension.env.external.js extension.env.js && mkdir -p dist && cp -f extension.env.js dist/extension.env.js && npm run build",
       "group": "build",
       "problemMatcher": "$tsc",
       "label": "build-debug-external",
       "detail": "외부망 환경으로 디버그용 빌드 (Linux/macOS)",
       "windows": {
-        "command": "copy /Y extension.env.external.js extension.env.js && npm run build"
+        "command": "copy /Y extension.env.external.js extension.env.js && if not exist dist mkdir dist && copy /Y extension.env.js dist\\extension.env.js && npm run build"
       }
     }
   ]
