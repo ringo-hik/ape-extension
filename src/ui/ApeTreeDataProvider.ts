@@ -94,8 +94,14 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
     this.context = context;
     this.coreService = ApeCoreService.getInstance();
     
-    // 트리 데이터 초기화
-    this.initializeTreeData();
+    // 트리 데이터 초기화 (비동기 처리)
+    // 코어 서비스가 초기화될 때까지 기다리지 않음
+    // refresh() 메서드를 통해 UI 업데이트 가능
+    setTimeout(() => {
+      console.log('ApeTreeDataProvider: 초기 트리 데이터 초기화 시작');
+      this.initializeTreeData();
+      console.log('ApeTreeDataProvider: 초기 트리 데이터 초기화 완료');
+    }, 1000);
   }
   
   /**
@@ -239,8 +245,22 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 명령어 도메인 트리 아이템 배열
    */
   private getCommandDomainItems(): ApeTreeItem[] {
-    const commandRegistry = this.coreService.commandRegistry;
+    // commandRegistry가 undefined일 수 있으므로 안전하게 처리
+    const commandRegistry = this.coreService?.commandRegistry;
     const domains: ApeTreeItem[] = [];
+    
+    if (!commandRegistry) {
+      console.log('ApeTreeDataProvider: commandRegistry가 초기화되지 않았습니다. 기본 명령어 도메인 반환');
+      return [{
+        id: 'commands-not-ready',
+        label: '명령어 로딩 중...',
+        type: TreeNodeType.COMMAND_DOMAIN,
+        iconPath: new vscode.ThemeIcon('loading~spin'),
+        contextValue: 'commandLoading',
+        description: '명령어 시스템 초기화 중',
+        children: []
+      }];
+    }
     
     // 시스템 명령어 (/로 시작하는 명령어)
     const systemCommandItem: ApeTreeItem = {
@@ -253,21 +273,33 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
       children: []
     };
     
-    // 시스템 명령어 로드
-    const systemCommands = commandRegistry?.getAllSystemCommandUsages() || [];
-    systemCommandItem.children = systemCommands.map(cmd => ({
-      id: `command-${cmd.command}`,
-      label: cmd.command,
-      type: TreeNodeType.COMMAND,
-      description: cmd.description,
-      iconPath: new vscode.ThemeIcon('terminal'),
-      contextValue: 'command',
-      metadata: {
-        syntax: cmd.syntax,
-        examples: cmd.examples,
-        agentId: cmd.agentId
-      }
-    }));
+    try {
+      // 시스템 명령어 로드
+      const systemCommands = commandRegistry.getAllSystemCommandUsages() || [];
+      systemCommandItem.children = systemCommands.map(cmd => ({
+        id: `command-${cmd.command}`,
+        label: cmd.command,
+        type: TreeNodeType.COMMAND,
+        description: cmd.description,
+        iconPath: new vscode.ThemeIcon('terminal'),
+        contextValue: 'command',
+        metadata: {
+          syntax: cmd.syntax,
+          examples: cmd.examples,
+          agentId: cmd.agentId
+        }
+      }));
+    } catch (error) {
+      console.error('ApeTreeDataProvider: 시스템 명령어 로드 중 오류 발생:', error);
+      systemCommandItem.children = [{
+        id: 'commands-system-error',
+        label: '명령어 로드 오류',
+        type: TreeNodeType.COMMAND,
+        description: '명령어를 로드하는 중 오류가 발생했습니다',
+        iconPath: new vscode.ThemeIcon('error'),
+        contextValue: 'commandError'
+      }];
+    }
     
     domains.push(systemCommandItem);
     
@@ -358,23 +390,49 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 해당 도메인의 명령어 트리 아이템 배열
    */
   private getCommandsForDomain(domain: CommandDomain): ApeTreeItem[] {
-    const commandRegistry = this.coreService.commandRegistry;
-    const domainCommands = commandRegistry?.getDomainCommands(domain) || [];
-    
-    return domainCommands.map(cmd => ({
-      id: `command-${domain}-${cmd.command}`,
-      label: cmd.command,
-      type: TreeNodeType.COMMAND,
-      description: cmd.description,
-      iconPath: new vscode.ThemeIcon('terminal'),
-      contextValue: 'command',
-      metadata: {
-        syntax: cmd.syntax,
-        examples: cmd.examples,
-        domain: domain,
-        agentId: cmd.agentId
+    try {
+      const commandRegistry = this.coreService?.commandRegistry;
+      
+      // commandRegistry가 undefined인 경우 처리
+      if (!commandRegistry) {
+        console.log(`ApeTreeDataProvider: ${domain} 도메인 명령어 로드 실패 - commandRegistry가 초기화되지 않음`);
+        return [{
+          id: `command-${domain}-loading`,
+          label: '로딩 중...',
+          type: TreeNodeType.COMMAND,
+          description: '명령어 로드 중',
+          iconPath: new vscode.ThemeIcon('loading~spin'),
+          contextValue: 'commandLoading'
+        }];
       }
-    }));
+      
+      const domainCommands = commandRegistry.getDomainCommands(domain) || [];
+      
+      return domainCommands.map(cmd => ({
+        id: `command-${domain}-${cmd.command}`,
+        label: cmd.command,
+        type: TreeNodeType.COMMAND,
+        description: cmd.description,
+        iconPath: new vscode.ThemeIcon('terminal'),
+        contextValue: 'command',
+        metadata: {
+          syntax: cmd.syntax,
+          examples: cmd.examples,
+          domain: domain,
+          agentId: cmd.agentId
+        }
+      }));
+    } catch (error) {
+      console.error(`ApeTreeDataProvider: ${domain} 도메인 명령어 로드 중 오류 발생:`, error);
+      return [{
+        id: `command-${domain}-error`,
+        label: '명령어 로드 오류',
+        type: TreeNodeType.COMMAND,
+        description: '명령어를 로드하는 중 오류가 발생했습니다',
+        iconPath: new vscode.ThemeIcon('error'),
+        contextValue: 'commandError'
+      }];
+    }
   }
   
   /**
@@ -549,8 +607,15 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * TreeView를 새로고침합니다.
    */
   public refresh(): void {
-    this.initializeTreeData();
-    this._onDidChangeTreeData.fire(undefined);
+    console.log('ApeTreeDataProvider: 트리뷰 새로고침 시작');
+    try {
+      this.initializeTreeData();
+      console.log('ApeTreeDataProvider: 트리 데이터 초기화 완료');
+      this._onDidChangeTreeData.fire(undefined);
+      console.log('ApeTreeDataProvider: TreeView 업데이트 이벤트 발생 완료');
+    } catch (error) {
+      console.error('ApeTreeDataProvider: 새로고침 중 오류 발생:', error);
+    }
   }
   
   /**
@@ -660,19 +725,19 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
         
         // 프로젝트 트리 아이템 생성
         return projects.map(project => ({
-          id: `swdp-project-${project.id}`,
+          id: `swdp-project-${project.code}`,
           label: project.name,
           type: TreeNodeType.SWDP_PROJECT,
           iconPath: new vscode.ThemeIcon('project'),
           contextValue: 'swdpProject',
           description: project.description,
           metadata: {
-            projectId: project.id,
-            projectKey: project.key
+            projectId: project.code,
+            projectKey: project.code // code 사용
           },
           children: [
             {
-              id: `swdp-tasks-${project.id}`,
+              id: `swdp-tasks-${project.code}`,
               label: '작업',
               type: TreeNodeType.SWDP_ROOT,
               iconPath: new vscode.ThemeIcon('tasklist'),
@@ -680,7 +745,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
               description: '프로젝트 작업'
             },
             {
-              id: `swdp-documents-${project.id}`,
+              id: `swdp-documents-${project.code}`,
               label: '문서',
               type: TreeNodeType.SWDP_ROOT,
               iconPath: new vscode.ThemeIcon('file-text'),
@@ -688,7 +753,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
               description: '프로젝트 문서'
             },
             {
-              id: `swdp-builds-${project.id}`,
+              id: `swdp-builds-${project.code}`,
               label: '빌드',
               type: TreeNodeType.SWDP_ROOT,
               iconPath: new vscode.ThemeIcon('package'),

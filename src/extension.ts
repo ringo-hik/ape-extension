@@ -8,7 +8,6 @@ import * as path from 'path';
 import { ApeCoreService } from './core/ApeCoreService';
 import { ChatService } from './services/ChatService';
 import { ApeChatViewProvider } from './ui/ApeChatViewProvider';
-import { ApeHybridChatViewProvider } from './ui/ApeHybridChatViewProvider';
 import { ApeTreeDataProvider, ApeTreeItem } from './ui/ApeTreeDataProvider';
 import { ApeFileExplorerProvider, FileItemType, FileItem } from './ui/ApeFileExplorerProvider';
 import { ApeSettingsViewProvider } from './ui/ApeSettingsViewProvider';
@@ -30,16 +29,9 @@ export function activate(context: vscode.ExtensionContext) {
   // 채팅 서비스 인스턴스 생성
   const chatService = new ChatService(context);
   
-  // 기존 채팅 웹뷰 제공자 등록
+  // 채팅 웹뷰 제공자 등록 (통합된 단일 인터페이스)
   const chatProvider = new ApeChatViewProvider(context.extensionUri, chatService);
-  
-  // 하이브리드 채팅 웹뷰 제공자 등록
-  const hybridChatProvider = new ApeHybridChatViewProvider(
-    context.extensionUri, 
-    chatService,
-    apeCore.commandRegistry,
-    apeCore.pluginRegistry
-  );
+  chatProvider.setCoreService(apeCore); // 코어 서비스 참조 설정
   
   // TreeView 데이터 제공자 등록
   const treeDataProvider = new ApeTreeDataProvider(context);
@@ -54,11 +46,9 @@ export function activate(context: vscode.ExtensionContext) {
     apeCore.vscodeService
   );
   
-  // TODO: VS Code Debug Console 로그를 확인하여 TreeView 관련 오류를 확인하고 해결
-  // TODO: 특히 commandRegistry.getAllSystemCommandUsages 관련 문제, 파일 탐색기 로딩 등 체크
-  // TODO: TreeView 반응성과 성능 향상을 위한 최적화 진행
-  
   // TreeView 제공자를 등록
+  // 코어 서비스가 초기화되고 commandRegistry가 준비될 때까지 지연
+  // apeCore.initialize() 완료 후 treeView 새로고침
   const treeView = vscode.window.createTreeView('ape.treeView', {
     treeDataProvider: treeDataProvider,
     showCollapseAll: true
@@ -80,13 +70,6 @@ export function activate(context: vscode.ExtensionContext) {
         webviewOptions: { retainContextWhenHidden: true }
       }
     ),
-    vscode.window.registerWebviewViewProvider(
-      'ape.hybridChatView', 
-      hybridChatProvider,
-      {
-        webviewOptions: { retainContextWhenHidden: true }
-      }
-    ),
     treeView,
     fileExplorerView
   );
@@ -101,8 +84,65 @@ export function activate(context: vscode.ExtensionContext) {
   
   context.subscriptions.push(statusBarItem);
   
-  // 명령어 등록
+  // APE 모드 토글 명령 - 도구 활용 모드 버튼과 동일하게 작동
   context.subscriptions.push(
+    vscode.commands.registerCommand('ape.toggleUIMode', async () => {
+      console.log('ape.toggleUIMode 명령 실행');
+      
+      // 현재 활성화된 UI 모드 확인
+      const config = vscode.workspace.getConfiguration('ape');
+      const currentMode = config.get<string>('uiMode', 'standard');
+      
+      // 모드 전환
+      const newMode = currentMode === 'standard' ? 'hybrid' : 'standard';
+      
+      // 설정 업데이트
+      await config.update('uiMode', newMode, vscode.ConfigurationTarget.Global);
+      
+      // 동일한 채팅뷰에 새로운 모드 적용 명령 전송
+      if (chatProvider && chatProvider._view) {
+        chatProvider._view.webview.postMessage({
+          command: 'changeUiMode',
+          mode: newMode
+        });
+        
+        // 도구 활용 모드 토글 메시지도 함께 전송 - 버튼 상태와 동기화
+        chatProvider._view.webview.postMessage({
+          command: 'toggleApeMode',
+          enabled: newMode === 'hybrid'
+        });
+      }
+      
+      // 알림 메시지 표시
+      vscode.window.showInformationMessage(`도구 활용 모드가 ${newMode === 'standard' ? '비활성화' : '활성화'}되었습니다.`);
+    }),
+    
+    // APE 모드로 채팅 열기 명령
+    vscode.commands.registerCommand('ape.openHybridChat', async () => {
+      console.log('ape.openHybridChat 명령 실행 (APE 모드로 채팅 열기)');
+      
+      // 현재 모드를 hybrid로 설정
+      const config = vscode.workspace.getConfiguration('ape');
+      await config.update('uiMode', 'hybrid', vscode.ConfigurationTarget.Global);
+      
+      // 채팅 사이드바 열기
+      await vscode.commands.executeCommand('workbench.view.extension.ape-sidebar')
+        .then(() => vscode.commands.executeCommand('ape.chatView.focus'))
+        .then(() => {
+          console.log('APE 모드 채팅 열기 성공');
+          
+          // 이미 열려있는 채팅뷰에 모드 변경 메시지 전송
+          if (chatProvider && chatProvider._view) {
+            chatProvider._view.webview.postMessage({
+              command: 'changeUiMode',
+              mode: 'hybrid'
+            });
+          }
+        })
+        .catch(err => console.error('APE 모드 채팅 열기 실패:', err));
+    }),
+    
+    // 설정 열기 명령
     vscode.commands.registerCommand('ape.openSettings', () => {
       console.log('ape.openSettings 명령 실행');
       // 설정 패널 생성
@@ -352,40 +392,8 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    // UI 모드 전환 명령 (표준 <-> 하이브리드)
-    vscode.commands.registerCommand('ape.toggleUIMode', async () => {
-      console.log('ape.toggleUIMode 명령 실행');
-      
-      // 현재 활성화된 UI 모드 확인
-      const config = vscode.workspace.getConfiguration('ape');
-      const currentMode = config.get<string>('uiMode', 'standard');
-      
-      // 모드 전환
-      const newMode = currentMode === 'standard' ? 'hybrid' : 'standard';
-      
-      // 설정 업데이트
-      await config.update('uiMode', newMode, vscode.ConfigurationTarget.Global);
-      
-      // 현재 열려있는 뷰 닫기
-      const currentViewId = currentMode === 'standard' ? 'ape.chatView' : 'ape.hybridChatView';
-      await vscode.commands.executeCommand(`${currentViewId}.close`);
-      
-      // 새로운 뷰 열기
-      const newViewId = newMode === 'standard' ? 'ape.chatView' : 'ape.hybridChatView';
-      await vscode.commands.executeCommand(`${newViewId}.focus`);
-      
-      // 알림 메시지 표시
-      vscode.window.showInformationMessage(`APE UI 모드가 ${newMode === 'standard' ? '표준' : '하이브리드'} 모드로 변경되었습니다.`);
-    }),
+    // 중복 명령어 제거함 (ape.openHybridChat은 위에서 이미 등록되었음)
     
-    // 하이브리드 UI 전용 명령
-    vscode.commands.registerCommand('ape.openHybridChat', () => {
-      console.log('ape.openHybridChat 명령 실행');
-      vscode.commands.executeCommand('workbench.view.extension.ape-sidebar')
-        .then(() => vscode.commands.executeCommand('ape.hybridChatView.focus'))
-        .then(() => console.log('하이브리드 채팅 열기 명령 성공'))
-        .catch(err => console.error('하이브리드 채팅 열기 명령 실패:', err));
-    }),
     
     // SWDP 연결 테스트 명령
     vscode.commands.registerCommand('ape.testSwdpConnection', async () => {
@@ -490,6 +498,15 @@ export function activate(context: vscode.ExtensionContext) {
   apeCore.initialize().then(async (success) => {
     if (success) {
       console.log('APE 코어 서비스가 성공적으로 초기화되었습니다.');
+      
+      // 코어 서비스 초기화 후 TreeView 데이터 제공자 새로고침
+      try {
+        console.log('TreeView 새로고침 시작');
+        treeDataProvider.refresh();
+        console.log('TreeView 새로고침 완료');
+      } catch (treeError) {
+        console.error('TreeView 새로고침 중 오류 발생:', treeError);
+      }
       
       // SWDP 관련 서비스 초기화
       try {

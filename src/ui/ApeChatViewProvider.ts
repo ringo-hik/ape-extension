@@ -15,10 +15,22 @@ import { ApeCoreService } from '../core/ApeCoreService';
 export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
 
+  private _coreService?: ApeCoreService;
+
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _chatService: ChatService
   ) {}
+  
+  /**
+   * ApeCoreService 참조 설정
+   * 필수 서비스 접근을 위한 메서드
+   * @param coreService ApeCoreService 인스턴스
+   */
+  public setCoreService(coreService: ApeCoreService): void {
+    this._coreService = coreService;
+    console.log('ApeChatViewProvider에 CoreService 참조가 설정되었습니다.');
+  }
 
   public resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -68,6 +80,13 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           this._changeModel(message.model);
           return;
           
+        case 'getModelList':
+          // 모델 목록 요청 처리
+          console.log('웹뷰에서 모델 목록 요청 받음');
+          this._sendModelList();
+          this._sendCurrentModel();
+          return;
+          
         case 'toggleEmbedDevMode':
           // 심층 분석 모드 토글 처리
           console.log(`심층 분석 모드: ${message.enabled ? '활성화' : '비활성화'}`);
@@ -77,6 +96,31 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             message.enabled, 
             vscode.ConfigurationTarget.Global
           );
+          return;
+          
+        case 'toggleApeMode':
+          // 도구 활용 모드 토글 처리
+          console.log(`도구 활용 모드: ${message.enabled ? '활성화' : '비활성화'}`);
+          
+          // 1. 설정에 상태 저장
+          vscode.workspace.getConfiguration('ape.ui').update(
+            'apeMode', 
+            message.enabled, 
+            vscode.ConfigurationTarget.Global
+          );
+          
+          // 2. UI 모드 설정 변경 (standard/hybrid)
+          const newMode = message.enabled ? 'hybrid' : 'standard';
+          vscode.workspace.getConfiguration('ape').update(
+            'uiMode', 
+            newMode, 
+            vscode.ConfigurationTarget.Global
+          );
+          
+          // 알림 메시지 표시
+          vscode.window.showInformationMessage(`도구 활용 모드가 ${message.enabled ? '활성화' : '비활성화'}되었습니다.`);
+          
+          console.log('도구 활용 모드 설정 변경 완료');
           return;
           
         case 'getCommands':
@@ -110,6 +154,18 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           // TreeView와 연동된 작업 처리
           this._handleTreeViewAction(message);
           return;
+          
+        case 'changeUiMode':
+          // UI 모드 변경 메시지 (확장 모듈 -> 웹뷰)
+          console.log(`UI 모드 변경 요청 수신: ${message.mode}`);
+          // 웹뷰에 UI 모드 변경 메시지 전달
+          if (this._view && this._view.visible) {
+            this._view.webview.postMessage({
+              command: 'setApeMode',
+              enabled: message.mode === 'hybrid'
+            });
+          }
+          return;
       }
     });
     
@@ -127,13 +183,32 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     setTimeout(() => {
       this._sendResponse(this._chatService.getWelcomeMessage(), 'assistant');
     }, 1000);
+    
+    // UI 모드 초기화
+    setTimeout(() => {
+      // 현재 설정된 UI 모드 확인
+      const config = vscode.workspace.getConfiguration('ape');
+      const currentMode = config.get<string>('uiMode', 'standard');
+      
+      // APE 모드 설정 여부 확인
+      if (this._view && this._view.visible) {
+        this._view.webview.postMessage({
+          command: 'setApeMode',
+          enabled: currentMode === 'hybrid'
+        });
+        console.log(`초기 UI 모드 설정됨: ${currentMode}`);
+      }
+    }, 1200);
   }
 
   /**
    * 사용자 메시지 처리
    */
   private async _handleUserMessage(message: any) {
+    console.log('사용자 메시지 처리 시작:', message);
+    
     if (!this._view) {
+      console.error('채팅 뷰가 없습니다. 메시지를 처리할 수 없습니다.');
       return;
     }
 
@@ -141,6 +216,12 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     const selectedModel = message.model; // 선택된 모델 ID
     const embedDevMode = message.embedDevMode; // 심층 분석 모드 여부
     const useStreaming = true; // 스트리밍 사용 여부 (추후 설정으로 변경 가능)
+    
+    console.log(`메시지 처리 세부정보:
+    - 텍스트: ${text}
+    - 선택 모델: ${selectedModel || '기본값'}
+    - 심층 분석 모드: ${embedDevMode ? '활성화' : '비활성화'}
+    - 스트리밍: ${useStreaming ? '사용' : '미사용'}`)
 
     try {
       // 로딩 상태 표시
@@ -326,20 +407,82 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 모델 목록 전송
    */
   private _sendModelList() {
-    if (this._view) {
-      const coreService = ApeCoreService.getInstance();
+    if (!this._view) return;
+
+    try {
+      console.log('모델 목록 전송 시작');
+      
+      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
+      const coreService = this._coreService || ApeCoreService.getInstance();
       const llmService = coreService.llmService;
       
-      // models Map에서 key-value 쌍으로 변환하여 id 속성 추가
-      const modelsArray = Array.from(llmService.getAvailableModels());
-      const models = modelsArray.map((model) => ({
-        id: model.name.toLowerCase().replace(/\s+/g, '-'),
-        name: model.name
-      }));
+      // 모델 목록 가져오기
+      const modelsArray = llmService.getAvailableModels();
+      console.log(`가져온 모델 수: ${modelsArray.length}`);
       
+      if (modelsArray.length === 0) {
+        console.warn('LlmService에서 가져온 모델 목록이 비어 있습니다. 비상 대책 필요');
+      }
+      
+      // 모델 정보 매핑 (웹뷰에 전송할 형식으로 변환)
+      const models = modelsArray.map((model, index) => {
+        // ID 유효성 확인 및 처리
+        let modelId = '';
+        if (model.id) {
+          modelId = model.id;
+        } else if (model.modelId) {
+          modelId = model.modelId;
+        } else if (model.apiModel) {
+          modelId = model.apiModel.replace(/[\/:.]/g, '-');
+        } else {
+          // 이름 + 인덱스로 고유 ID 생성
+          modelId = `${model.provider || 'model'}-${model.name.toLowerCase().replace(/\s+/g, '-')}-${index}`;
+        }
+        
+        // 모델 정보 웹뷰 형식으로 변환
+        return {
+          id: modelId,
+          name: model.name,
+          provider: model.provider || 'unknown'
+        };
+      });
+      
+      // 빈 모델 리스트 방지 (백업 모델 추가)
+      if (models.length === 0) {
+        console.warn('모델 목록이 비어있습니다. 백업 모델을 추가합니다.');
+        models.push(
+          { id: 'gemini-2.5-flash', name: 'Google Gemini 2.5 Flash', provider: 'openrouter' },
+          { id: 'narrans', name: 'NARRANS (Default)', provider: 'custom' },
+          { id: 'local-emergency', name: '오프라인 응급 모드', provider: 'local' }
+        );
+      }
+      
+      // 상세 모델 정보 로깅
+      models.forEach((model, index) => {
+        console.log(`모델 ${index + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
+      });
+      
+      // 웹뷰에 모델 목록 전송
+      console.log(`웹뷰로 전송할 모델 수: ${models.length}`);
       this._view.webview.postMessage({
         command: 'updateModels',
         models: models
+      });
+      
+      console.log('모델 목록 전송 완료');
+    } catch (error) {
+      console.error('모델 목록 전송 중 오류 발생:', error);
+      
+      // 오류 발생 시 백업 모델 목록 전송
+      const fallbackModels = [
+        { id: 'gemini-2.5-flash', name: 'Google Gemini 2.5 Flash', provider: 'openrouter' },
+        { id: 'narrans', name: 'NARRANS', provider: 'custom' },
+        { id: 'local-emergency', name: '오프라인 응급 모드', provider: 'local' }
+      ];
+      
+      this._view.webview.postMessage({
+        command: 'updateModels',
+        models: fallbackModels
       });
     }
   }
@@ -348,14 +491,35 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 현재 모델 전송
    */
   private _sendCurrentModel() {
-    if (this._view) {
-      const coreService = ApeCoreService.getInstance();
+    if (!this._view) return;
+
+    try {
+      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
+      const coreService = this._coreService || ApeCoreService.getInstance();
       const llmService = coreService.llmService;
       const defaultModelId = llmService.getDefaultModelId();
       
+      if (!defaultModelId) {
+        console.warn('기본 모델 ID를 가져올 수 없습니다. 대체 모델을 사용합니다.');
+        this._view.webview.postMessage({
+          command: 'setCurrentModel',
+          modelId: 'gemini-2.5-flash' // 폴백 모델
+        });
+        return;
+      }
+      
+      console.log(`현재 기본 모델: ${defaultModelId}`);
       this._view.webview.postMessage({
         command: 'setCurrentModel',
         modelId: defaultModelId
+      });
+    } catch (error) {
+      console.error('현재 모델 전송 중 오류 발생:', error);
+      
+      // 오류 발생 시 기본 모델 전송
+      this._view.webview.postMessage({
+        command: 'setCurrentModel',
+        modelId: 'gemini-2.5-flash' // 폴백 모델
       });
     }
   }
@@ -369,7 +533,8 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     }
     
     try {
-      const coreService = ApeCoreService.getInstance();
+      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
+      const coreService = this._coreService || ApeCoreService.getInstance();
       const commandRegistry = coreService.commandRegistry;
       
       // 모든 명령어 사용법 가져오기
@@ -427,8 +592,8 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private async _getDynamicData(): Promise<any> {
     try {
-      // APE 코어 서비스 접근
-      const coreService = ApeCoreService.getInstance();
+      // APE 코어 서비스 접근 (저장된 참조 사용 또는 싱글톤 인스턴스 가져오기)
+      const coreService = this._coreService || ApeCoreService.getInstance();
       const pluginRegistry = coreService.pluginRegistry;
       const commandService = coreService.commandService;
       
@@ -727,16 +892,40 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
           // 결과 형식에 따른 처리
           let isError = false;
-          if (typeof result === 'object') {
-            if (result.content) {
-              const responseType = result.error ? 'system' : 'assistant';
-              isError = !!result.error;
-              this._sendResponse(result.content, responseType);
-            } else {
+          
+          // 타입 가드: CommandResult 타입 체크
+          const isCommandResult = (obj: any): obj is CommandResult => {
+            return obj && typeof obj === 'object' && 'success' in obj;
+          };
+          
+          if (typeof result === 'object' && result !== null) {
+            // CommandResult 형식인 경우
+            if (isCommandResult(result)) {
+              // content 속성이 있는 경우 (CommandResult에 message로 정의됨)
+              if (result.message) {
+                const responseType = result.error ? 'system' : 'assistant';
+                isError = !!result.error;
+                this._sendResponse(result.message, responseType);
+              } else {
+                this._sendResponse(JSON.stringify(result, null, 2), 'assistant');
+              }
+            } 
+            // 다른 객체 형식인 경우
+            else if ('content' in result) {
+              const content = result.content as string;
+              const hasError = 'error' in result && !!result.error;
+              const responseType = hasError ? 'system' : 'assistant';
+              isError = hasError;
+              this._sendResponse(content, responseType);
+            } 
+            // 구조를 알 수 없는 객체
+            else {
               this._sendResponse(JSON.stringify(result, null, 2), 'assistant');
             }
-          } else {
-            this._sendResponse(result, 'assistant');
+          } 
+          // 문자열 또는 기타 기본 타입
+          else {
+            this._sendResponse(String(result), 'assistant');
           }
           
           // 명령어 실행 결과 알림 (명령어 패널 피드백용)
@@ -772,16 +961,84 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private _changeModel(modelId: string) {
     if (!modelId) {
+      console.warn('유효하지 않은 모델 ID로 _changeModel 호출됨');
       return;
     }
     
     try {
-      const config = vscode.workspace.getConfiguration('ape.llm');
-      config.update('defaultModel', modelId, vscode.ConfigurationTarget.Global);
+      console.log(`모델 변경 요청: ${modelId}`);
       
-      console.log(`모델이 ${modelId}로 변경되었습니다.`);
+      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
+      const coreService = this._coreService || ApeCoreService.getInstance();
+      const llmService = coreService.llmService;
+      
+      // 기존 모델과 같은지 확인
+      const currentDefaultId = llmService.getDefaultModelId();
+      if (currentDefaultId === modelId) {
+        console.log(`현재 모델과 동일한 모델(${modelId})로 변경 요청, 무시함`);
+        return;
+      }
+      
+      // 모델이 유효한지 확인
+      const models = llmService.getAvailableModels();
+      const validModel = models.find(model => 
+        model.id === modelId || 
+        model.modelId === modelId || 
+        (model.apiModel && model.apiModel.replace(/[\/:.]/g, '-') === modelId)
+      );
+      
+      if (!validModel) {
+        console.warn(`요청된 모델 ID '${modelId}'가 유효한 모델 목록에 없습니다.`);
+        console.log('유효한 모델 목록:');
+        models.forEach(model => {
+          console.log(`- ${model.id || model.modelId}: ${model.name}`);
+        });
+      }
+      
+      // VS Code 설정에 모델 ID 저장
+      const config = vscode.workspace.getConfiguration('ape.llm');
+      config.update('defaultModel', modelId, vscode.ConfigurationTarget.Global)
+        .then(() => {
+          console.log(`모델이 ${modelId}로 변경되었습니다.`);
+          
+          // UI에 변경 알림 (필요한 경우)
+          if (this._view && this._view.visible) {
+            this._view.webview.postMessage({
+              command: 'modelChanged',
+              modelId: modelId,
+              success: true
+            });
+            
+            // 시스템 메시지로 변경 알림
+            const modelName = validModel ? validModel.name : modelId;
+            this._sendResponse(`모델이 '${modelName}'(으)로 변경되었습니다.`, 'system');
+          }
+        })
+        .catch(err => {
+          console.error('설정 업데이트 중 오류 발생:', err);
+          
+          // UI에 오류 알림
+          if (this._view && this._view.visible) {
+            this._view.webview.postMessage({
+              command: 'modelChanged',
+              modelId: modelId,
+              success: false,
+              error: err.message
+            });
+          }
+        });
     } catch (error) {
       console.error('모델 변경 중 오류 발생:', error);
+      
+      // UI에 오류 알림
+      if (this._view && this._view.visible) {
+        this._view.webview.postMessage({
+          command: 'modelChanged',
+          modelId: modelId,
+          success: false,
+          error: error instanceof Error ? error.message : '알 수 없는 오류'
+        });
+      }
     }
   }
 
@@ -826,6 +1083,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     const codeBlocksCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'code-blocks.css'));
     const commandAutocompleteCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'command-autocomplete.css'));
     const contextSuggestionsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'context-suggestions.css'));
+    const modelDropdownCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'model-dropdown.css'));
     const apeIconsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'icons', 'ape-icons.css'));
     const phosphorIconsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'phosphor-icons.css'));
     const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'codicons', 'codicon.css'));
@@ -841,6 +1099,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     const improvedContextHandlerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'improved-context-handler.js'));
     const workflowAnalyzerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'workflow-analyzer.js'));
     const hybridApeUiJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'hybrid-ape-ui.js'));
+    const apeUiEventFixJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'ape-ui-event-fix.js'));
     
     // HTML 리소스
     const commandsHtmlUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'html', 'command-buttons.html'));
@@ -864,6 +1123,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       htmlContent = htmlContent.replace(/\$\{codeBlocksCssUri\}/g, codeBlocksCssUri.toString());
       htmlContent = htmlContent.replace(/\$\{commandAutocompleteCssUri\}/g, commandAutocompleteCssUri.toString());
       htmlContent = htmlContent.replace(/\$\{contextSuggestionsCssUri\}/g, contextSuggestionsCssUri.toString());
+      htmlContent = htmlContent.replace(/\$\{modelDropdownCssUri\}/g, modelDropdownCssUri.toString());
       htmlContent = htmlContent.replace(/\$\{apeIconsCssUri\}/g, apeIconsCssUri.toString());
       htmlContent = htmlContent.replace(/\$\{codiconsUri\}/g, codiconsUri.toString());
       htmlContent = htmlContent.replace(/\$\{modelSelectorUri\}/g, modelSelectorUri.toString());
@@ -876,6 +1136,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       htmlContent = htmlContent.replace(/\$\{improvedContextHandlerJsUri\}/g, improvedContextHandlerJsUri.toString());
       htmlContent = htmlContent.replace(/\$\{workflowAnalyzerJsUri\}/g, workflowAnalyzerJsUri.toString());
       htmlContent = htmlContent.replace(/\$\{hybridApeUiJsUri\}/g, hybridApeUiJsUri.toString());
+      htmlContent = htmlContent.replace(/\$\{apeUiEventFixJsUri\}/g, apeUiEventFixJsUri.toString());
       
       console.log('HTML 파일 로드 성공:', htmlPath.fsPath);
       console.log('기본 리소스 경로:', webviewResourceBaseUri.toString());

@@ -20,7 +20,6 @@
   "activationEvents": [
     "onStartupFinished",
     "onView:ape.chatView",
-    "onView:ape.hybridChatView",
     "onView:ape.treeView",
     "onView:ape.fileExplorerView",
     "onView:ape.settingsView",
@@ -142,14 +141,7 @@
         {
           "id": "ape.chatView",
           "name": "APE 채팅",
-          "type": "webview",
-          "when": "config.ape.uiMode == 'standard' || config.ape.uiMode == undefined"
-        },
-        {
-          "id": "ape.hybridChatView",
-          "name": "APE 하이브리드 채팅",
-          "type": "webview",
-          "when": "config.ape.uiMode == 'hybrid'"
+          "type": "webview"
         }
       ]
     },
@@ -181,16 +173,6 @@
         {
           "command": "ape.createFolder",
           "when": "view == ape.fileExplorerView",
-          "group": "navigation"
-        },
-        {
-          "command": "ape.toggleUIMode",
-          "when": "view == ape.chatView",
-          "group": "navigation"
-        },
-        {
-          "command": "ape.toggleUIMode",
-          "when": "view == ape.hybridChatView",
           "group": "navigation"
         }
       ],
@@ -265,21 +247,9 @@
           "default": true,
           "description": "스트리밍 응답 지원 여부"
         },
-        "ape.llm.openaiApiKey": {
-          "type": "string",
-          "description": "OpenAI API 키"
-        },
-        "ape.llm.anthropicApiKey": {
-          "type": "string",
-          "description": "Anthropic API 키"
-        },
-        "ape.llm.azureApiKey": {
-          "type": "string",
-          "description": "Azure OpenAI API 키"
-        },
         "ape.llm.openrouterApiKey": {
           "type": "string",
-          "description": "OpenRouter API 키 (환경 변수 APE_OPENROUTER_API_KEY를 통해 설정하는 것이 더 안전합니다)"
+          "description": "OpenRouter API 키 (환경 변수 APE_OPENROUTER_API_KEY를 통해 설정하는 것이 더 안전합니다) - [TODO-내부망-삭제] 내부망 이관 시 삭제 예정"
         },
         "ape.swdp.enabled": {
           "type": "boolean",
