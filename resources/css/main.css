@@ -1,0 +1,27 @@
+/**
+ * APE 익스텐션 메인 CSS
+ * 
+ * 모든 스타일 파일을 가져오는 단일 진입점입니다.
+ */
+
+/* 기본 변수 */
+@import 'base/variables.css';
+
+/* 핵심 스타일 */
+@import 'core/theme-vars.css';
+@import 'core/chat.css';
+
+/* 레이아웃 */
+@import 'layout/layout.css';
+
+/* 컴포넌트 */
+@import 'components/code-blocks.css';
+@import 'components/command-buttons.css';
+@import 'components/model-selector.css';
+
+/* 유틸리티 */
+@import 'utilities/icons.css';
+@import 'utilities/helpers.css';
+
+/* 아이콘 */
+@import 'icons/ape-icons.css';
