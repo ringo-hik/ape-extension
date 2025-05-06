@@ -1,7 +1,8 @@
 /**
- * 모델 선택기 스타일
+ * 모델 선택기 컴포넌트 스타일
  * 
- * 채팅 인터페이스의 모델 선택 드롭다운 컴포넌트 스타일
+ * 모델 선택 드롭다운 컴포넌트의 스타일을 정의합니다.
+ * VS Code 테마 시스템과 통합되도록 설계되었습니다.
  */
 
 .model-selector {
@@ -10,26 +11,26 @@
   z-index: 100;
   margin-left: auto;
   font-size: 14px;
-  border-radius: 4px;
+  border-radius: var(--ape-border-radius-md);
   cursor: pointer;
   display: inline-flex;
   flex-direction: column;
   border: 1px solid transparent;
-  background-color: var(--vscode-dropdown-background);
-  color: var(--vscode-dropdown-foreground);
+  background-color: var(--ape-dropdown-bg);
+  color: var(--ape-dropdown-fg);
 }
 
 .model-selector:hover {
-  background-color: var(--vscode-dropdown-background);
-  border-color: var(--vscode-focusBorder);
+  background-color: var(--ape-dropdown-bg);
+  border-color: var(--ape-input-focus-border);
 }
 
 .model-selector-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 10px;
-  border-radius: 4px;
+  padding: var(--ape-spacing-sm) var(--ape-spacing-md);
+  border-radius: var(--ape-border-radius-md);
   user-select: none;
   min-height: 28px;
 }
@@ -42,10 +43,14 @@
 }
 
 .model-selector-icon {
-  margin-left: 8px;
+  margin-left: var(--ape-spacing-sm);
   font-size: 10px;
   transform: translateY(1px);
-  transition: transform 0.2s ease;
+  transition: transform var(--ape-transition-fast);
+}
+
+.model-selector-icon.open {
+  transform: translateY(1px) rotate(180deg);
 }
 
 .model-selector-dropdown {
@@ -56,12 +61,12 @@
   right: 0;
   max-height: 300px;
   overflow-y: auto;
-  background-color: var(--vscode-dropdown-background);
-  color: var(--vscode-dropdown-foreground);
-  border: 1px solid var(--vscode-dropdown-border);
-  border-radius: 4px;
-  margin-top: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  background-color: var(--ape-dropdown-bg);
+  color: var(--ape-dropdown-fg);
+  border: 1px solid var(--ape-dropdown-border);
+  border-radius: var(--ape-border-radius-md);
+  margin-top: var(--ape-spacing-xs);
+  box-shadow: var(--ape-shadow);
   z-index: 101;
 }
 
@@ -71,27 +76,27 @@
 
 .model-category-header {
   font-size: 12px;
-  font-weight: bold;
-  padding: 6px 10px;
+  font-weight: var(--ape-font-weight-bold);
+  padding: var(--ape-spacing-sm) var(--ape-spacing-md);
   background-color: var(--vscode-editor-inactiveSelectionBackground);
-  color: var(--vscode-foreground);
-  border-bottom: 1px solid var(--vscode-dropdown-border);
+  color: var(--ape-text-primary);
+  border-bottom: 1px solid var(--ape-dropdown-border);
   user-select: none;
 }
 
 .model-option {
-  padding: 6px 10px;
+  padding: var(--ape-spacing-sm) var(--ape-spacing-md);
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.1s ease;
+  transition: background-color var(--ape-transition-fast);
 }
 
 .model-option:hover {
-  background-color: var(--vscode-list-hoverBackground);
+  background-color: var(--ape-bg-hover);
 }
 
 .model-option.selected {
-  background-color: var(--vscode-list-activeSelectionBackground);
+  background-color: var(--ape-bg-selected);
   color: var(--vscode-list-activeSelectionForeground);
 }
 
@@ -113,6 +118,6 @@
 .model-provider {
   font-size: 12px;
   opacity: 0.7;
-  margin-left: 8px;
+  margin-left: var(--ape-spacing-sm);
   white-space: nowrap;
 }

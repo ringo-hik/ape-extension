@@ -3,40 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} https://unpkg.com 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline'; img-src ${cspSource} data:; connect-src ${cspSource}; font-src ${cspSource} https://unpkg.com;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${cspSource} https://unpkg.com 'unsafe-inline'; script-src ${cspSource} 'unsafe-inline' 'unsafe-eval'; img-src ${cspSource} data:; connect-src ${cspSource}; font-src ${cspSource} https://unpkg.com;">
   <title>APE 채팅</title>
-  <!-- 기본 스타일 -->
-  <link href="${cssUri}" rel="stylesheet">
-  <link href="${claudeStyleCssUri}" rel="stylesheet">
-  <link href="${codeBlocksCssUri}" rel="stylesheet">
-  <link href="${commandAutocompleteCssUri}" rel="stylesheet">
-  <link href="${contextSuggestionsCssUri}" rel="stylesheet">
+  
+  <!-- 핵심 스타일 -->
+  <link href="${webviewResourceBaseUri}/css/core/theme-vars.css" rel="stylesheet">
+  <link href="${webviewResourceBaseUri}/css/core/chat.css" rel="stylesheet">
+  
+  <!-- 컴포넌트 스타일 -->
+  <link href="${webviewResourceBaseUri}/css/components/model-selector.css" rel="stylesheet">
+  <link href="${webviewResourceBaseUri}/css/components/code-blocks.css" rel="stylesheet">
+  
+  <!-- VS Code 아이콘 -->
   <link href="${codiconsUri}" rel="stylesheet">
-  <link href="${apeIconsCssUri}" rel="stylesheet">
-  <!-- 모델 선택기 CSS -->
-  <link href="${modelSelectorCssUri}" rel="stylesheet">
-  <!-- 아이콘용 CSS -->
+  
+  <!-- Phosphor 아이콘 -->
   <link href="${phosphorIconsCssUri}" rel="stylesheet">
-  <link href="${webviewResourceBaseUri}/css/toolbar-icons.css" rel="stylesheet">
-  <script>
-    // 디버깅 헬퍼 - 최소화된 버전
-    window.apeDebug = {
-      log: function(message) {
-        console.log('[APE Debug]:', message);
-      },
-      error: function(message) {
-        console.error('[APE Error]:', message);
-      },
-      warn: function(message) {
-        console.warn('[APE Warning]:', message);
-      }
-    };
-    
-    // 초기화 시 로그 기록
-    window.addEventListener('DOMContentLoaded', function() {
-      apeDebug.log('채팅 인터페이스 로드됨');
-    });
-  </script>
 </head>
 <body>
   <div class="chat-container">
@@ -84,46 +66,16 @@
     </div>
   </div>
 
-  <!-- 핵심 스크립트 (우선순위 순) -->
-  <script src="${webviewResourceBaseUri}/js/model-selector.js"></script>
-  <script src="${codeBlocksJsUri}"></script>
-  <script src="${commandIconsJsUri}"></script>
-  <script src="${commandAutocompleteJsUri}"></script>
-  <!-- 개선된 컨텍스트 핸들러 -->
-  <script src="${improvedContextHandlerJsUri}"></script>
-  <!-- 워크플로우 분석기 -->
-  <script src="${workflowAnalyzerJsUri}"></script>
-  <!-- 메인 UI 핸들러 -->
-  <script src="${hybridApeUiJsUri}"></script>
-  <!-- UI 이벤트 수정 스크립트 (진단용) -->
-  <script src="${webviewResourceBaseUri}/js/ape-ui-event-fix.js"></script>
+  <!-- 유틸리티 스크립트 -->
+  <script type="module" src="${webviewResourceBaseUri}/js/utils/logger.js"></script>
+  <script type="module" src="${webviewResourceBaseUri}/js/utils/dom-utils.js"></script>
+  <script type="module" src="${webviewResourceBaseUri}/js/utils/event-bus.js"></script>
   
-  <script>
-    // 모델 선택기 강조
-    document.addEventListener('DOMContentLoaded', function() {
-      // 간단한 안내 추가
-      setTimeout(function() {
-        const modelSelector = document.getElementById('modelSelector');
-        if (modelSelector) {
-          // 애니메이션 키프레임 추가
-          const styleSheet = document.createElement('style');
-          styleSheet.innerHTML = `
-            .chat-header::after {
-              content: "← 모델 선택";
-              position: absolute;
-              right: 180px;
-              top: 15px;
-              font-size: 14px;
-              color: var(--vscode-button-background);
-              font-weight: bold;
-              pointer-events: none;
-              opacity: 0.8;
-            }
-          `;
-          document.head.appendChild(styleSheet);
-        }
-      }, 1000);
-    });
-  </script>
+  <!-- 컴포넌트 스크립트 -->
+  <script type="module" src="${webviewResourceBaseUri}/js/components/model-selector.js"></script>
+  <script type="module" src="${webviewResourceBaseUri}/js/components/code-blocks.js"></script>
+  
+  <!-- 핵심 UI 스크립트 -->
+  <script type="module" src="${webviewResourceBaseUri}/js/core/ape-ui.js"></script>
 </body>
 </html>

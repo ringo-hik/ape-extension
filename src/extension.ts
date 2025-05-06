@@ -5,7 +5,7 @@
 
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { ApeCoreService } from './core/ApeCoreService';
+import { CoreService } from './core/CoreService';
 import { ChatService } from './services/ChatService';
 import { ApeChatViewProvider } from './ui/ApeChatViewProvider';
 import { ApeTreeDataProvider, ApeTreeItem } from './ui/ApeTreeDataProvider';
@@ -16,6 +16,8 @@ import { UserAuthService } from './core/auth/UserAuthService';
 import { SwdpDomainService } from './core/domain/SwdpDomainService';
 import { SwdpWorkflowService } from './core/workflow/SwdpWorkflowService';
 import { SwdpPluginService } from './plugins/internal/swdp/SwdpPluginService';
+import { container } from './core/di/Container';
+import { ICoreService } from './core/ICoreService';
 
 /**
  * 확장 활성화 함수
@@ -23,15 +25,18 @@ import { SwdpPluginService } from './plugins/internal/swdp/SwdpPluginService';
 export function activate(context: vscode.ExtensionContext) {
   console.log('APE 확장이 활성화되었습니다!');
 
-  // APE 코어 서비스 초기화
-  const apeCore = ApeCoreService.getInstance(context);
+  // APE 코어 서비스 초기화 (의존성 주입 패턴)
+  const apeCore = CoreService.createInstance(context);
+  
+  // DI 컨테이너에 코어 서비스 등록
+  container.register('coreService', apeCore);
   
   // 채팅 서비스 인스턴스 생성
   const chatService = new ChatService(context);
   
   // 채팅 웹뷰 제공자 등록 (통합된 단일 인터페이스)
   const chatProvider = new ApeChatViewProvider(context.extensionUri, chatService);
-  chatProvider.setCoreService(apeCore); // 코어 서비스 참조 설정
+  chatProvider.setCoreService(apeCore); // 코어 서비스 참조 설정 (직접 참조 및 이벤트 리스너 설정)
   
   // TreeView 데이터 제공자 등록
   const treeDataProvider = new ApeTreeDataProvider(context);
@@ -529,7 +534,7 @@ export function activate(context: vscode.ExtensionContext) {
         
         // SWDP 플러그인 서비스 등록
         const swdpPluginService = new SwdpPluginService();
-        apeCore.pluginRegistry.registerPlugin(swdpPluginService);
+        (apeCore as ICoreService).pluginRegistry.registerPlugin(swdpPluginService);
         console.log('SwdpPluginService 등록 완료');
       } catch (swdpError) {
         console.error('SWDP 서비스 초기화 중 오류 발생:', swdpError);

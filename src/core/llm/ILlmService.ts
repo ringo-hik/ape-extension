@@ -11,11 +11,13 @@ import {
 
 /**
  * LLM 서비스 인터페이스
+ * 모든 LLM 관련 기능을 정의합니다.
  */
 export interface ILlmService {
   /**
    * LLM API로 요청 전송
    * @param options 요청 옵션
+   * @returns LLM 응답
    */
   sendRequest(options: LlmRequestOptions): Promise<LlmResponse>;
   
@@ -24,24 +26,46 @@ export interface ILlmService {
    * @param text 쿼리 텍스트
    * @param model 사용할 모델 ID (선택적)
    * @param options 추가 옵션 (선택적)
+   * @returns 응답 텍스트
    */
   queryLlm(text: string, model?: string, options?: Partial<LlmRequestOptions>): Promise<string>;
   
   /**
    * 기본 모델 ID 가져오기
+   * @returns 기본 모델 ID
    */
   getDefaultModelId(): string;
   
   /**
+   * 기본 모델 변경하기
+   * @param modelId 새 모델 ID
+   * @returns 변경 성공 여부
+   */
+  setDefaultModel(modelId: string): boolean;
+  
+  /**
    * 사용 가능한 모델 목록 가져오기
+   * @returns 모델 설정 배열
    */
   getAvailableModels(): ModelConfig[];
   
   /**
-   * 모델 설정 가져오기 (오버로딩)
-   * - 매개변수 없이 호출: 모든 모델 설정 반환
-   * - 모델 ID 지정: 특정 모델 설정 반환
+   * 모델 설정 가져오기
+   * @returns 모든 모델 설정 배열
    */
   getModelConfig(): ModelConfig[];
+  
+  /**
+   * 특정 모델 설정 가져오기
+   * @param modelId 모델 ID
+   * @returns 모델 설정 또는 모델이 없는 경우 undefined
+   */
   getModelConfig(modelId: string): ModelConfig | undefined;
+  
+  /**
+   * 모델 설정 가져오기 (구현체를 위한 통합 시그니처)
+   * @param modelId 선택적 모델 ID
+   * @returns 모델 ID 제공 시 특정 모델 설정, 그렇지 않으면 모든 모델 배열
+   */
+  // getModelConfig(modelId?: string): ModelConfig[] | ModelConfig | undefined;
 }

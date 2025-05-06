@@ -4,7 +4,8 @@
  */
 
 import * as vscode from 'vscode';
-import { ApeCoreService } from '../core/ApeCoreService';
+import { ICoreService } from '../core/ICoreService';
+import { container } from '../core/di/Container';
 
 /**
  * 채팅 메시지 타입
@@ -21,7 +22,7 @@ export interface ChatMessage {
  */
 export class ChatService {
   private conversation: ChatMessage[] = [];
-  private apeCore: ApeCoreService;
+  private apeCore: ICoreService;
   private readonly welcomeMessages = [
     '안녕하세요! APE 채팅에 오신 것을 환영합니다.',
     '문의사항이나 도움이 필요한 내용을 입력해주세요.',
@@ -29,8 +30,12 @@ export class ChatService {
   ];
   
   constructor(context: vscode.ExtensionContext) {
-    // APE 코어 서비스 초기화
-    this.apeCore = ApeCoreService.getInstance(context);
+    // 의존성 주입 컨테이너에서 코어 서비스 가져오기
+    if (container.has('coreService')) {
+      this.apeCore = container.get<ICoreService>('coreService');
+    } else {
+      throw new Error('CoreService가 컨테이너에 등록되지 않았습니다.');
+    }
     
     // 코어 서비스 초기화
     this.apeCore.initialize().then(() => {

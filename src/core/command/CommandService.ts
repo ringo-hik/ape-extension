@@ -13,6 +13,7 @@ import { LoggerService } from '../utils/LoggerService';
 import { EventEmitter } from 'events';
 import { Command, CommandPrefix, CommandType, ParsedCommand } from '../../types/CommandTypes';
 import { PluginRegistryService } from '../plugin-system/PluginRegistryService';
+import { ICoreService } from '../ICoreService';
 
 /**
  * 명령어 서비스 클래스
@@ -25,6 +26,9 @@ export class CommandService extends EventEmitter {
   private executor: CommandExecutorService;
   private parser: CommandParserService;
   private logger: LoggerService;
+  
+  // 코어 서비스 참조
+  private coreService: ICoreService | null = null;
   
   // 컨텍스트 캐시 (플러그인 -> 컨텍스트 데이터)
   private contextCache: Map<string, any> = new Map();
@@ -52,15 +56,23 @@ export class CommandService extends EventEmitter {
     
     // 주기적으로 컨텍스트 정보 업데이트
     setInterval(() => this.refreshAllContexts(), 30000); // 30초마다 새로고침
+    
+    // 이벤트 기반 코어 서비스 참조 설정 (순환 의존성 해결)
+    this.on('core-service-ready', (coreService: ICoreService) => {
+      this.coreService = coreService;
+      this.logger.info('이벤트 기반 코어 서비스 참조 설정됨');
+    });
   }
   
   /**
-   * 코어서비스 설정 - LLM 서비스 등 접근을 위해 필요
+   * 코어서비스 설정 - 레거시 메서드 (이벤트 기반으로 대체)
+   * @deprecated 이벤트 기반 연결을 사용하세요
    * @param coreService 코어 서비스 인스턴스
    */
-  setCoreService(coreService: any): void {
-    (this as any).coreService = coreService;
-    this.logger.info('코어 서비스 참조 설정됨');
+  setCoreService(coreService: ICoreService): void {
+    // 이벤트 기반 방식을 우선하고, 기존 메서드는 호환성 유지
+    this.coreService = coreService;
+    this.logger.info('레거시 방식으로 코어 서비스 참조 설정됨 (deprecated)');
   }
   
   /**
@@ -477,8 +489,10 @@ export class CommandService extends EventEmitter {
                   this.logger.info(`최근 커밋 로그 ${recentCommits.length}개 조회됨`);
                   
                   // 4. LLM 서비스에 접근하기 위해 코어 서비스 가져오기
-                  const coreService = (this as any).coreService;
-                  const llmService = coreService?.llmService;
+                  if (!this.coreService) {
+                    this.logger.warn('코어 서비스 참조가 설정되지 않았습니다');
+                  }
+                  const llmService = this.coreService?.llmService;
                   
                   this.logger.debug('LLM 서비스 확인: ' + (llmService ? '사용 가능' : '사용 불가'));
                   

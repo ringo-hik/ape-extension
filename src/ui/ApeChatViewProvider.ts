@@ -7,8 +7,9 @@ import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ChatService } from '../services/ChatService';
-import { ApeCoreService } from '../core/ApeCoreService';
+import { ICoreService } from '../core/ICoreService';
 import { CommandResult } from '../types/CommandTypes';
+import { LoggerService } from '../core/utils/LoggerService';
 
 /**
  * 채팅 웹뷰 제공자 클래스
@@ -17,21 +18,31 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   // Changed from private to allow access from extension.ts
   public _view?: vscode.WebviewView;
 
-  private _coreService?: ApeCoreService;
+  private _coreService?: ICoreService;
+  
+  private logger: LoggerService;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
     private readonly _chatService: ChatService
-  ) {}
+  ) {
+    this.logger = new LoggerService();
+  }
   
   /**
-   * ApeCoreService 참조 설정
+   * ICoreService 참조 설정
    * 필수 서비스 접근을 위한 메서드
-   * @param coreService ApeCoreService 인스턴스
+   * @param coreService ICoreService 인스턴스
    */
-  public setCoreService(coreService: ApeCoreService): void {
+  public setCoreService(coreService: ICoreService): void {
     this._coreService = coreService;
-    console.log('ApeChatViewProvider에 CoreService 참조가 설정되었습니다.');
+    this.logger.info('ApeChatViewProvider에 CoreService 참조가 설정되었습니다.');
+    
+    // 이벤트 기반 설정 추가
+    coreService.on('core-service-ready', (coreServiceInstance: ICoreService) => {
+      this._coreService = coreServiceInstance;
+      this.logger.info('이벤트 기반으로 CoreService 참조가 업데이트되었습니다.');
+    });
   }
 
   public resolveWebviewView(
@@ -51,7 +62,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
 
     // 웹뷰 HTML 설정
     webviewView.webview.html = this._getHtmlContent(webviewView.webview);
-    console.log('채팅 웹뷰 HTML이 설정되었습니다.');
+    this.logger.info('채팅 웹뷰 HTML이 설정되었습니다.');
     
     // 초기화 완료 메시지
     setTimeout(() => {
@@ -60,13 +71,13 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           command: 'initialized',
           timestamp: Date.now()
         });
-        console.log('웹뷰 초기화 완료 메시지 전송');
+        this.logger.info('웹뷰 초기화 완료 메시지 전송');
       }
     }, 1000);
 
     // 웹뷰에서 메시지 받기
     webviewView.webview.onDidReceiveMessage(message => {
-      console.log('채팅 웹뷰로부터 메시지를 받았습니다:', message);
+      this.logger.info('채팅 웹뷰로부터 메시지를 받았습니다:', message);
       
       switch (message.command) {
         case 'sendMessage':
@@ -84,14 +95,14 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
         case 'getModelList':
           // 모델 목록 요청 처리
-          console.log('웹뷰에서 모델 목록 요청 받음');
+          this.logger.info('웹뷰에서 모델 목록 요청 받음');
           this._sendModelList();
           this._sendCurrentModel();
           return;
           
         case 'toggleEmbedDevMode':
           // 심층 분석 모드 토글 처리
-          console.log(`심층 분석 모드: ${message.enabled ? '활성화' : '비활성화'}`);
+          this.logger.info(`심층 분석 모드: ${message.enabled ? '활성화' : '비활성화'}`);
           // 설정에 상태 저장
           vscode.workspace.getConfiguration('ape.core').update(
             'embedDevMode', 
@@ -102,7 +113,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
         case 'toggleApeMode':
           // 도구 활용 모드 토글 처리
-          console.log(`도구 활용 모드: ${message.enabled ? '활성화' : '비활성화'}`);
+          this.logger.info(`도구 활용 모드: ${message.enabled ? '활성화' : '비활성화'}`);
           
           // 1. 설정에 상태 저장
           vscode.workspace.getConfiguration('ape.ui').update(
@@ -122,7 +133,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           // 알림 메시지 표시
           vscode.window.showInformationMessage(`도구 활용 모드가 ${message.enabled ? '활성화' : '비활성화'}되었습니다.`);
           
-          console.log('도구 활용 모드 설정 변경 완료');
+          this.logger.info('도구 활용 모드 설정 변경 완료');
           return;
           
         case 'getCommands':
@@ -132,7 +143,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
         case 'executeCommand':
           // 웹뷰에서 직접 명령어 실행 요청
-          console.log('명령어 실행 요청:', message.commandId);
+          this.logger.info('명령어 실행 요청:', message.commandId);
           if (message.commandId) {
             this._executeCommand(message.commandId);
           }
@@ -144,10 +155,10 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             vscode.env.clipboard.writeText(message.text)
               .then(() => {
                 // 복사 성공 알림
-                console.log('클립보드에 복사됨:', message.text);
+                this.logger.info('클립보드에 복사됨:', message.text);
               }, (err: Error) => {
                 // 오류 처리
-                console.error('클립보드 복사 오류:', err);
+                this.logger.error('클립보드 복사 오류:', err);
               });
           }
           return;
@@ -159,7 +170,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
         case 'changeUiMode':
           // UI 모드 변경 메시지 (확장 모듈 -> 웹뷰)
-          console.log(`UI 모드 변경 요청 수신: ${message.mode}`);
+          this.logger.info(`UI 모드 변경 요청 수신: ${message.mode}`);
           // 웹뷰에 UI 모드 변경 메시지 전달
           if (this._view && this._view.visible) {
             this._view.webview.postMessage({
@@ -198,7 +209,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           command: 'setApeMode',
           enabled: currentMode === 'hybrid'
         });
-        console.log(`초기 UI 모드 설정됨: ${currentMode}`);
+        this.logger.info(`초기 UI 모드 설정됨: ${currentMode}`);
       }
     }, 1200);
   }
@@ -207,10 +218,10 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 사용자 메시지 처리
    */
   private async _handleUserMessage(message: {text: string; model?: string; embedDevMode?: boolean}): Promise<void> {
-    console.log('사용자 메시지 처리 시작:', message);
+    this.logger.info('사용자 메시지 처리 시작:', message);
     
     if (!this._view) {
-      console.error('채팅 뷰가 없습니다. 메시지를 처리할 수 없습니다.');
+      this.logger.error('채팅 뷰가 없습니다. 메시지를 처리할 수 없습니다.');
       return;
     }
 
@@ -219,7 +230,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     const embedDevMode = message.embedDevMode; // 심층 분석 모드 여부
     const useStreaming = true; // 스트리밍 사용 여부 (추후 설정으로 변경 가능)
     
-    console.log(`메시지 처리 세부정보:
+    this.logger.info(`메시지 처리 세부정보:
     - 텍스트: ${text}
     - 선택 모델: ${selectedModel || '기본값'}
     - 심층 분석 모드: ${embedDevMode ? '활성화' : '비활성화'}
@@ -248,7 +259,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       
       // 명령어인 경우 스트리밍 없이 직접 처리
       if (isAtCommand || isSlashCommand) {
-        console.log(`ApeChatViewProvider: ${isAtCommand ? '@' : '/'}명령어 감지 - "${text}"`);
+        this.logger.info(`ApeChatViewProvider: ${isAtCommand ? '@' : '/'}명령어 감지 - "${text}"`);
         
         // 명령어 처리 전 로딩 표시
         const commandResponseId = `cmd-${Date.now()}`;
@@ -323,11 +334,11 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         // 스트리밍 응답 ID
         const responseId = `resp-${Date.now()}`;
         
-        console.log(`ApeChatViewProvider: 스트리밍 시작 - 응답 ID: ${responseId}`);
+        this.logger.info(`ApeChatViewProvider: 스트리밍 시작 - 응답 ID: ${responseId}`);
         
         // 심층 분석 모드가 활성화된 경우 로그
         if (embedDevMode) {
-          console.log(`심층 분석 모드로 처리 - 고급 프롬프트 엔지니어링 및 내부망 데이터 분석 적용`);
+          this.logger.info(`심층 분석 모드로 처리 - 고급 프롬프트 엔지니어링 및 내부망 데이터 분석 적용`);
         }
         
         // 스트리밍 시작 메시지 전송
@@ -345,13 +356,13 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
           // 첫 청크인 경우 초기화 메시지 전송
           if (isFirstChunk) {
-            console.log(`ApeChatViewProvider: 첫 청크 수신 - 길이: ${chunk.length}자`);
+            this.logger.info(`ApeChatViewProvider: 첫 청크 수신 - 길이: ${chunk.length}자`);
             isFirstChunk = false;
           }
           
           // 로그 간소화를 위해 일부 청크만 로깅
           if (chunkCount <= 2 || chunkCount % 50 === 0) {
-            console.log(`ApeChatViewProvider: 스트리밍 청크 #${chunkCount} 수신 - 길이: ${chunk.length}자`);
+            this.logger.info(`ApeChatViewProvider: 스트리밍 청크 #${chunkCount} 수신 - 길이: ${chunk.length}자`);
           }
           
           // 청크 전송
@@ -371,7 +382,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           const endTime = Date.now();
           const duration = (endTime - startTime) / 1000;
           
-          console.log(`ApeChatViewProvider: 스트리밍 완료 - 총 청크: ${chunkCount}, 소요 시간: ${duration.toFixed(2)}초`);
+          this.logger.info(`ApeChatViewProvider: 스트리밍 완료 - 총 청크: ${chunkCount}, 소요 시간: ${duration.toFixed(2)}초`);
           
           this._view.webview.postMessage({
             command: 'endStreaming',
@@ -398,7 +409,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         }
       }
     } catch (error) {
-      console.error('메시지 처리 중 오류 발생:', error);
+      this.logger.error('메시지 처리 중 오류 발생:', error);
       this._sendResponse('메시지 처리 중 오류가 발생했습니다. 다시 시도해주세요.', 'system');
     }
   }
@@ -421,39 +432,43 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private _sendModelList() {
     if (!this._view) {
-      console.error('[UI<-EXT] _sendModelList: 뷰가 없어 모델 목록을 전송할 수 없습니다.');
+      this.logger.error('[UI<-EXT] _sendModelList: 뷰가 없어 모델 목록을 전송할 수 없습니다.');
       return;
     }
 
     try {
-      console.log('[UI<-EXT] 모델 목록 전송 시작');
+      this.logger.info('[UI<-EXT] 모델 목록 전송 시작');
       
-      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
-      const coreService = this._coreService || ApeCoreService.getInstance();
+      // 저장된 _coreService 참조 사용
+      if (!this._coreService) {
+        this.logger.error('_sendModelList: _coreService가 설정되지 않았습니다');
+        throw new Error('Core 서비스가 설정되지 않았습니다');
+      }
+      const coreService = this._coreService;
       const llmService = coreService.llmService;
       
       if (!llmService) {
-        console.error('[UI<-EXT] LLM 서비스를 찾을 수 없습니다.');
+        this.logger.error('[UI<-EXT] LLM 서비스를 찾을 수 없습니다.');
         throw new Error('LLM 서비스를 찾을 수 없습니다.');
       }
       
       // 디버그 정보 출력
-      console.log('[UI<-EXT] 기본 모델 ID:', llmService.getDefaultModelId());
+      this.logger.info('[UI<-EXT] 기본 모델 ID:', llmService.getDefaultModelId());
       
       // 모델 목록 가져오기
       let modelsArray = llmService.getAvailableModels();
-      console.log(`[UI<-EXT] 가져온 모델 수: ${modelsArray.length}`);
+      this.logger.info(`[UI<-EXT] 가져온 모델 수: ${modelsArray.length}`);
       
       // 모델 배열 초기화 및 유효성 검사
       if (!Array.isArray(modelsArray)) {
-        console.warn('[UI<-EXT] 유효하지 않은 모델 배열 반환됨. 빈 배열로 초기화.');
+        this.logger.warn('[UI<-EXT] 유효하지 않은 모델 배열 반환됨. 빈 배열로 초기화.');
         modelsArray = [];
       }
       
       // 모델 목록이 비어있는 경우 필수 모델 추가
       // 항상 최소 3개 이상의 모델 보장 (내부망, 외부망, 로컬)
       if (modelsArray.length < 3) {
-        console.log('[UI<-EXT] 모델 목록이 불충분하여 필수 모델 추가');
+        this.logger.info('[UI<-EXT] 모델 목록이 불충분하여 필수 모델 추가');
         
         // 내부망 모델 추가 (항상 포함)
         if (!modelsArray.some(m => m.provider === 'custom' || m.name?.includes('NARRANS'))) {
@@ -465,7 +480,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             apiUrl: 'https://api-se-dev.narrans/v1/chat/completions',
             systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
           });
-          console.log('[UI<-EXT] 내부망 모델(NARRANS) 추가됨');
+          this.logger.info('[UI<-EXT] 내부망 모델(NARRANS) 추가됨');
         }
         
         // OpenRouter 모델 추가 (외부 테스트용)
@@ -498,7 +513,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
           });
           
-          console.log('[UI<-EXT] OpenRouter 모델 3개 추가됨');
+          this.logger.info('[UI<-EXT] OpenRouter 모델 3개 추가됨');
         }
         
         // 로컬 모델 추가 (오프라인 작업용)
@@ -510,10 +525,10 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             temperature: 0.7,
             systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
           });
-          console.log('[UI<-EXT] 로컬 모델 추가됨');
+          this.logger.info('[UI<-EXT] 로컬 모델 추가됨');
         }
         
-        console.log(`[UI<-EXT] 필수 모델 추가 후 모델 수: ${modelsArray.length}`);
+        this.logger.info(`[UI<-EXT] 필수 모델 추가 후 모델 수: ${modelsArray.length}`);
       }
       
       // 모델 정보 매핑 (웹뷰에 전송할 형식으로 변환)
@@ -537,7 +552,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             provider: model.provider || 'unknown'
           };
         } catch (err) {
-          console.error(`[UI<-EXT] 모델 변환 중 오류 (인덱스 ${index}):`, err);
+          this.logger.error(`[UI<-EXT] 모델 변환 중 오류 (인덱스 ${index}):`, err);
           // 오류 발생 시 기본 모델 정보 반환
           return {
             id: `model-${index}`,
@@ -551,9 +566,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       const uniqueModels = this._removeDuplicateModels(models);
       
       // 모델 정보 로깅
-      console.log(`[UI<-EXT] 전송할 모델 목록: ${uniqueModels.length}개 (중복 제거 후)`);
+      this.logger.info(`[UI<-EXT] 전송할 모델 목록: ${uniqueModels.length}개 (중복 제거 후)`);
       uniqueModels.forEach((model, index) => {
-        console.log(`[UI<-EXT] 모델 ${index + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
+        this.logger.info(`[UI<-EXT] 모델 ${index + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
       });
       
       // 웹뷰에 모델 목록 전송
@@ -562,7 +577,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         models: uniqueModels
       });
       
-      console.log('[UI<-EXT] 모델 목록 전송 완료');
+      this.logger.info('[UI<-EXT] 모델 목록 전송 완료');
       
       // 추가 안정성을 위해 현재 모델도 전송
       setTimeout(() => {
@@ -573,7 +588,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           // 기본 모델 ID가 없으면 목록에서 첫 번째 모델 사용
           if (!defaultModelId && uniqueModels.length > 0) {
             defaultModelId = uniqueModels[0].id;
-            console.log(`[UI<-EXT] 기본 모델 ID 미설정, 첫 번째 모델로 설정: ${defaultModelId}`);
+            this.logger.info(`[UI<-EXT] 기본 모델 ID 미설정, 첫 번째 모델로 설정: ${defaultModelId}`);
           }
           
           if (defaultModelId) {
@@ -582,12 +597,12 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
               modelId: defaultModelId
             });
             
-            console.log(`[UI<-EXT] 현재 모델 ID 전송: ${defaultModelId}`);
+            this.logger.info(`[UI<-EXT] 현재 모델 ID 전송: ${defaultModelId}`);
           }
         }
       }, 500);
     } catch (error: unknown) {
-      console.error('[UI<-EXT] 모델 목록 전송 오류:', error);
+      this.logger.error('[UI<-EXT] 모델 목록 전송 오류:', error);
       
       // 오류 발생 시 다양한 백업 모델 목록 전송
       const fallbackModels = [
@@ -596,7 +611,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         { id: 'local-emergency', name: '오프라인 응급 모드', provider: 'local' }
       ];
       
-      console.log('[UI<-EXT] 백업 모델 목록 전송:');
+      this.logger.info('[UI<-EXT] 백업 모델 목록 전송:');
       
       try {
         this._view.webview.postMessage({
@@ -610,9 +625,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           modelId: 'narrans-emergency'
         });
         
-        console.log('[UI<-EXT] 백업 모델 목록 및 기본 모델 전송 성공');
+        this.logger.info('[UI<-EXT] 백업 모델 목록 및 기본 모델 전송 성공');
       } catch (postError) {
-        console.error('[UI<-EXT] 백업 모델 목록 전송 실패:', postError);
+        this.logger.error('[UI<-EXT] 백업 모델 목록 전송 실패:', postError);
       }
     }
   }
@@ -666,38 +681,42 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private _sendCurrentModel() {
     if (!this._view) {
-      console.error('_sendCurrentModel: 뷰가 없어 현재 모델을 전송할 수 없습니다.');
+      this.logger.error('_sendCurrentModel: 뷰가 없어 현재 모델을 전송할 수 없습니다.');
       return;
     }
 
     try {
-      console.log('현재 모델 전송 시작');
+      this.logger.info('현재 모델 전송 시작');
       
-      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
-      const coreService = this._coreService || ApeCoreService.getInstance();
+      // 저장된 _coreService 참조 사용
+      if (!this._coreService) {
+        this.logger.error('_sendCurrentModel: _coreService가 설정되지 않았습니다');
+        throw new Error('Core 서비스가 설정되지 않았습니다');
+      }
+      const coreService = this._coreService;
       if (!coreService) {
-        console.error('_sendCurrentModel: coreService를 찾을 수 없습니다.');
+        this.logger.error('_sendCurrentModel: coreService를 찾을 수 없습니다.');
         throw new Error('Core 서비스를 찾을 수 없습니다.');
       }
       
       const llmService = coreService.llmService;
       if (!llmService) {
-        console.error('_sendCurrentModel: llmService를 찾을 수 없습니다.');
+        this.logger.error('_sendCurrentModel: llmService를 찾을 수 없습니다.');
         throw new Error('LLM 서비스를 찾을 수 없습니다.');
       }
       
       // 사용 가능한 모델 목록 가져오기
       const availableModels = llmService.getAvailableModels();
       const modelIds = availableModels.map(m => m.id || m.modelId).filter(Boolean);
-      console.log(`사용 가능한 모델 ID: ${JSON.stringify(modelIds)}`);
+      this.logger.info(`사용 가능한 모델 ID: ${JSON.stringify(modelIds)}`);
       
       // 기본 모델 ID 가져오기
-      console.log('getDefaultModelId 메서드 호출 시도...');
+      this.logger.info('getDefaultModelId 메서드 호출 시도...');
       let defaultModelId = llmService.getDefaultModelId();
       
       // 기본 모델 ID가 없거나 유효하지 않은 경우 적절한 폴백 처리
       if (!defaultModelId || !modelIds.includes(defaultModelId)) {
-        console.warn(`기본 모델 ID(${defaultModelId || 'undefined'})가 없거나 유효하지 않습니다. 폴백 모델 선택...`);
+        this.logger.warn(`기본 모델 ID(${defaultModelId || 'undefined'})가 없거나 유효하지 않습니다. 폴백 모델 선택...`);
         
         // 우선순위에 따라 폴백 모델 선택
         // 1. 내부망 모델 (custom)
@@ -718,15 +737,15 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           'openrouter-claude-3-haiku' // 최후의 폴백
         );
         
-        console.log(`폴백 모델 ID로 설정됨: ${defaultModelId}`);
+        this.logger.info(`폴백 모델 ID로 설정됨: ${defaultModelId}`);
       } else {
-        console.log(`현재 기본 모델: ${defaultModelId}`);
+        this.logger.info(`현재 기본 모델: ${defaultModelId}`);
       }
       
       // 모델 ID가 특수 문자를 포함하는 경우 정리
       if (defaultModelId && (defaultModelId.includes('/') || defaultModelId.includes(':'))) {
         const cleanModelId = defaultModelId.replace(/[\/:.]/g, '-');
-        console.log(`모델 ID에 특수 문자 포함, 정리됨: ${defaultModelId} -> ${cleanModelId}`);
+        this.logger.info(`모델 ID에 특수 문자 포함, 정리됨: ${defaultModelId} -> ${cleanModelId}`);
         defaultModelId = cleanModelId;
       }
       
@@ -737,7 +756,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         );
         
         if (selectedModel) {
-          console.log(`선택된 모델 정보: ${JSON.stringify({
+          this.logger.info(`선택된 모델 정보: ${JSON.stringify({
             id: selectedModel.id || selectedModel.modelId,
             name: selectedModel.name,
             provider: selectedModel.provider
@@ -752,7 +771,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             command: 'setCurrentModel',
             modelId: defaultModelId
           });
-          console.log(`현재 모델 ID(${defaultModelId}) 전송 성공`);
+          this.logger.info(`현재 모델 ID(${defaultModelId}) 전송 성공`);
           
           // VS Code 설정에도 저장 (지속성 보장)
           vscode.workspace.getConfiguration('ape.llm').update(
@@ -760,17 +779,17 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             defaultModelId, 
             vscode.ConfigurationTarget.Global
           ).then(() => {
-            console.log(`모델 ID가 설정에 저장됨: ${defaultModelId}`);
+            this.logger.info(`모델 ID가 설정에 저장됨: ${defaultModelId}`);
           }).catch(err => {
-            console.error('설정 저장 중 오류:', err);
+            this.logger.error('설정 저장 중 오류:', err);
           });
         } catch (postError) {
-          console.error('현재 모델 ID 전송 중 오류:', postError);
+          this.logger.error('현재 모델 ID 전송 중 오류:', postError);
         }
       }
     } catch (error: unknown) {
-      console.error('현재 모델 전송 중 오류 발생:', error);
-      console.error('오류 상세:', error instanceof Error ? error.stack : 'Error stack not available');
+      this.logger.error('현재 모델 전송 중 오류 발생:', error);
+      this.logger.error('오류 상세:', error instanceof Error ? error.stack : 'Error stack not available');
       
       // 오류 발생 시 상황에 따른 적절한 폴백 모델 선택
       try {
@@ -793,17 +812,17 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           selectedFallback = fallbackModelIds[2];
         }
         
-        console.log(`오류 발생으로 인한 폴백 모델 ID 선택: ${selectedFallback}`);
+        this.logger.info(`오류 발생으로 인한 폴백 모델 ID 선택: ${selectedFallback}`);
         
         if (this._view && this._view.visible) {
           this._view.webview.postMessage({
             command: 'setCurrentModel',
             modelId: selectedFallback
           });
-          console.log('오류 복구 모델 ID 전송 성공');
+          this.logger.info('오류 복구 모델 ID 전송 성공');
         }
       } catch (postError) {
-        console.error('오류 복구 모델 ID 전송 중 추가 오류:', postError);
+        this.logger.error('오류 복구 모델 ID 전송 중 추가 오류:', postError);
       }
     }
   }
@@ -817,8 +836,12 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     }
     
     try {
-      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
-      const coreService = this._coreService || ApeCoreService.getInstance();
+      // 저장된 _coreService 참조 사용
+      if (!this._coreService) {
+        this.logger.error('_sendCommandsList: _coreService가 설정되지 않았습니다');
+        throw new Error('Core 서비스가 설정되지 않았습니다');
+      }
+      const coreService = this._coreService;
       const commandRegistry = coreService.commandRegistry;
       
       // 모든 명령어 사용법 가져오기
@@ -864,9 +887,9 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         dynamicData: dynamicData
       });
       
-      console.log(`${commands.length}개의 명령어와 동적 데이터를 웹뷰로 전송했습니다.`);
+      this.logger.info(`${commands.length}개의 명령어와 동적 데이터를 웹뷰로 전송했습니다.`);
     } catch (error) {
-      console.error('명령어 목록 전송 중 오류 발생:', error);
+      this.logger.error('명령어 목록 전송 중 오류 발생:', error);
     }
   }
   
@@ -876,8 +899,12 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private async _getDynamicData(): Promise<Record<string, unknown>> {
     try {
-      // APE 코어 서비스 접근 (저장된 참조 사용 또는 싱글톤 인스턴스 가져오기)
-      const coreService = this._coreService || ApeCoreService.getInstance();
+      // APE 코어 서비스 접근 (저장된 참조 사용)
+      if (!this._coreService) {
+        this.logger.error('_getDynamicData: _coreService가 설정되지 않았습니다');
+        throw new Error('Core 서비스가 설정되지 않았습니다');
+      }
+      const coreService = this._coreService;
       const pluginRegistry = coreService.pluginRegistry;
       const commandService = coreService.commandService;
       
@@ -900,11 +927,11 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             if (branches && Array.isArray(branches)) {
               // 브랜치 정보 추가
               dynamicData['gitBranches'] = branches;
-              console.log(`Git 브랜치 정보 로드 완료: ${branches.length}개 브랜치`);
+              this.logger.info(`Git 브랜치 정보 로드 완료: ${branches.length}개 브랜치`);
             }
           }
         } catch (gitError) {
-          console.error('Git 브랜치 정보 가져오기 실패:', gitError);
+          this.logger.error('Git 브랜치 정보 가져오기 실패:', gitError);
         }
       }
       
@@ -971,23 +998,23 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
                 });
               }
             } catch (cmdError) {
-              console.error(`컨텍스트 명령어 생성 오류 (${baseCmd.id}):`, cmdError);
+              this.logger.error(`컨텍스트 명령어 생성 오류 (${baseCmd.id}):`, cmdError);
             }
           }
           
           // 컨텍스트 명령어 추가
           if (contextCommands.length > 0) {
             dynamicData['contextCommands'] = contextCommands;
-            console.log(`컨텍스트 기반 명령어 ${contextCommands.length}개 생성 완료`);
+            this.logger.info(`컨텍스트 기반 명령어 ${contextCommands.length}개 생성 완료`);
           }
         } catch (contextError) {
-          console.error('컨텍스트 기반 명령어 생성 중 오류:', contextError);
+          this.logger.error('컨텍스트 기반 명령어 생성 중 오류:', contextError);
         }
       }
       
       return dynamicData;
     } catch (error) {
-      console.error('동적 데이터 가져오기 중 오류 발생:', error);
+      this.logger.error('동적 데이터 가져오기 중 오류 발생:', error);
       return {};
     }
   }
@@ -997,7 +1024,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * @param message 트리뷰 액션 메시지
    */
   private _handleTreeViewAction(message: {actionType: string; item: {id?: string; type: string}}) {
-    console.log('TreeView 액션 처리:', message);
+    this.logger.info('TreeView 액션 처리:', message);
     
     const actionType = message.actionType;
     const item = message.item;
@@ -1033,7 +1060,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * @param item 선택된 트리 아이템
    */
   private _handleTreeItemSelection(item: {type: string; id?: string}) {
-    console.log('TreeView 아이템 선택:', item);
+    this.logger.info('TreeView 아이템 선택:', item);
     
     // 아이템 타입에 따른 처리
     switch (item.type) {
@@ -1051,7 +1078,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         // 채팅 세션 선택 시 해당 세션 로드
         if (this._view && item.id) {
           // 여기에서는 채팅 세션 ID로 세션 로드 로직 구현
-          console.log('채팅 세션 로드:', item.id);
+          this.logger.info('채팅 세션 로드:', item.id);
         }
         break;
     }
@@ -1066,7 +1093,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     
-    console.log('명령어 세부 정보 표시:', item);
+    this.logger.info('명령어 세부 정보 표시:', item);
     
     // 명령어 세부 정보가 있는 경우 웹뷰에 전달
     this._view.webview.postMessage({
@@ -1151,7 +1178,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     }
     
     try {
-      console.log(`명령어 실행: ${commandId}`);
+      this.logger.info(`명령어 실행: ${commandId}`);
       
       // 명령어 실행 전 로딩 표시
       this._sendResponse(`명령어 '${commandId}' 실행 중...`, 'system');
@@ -1228,18 +1255,18 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         // VS Code 명령어 실행
         vscode.commands.executeCommand(commandId)
           .then(result => {
-            console.log('VS Code 명령어 실행 결과:', result);
+            this.logger.info('VS Code 명령어 실행 결과:', result);
             // 결과를 웹뷰에 전송
             this._sendResponse(`명령어 '${commandId}' 실행 완료`, 'system');
           }, (error: unknown) => {
             // 타입스크립트 오류 방지를 위해 then의 두 번째 인자로 에러 처리
-            console.error('VS Code 명령어 실행 오류:', error);
+            this.logger.error('VS Code 명령어 실행 오류:', error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             this._sendResponse(`명령어 실행 오류: ${errorMessage}`, 'system');
           });
       }
     } catch (error) {
-      console.error('명령어 실행 중 오류 발생:', error);
+      this.logger.error('명령어 실행 중 오류 발생:', error);
       this._sendResponse(`명령어 실행 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`, 'system');
     }
   }
@@ -1249,32 +1276,32 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private _changeModel(modelId: string): void {
     if (!modelId) {
-      console.warn('_changeModel: 유효하지 않은 모델 ID로 호출됨');
+      this.logger.warn('_changeModel: 유효하지 않은 모델 ID로 호출됨');
       return;
     }
     
     try {
-      console.log(`모델 변경 요청 - DEBUG 버전: ${modelId}`);
+      this.logger.info(`모델 변경 요청 - DEBUG 버전: ${modelId}`);
       
-      // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
-      const coreService = this._coreService || ApeCoreService.getInstance();
-      if (!coreService) {
-        console.error('_changeModel: coreService를 찾을 수 없습니다.');
-        throw new Error('Core 서비스를 찾을 수 없습니다.');
+      // 저장된 _coreService 참조 사용
+      if (!this._coreService) {
+        this.logger.error('_changeModel: _coreService가 설정되지 않았습니다');
+        throw new Error('Core 서비스가 설정되지 않았습니다');
       }
+      const coreService = this._coreService;
       
       const llmService = coreService.llmService;
       if (!llmService) {
-        console.error('_changeModel: llmService를 찾을 수 없습니다.');
+        this.logger.error('_changeModel: llmService를 찾을 수 없습니다.');
         throw new Error('LLM 서비스를 찾을 수 없습니다.');
       }
       
       // 기존 모델과 같은지 확인
       const currentDefaultId = llmService.getDefaultModelId();
-      console.log(`현재 기본 모델: ${currentDefaultId || 'none'}, 변경 요청 모델: ${modelId}`);
+      this.logger.info(`현재 기본 모델: ${currentDefaultId || 'none'}, 변경 요청 모델: ${modelId}`);
       
       if (currentDefaultId && currentDefaultId === modelId) {
-        console.log(`현재 모델과 동일한 모델(${modelId})로 변경 요청, 무시함`);
+        this.logger.info(`현재 모델과 동일한 모델(${modelId})로 변경 요청, 무시함`);
         
         // 즉시 성공 응답을 보내서 UI 상태 동기화
         if (this._view && this._view.visible) {
@@ -1289,13 +1316,13 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       }
       
       // 모델이 유효한지 확인
-      console.log('사용 가능한 모델 목록 조회 중...');
+      this.logger.info('사용 가능한 모델 목록 조회 중...');
       const models = llmService.getAvailableModels();
-      console.log(`총 ${models.length}개의 모델 조회됨`);
+      this.logger.info(`총 ${models.length}개의 모델 조회됨`);
       
       // 각 모델 정보 로깅
       models.forEach((model, idx) => {
-        console.log(`모델 ${idx+1}:`, {
+        this.logger.info(`모델 ${idx+1}:`, {
           id: model.id || '[없음]',
           modelId: model.modelId || '[없음]',
           name: model.name,
@@ -1314,35 +1341,35 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           model.name ? `${model.provider || 'model'}-${model.name.toLowerCase().replace(/\s+/g, '-')}` : null
         ].filter(Boolean); // null/undefined 제거
         
-        console.log(`모델 ${model.name} 가능한 ID 목록:`, possibleIds);
+        this.logger.info(`모델 ${model.name} 가능한 ID 목록:`, possibleIds);
         
         return possibleIds.includes(modelId);
       });
       
       if (!validModel) {
-        console.warn(`요청된 모델 ID '${modelId}'가 유효한 모델 목록에 없습니다.`);
-        console.log('===== 유효한 모델 목록 (ID 기준) =====');
+        this.logger.warn(`요청된 모델 ID '${modelId}'가 유효한 모델 목록에 없습니다.`);
+        this.logger.info('===== 유효한 모델 목록 (ID 기준) =====');
         models.forEach((model, idx) => {
-          console.log(`${idx+1}. ${model.id || model.modelId || '[ID 없음]'}: ${model.name}`);
+          this.logger.info(`${idx+1}. ${model.id || model.modelId || '[ID 없음]'}: ${model.name}`);
         });
         
         // 모델 ID가 유효하지 않을 때도 진행 (외부에서 추가된 모델일 수 있음)
-        console.log('모델 유효성 검사 실패했으나 계속 진행합니다. 외부에서 추가된 모델일 수 있습니다.');
+        this.logger.info('모델 유효성 검사 실패했으나 계속 진행합니다. 외부에서 추가된 모델일 수 있습니다.');
       } else {
-        console.log(`유효한 모델을 찾았습니다: ${validModel.name} (ID: ${validModel.id || validModel.modelId})`);
+        this.logger.info(`유효한 모델을 찾았습니다: ${validModel.name} (ID: ${validModel.id || validModel.modelId})`);
       }
       
       // VS Code 설정에 모델 ID 저장
-      console.log(`VS Code 설정에 모델 ID(${modelId}) 저장 시도...`);
+      this.logger.info(`VS Code 설정에 모델 ID(${modelId}) 저장 시도...`);
       const config = vscode.workspace.getConfiguration('ape.llm');
       
       config.update('defaultModel', modelId, vscode.ConfigurationTarget.Global)
         .then(() => {
-          console.log(`모델이 ${modelId}로 변경되었습니다.`);
+          this.logger.info(`모델이 ${modelId}로 변경되었습니다.`);
           
           // UI에 변경 알림
           if (this._view && this._view.visible) {
-            console.log('웹뷰에 모델 변경 성공 알림 전송');
+            this.logger.info('웹뷰에 모델 변경 성공 알림 전송');
             this._view.webview.postMessage({
               command: 'modelChanged',
               modelId: modelId,
@@ -1352,16 +1379,16 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             
             // 시스템 메시지로 변경 알림
             const modelName = validModel ? validModel.name : modelId;
-            console.log(`시스템 메시지로 모델 변경 알림: ${modelName}`);
+            this.logger.info(`시스템 메시지로 모델 변경 알림: ${modelName}`);
             this._sendResponse(`모델이 '${modelName}'(으)로 변경되었습니다.`, 'system');
           }
         }, (err: Error) => {
-          console.error('설정 업데이트 중 오류 발생:', err);
-          console.error('오류 상세:', err.stack);
+          this.logger.error('설정 업데이트 중 오류 발생:', err);
+          this.logger.error('오류 상세:', err.stack);
           
           // UI에 오류 알림
           if (this._view && this._view.visible) {
-            console.log('웹뷰에 모델 변경 실패 알림 전송');
+            this.logger.info('웹뷰에 모델 변경 실패 알림 전송');
             this._view.webview.postMessage({
               command: 'modelChanged',
               modelId: modelId,
@@ -1371,13 +1398,13 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           }
         });
     } catch (error) {
-      console.error('모델 변경 중 오류 발생:', error);
-      console.error('오류 상세:', error instanceof Error ? error.stack : '스택 정보 없음');
+      this.logger.error('모델 변경 중 오류 발생:', error);
+      this.logger.error('오류 상세:', error instanceof Error ? error.stack : '스택 정보 없음');
       
       // UI에 오류 알림
       if (this._view && this._view.visible) {
         try {
-          console.log('웹뷰에 모델 변경 오류 알림 전송');
+          this.logger.info('웹뷰에 모델 변경 오류 알림 전송');
           this._view.webview.postMessage({
             command: 'modelChanged',
             modelId: modelId,
@@ -1385,7 +1412,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             error: error instanceof Error ? error.message : '알 수 없는 오류'
           });
         } catch (postError) {
-          console.error('오류 알림 전송 중 추가 오류:', postError);
+          this.logger.error('오류 알림 전송 중 추가 오류:', postError);
         }
       }
     }
@@ -1429,7 +1456,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     try {
       // HTML 파일이 존재하는지 확인
       if (!fs.existsSync(htmlPath.fsPath)) {
-        console.error(`HTML 파일을 찾을 수 없습니다: ${htmlPath.fsPath}`);
+        this.logger.error(`HTML 파일을 찾을 수 없습니다: ${htmlPath.fsPath}`);
         throw new Error('HTML 파일을 찾을 수 없습니다.');
       }
       
@@ -1451,12 +1478,12 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         htmlContent = htmlContent.replace(regex, uri.toString());
       }
       
-      console.log('HTML 파일 로드 성공:', htmlPath.fsPath);
-      console.log('기본 리소스 경로:', webviewResourceBaseUri.toString());
+      this.logger.info('HTML 파일 로드 성공:', htmlPath.fsPath);
+      this.logger.info('기본 리소스 경로:', webviewResourceBaseUri.toString());
       
       return htmlContent;
     } catch (error) {
-      console.error('HTML 파일을 읽는 중 오류 발생:', error);
+      this.logger.error('HTML 파일을 읽는 중 오류 발생:', error);
       
       // 오류 시 기본 HTML 반환
       return `<!DOCTYPE html>
@@ -1499,32 +1526,35 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * @returns 리소스 키와 URI 매핑 객체
    */
   private _createResourceMap(webview: vscode.Webview): Record<string, vscode.Uri> {
-    // CSS 리소스 매핑
+    // CSS 리소스 매핑 - 새 디렉토리 구조 적용
     const cssResources = {
-      cssUri: this._getUri(webview, 'resources', 'css', 'chat.css'),
-      claudeStyleCssUri: this._getUri(webview, 'resources', 'css', 'claude-style.css'),
-      codeBlocksCssUri: this._getUri(webview, 'resources', 'css', 'code-blocks.css'),
-      commandAutocompleteCssUri: this._getUri(webview, 'resources', 'css', 'command-autocomplete.css'),
-      contextSuggestionsCssUri: this._getUri(webview, 'resources', 'css', 'context-suggestions.css'),
-      modelSelectorCssUri: this._getUri(webview, 'resources', 'css', 'model-selector.css'),
-      apeIconsCssUri: this._getUri(webview, 'resources', 'css', 'icons', 'ape-icons.css'),
-      phosphorIconsCssUri: this._getUri(webview, 'resources', 'css', 'phosphor-icons.css'),
+      // 코어 CSS
+      cssUri: this._getUri(webview, 'resources', 'css', 'core', 'chat.css'),
+      themeVarsCssUri: this._getUri(webview, 'resources', 'css', 'core', 'theme-vars.css'),
+      
+      // 컴포넌트 CSS
+      codeBlocksCssUri: this._getUri(webview, 'resources', 'css', 'components', 'code-blocks.css'),
+      commandButtonsCssUri: this._getUri(webview, 'resources', 'css', 'components', 'command-buttons.css'),
+      modelSelectorCssUri: this._getUri(webview, 'resources', 'css', 'components', 'model-selector.css'),
+      
+      // 외부 리소스
       codiconsUri: this._getUri(webview, 'resources', 'codicons', 'codicon.css')
     };
     
-    // JS 리소스 매핑
+    // JS 리소스 매핑 - 새 디렉토리 구조 적용
     const jsResources = {
-      modelSelectorUri: this._getUri(webview, 'resources', 'js', 'model-selector.js'),
-      codeBlocksJsUri: this._getUri(webview, 'resources', 'js', 'code-blocks.js'),
-      commandIconsJsUri: this._getUri(webview, 'resources', 'js', 'command-icons.js'),
-      commandAutocompleteJsUri: this._getUri(webview, 'resources', 'js', 'command-autocomplete.js'),
-      iconManagerJsUri: this._getUri(webview, 'resources', 'js', 'icon-manager.js'),
-      commandButtonsJsUri: this._getUri(webview, 'resources', 'js', 'command-buttons.js'),
-      improvedApeUiJsUri: this._getUri(webview, 'resources', 'js', 'improved-ape-ui.js'),
-      improvedContextHandlerJsUri: this._getUri(webview, 'resources', 'js', 'improved-context-handler.js'),
-      workflowAnalyzerJsUri: this._getUri(webview, 'resources', 'js', 'workflow-analyzer.js'),
-      hybridApeUiJsUri: this._getUri(webview, 'resources', 'js', 'hybrid-ape-ui.js'),
-      apeUiEventFixJsUri: this._getUri(webview, 'resources', 'js', 'ape-ui-event-fix.js')
+      // 컴포넌트 JS
+      modelSelectorJsUri: this._getUri(webview, 'resources', 'js', 'components', 'model-selector.js'),
+      codeBlocksJsUri: this._getUri(webview, 'resources', 'js', 'components', 'code-blocks.js'),
+      commandButtonsJsUri: this._getUri(webview, 'resources', 'js', 'components', 'command-buttons.js'),
+      
+      // 코어 JS
+      apeUiJsUri: this._getUri(webview, 'resources', 'js', 'core', 'ape-ui.js'),
+      
+      // 유틸리티 JS
+      loggerJsUri: this._getUri(webview, 'resources', 'js', 'utils', 'logger.js'),
+      domUtilsJsUri: this._getUri(webview, 'resources', 'js', 'utils', 'dom-utils.js'),
+      eventBusJsUri: this._getUri(webview, 'resources', 'js', 'utils', 'event-bus.js')
     };
     
     // HTML 리소스 매핑

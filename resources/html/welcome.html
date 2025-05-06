@@ -5,11 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' {{codiconsPath}} {{mediaDirPath}}; font-src {{codiconsPath}} {{mediaDirPath}}; script-src 'unsafe-inline'; img-src {{mediaDirPath}} vscode-resource:;">
     <title>APE 확장 프로그램 시작하기</title>
-    <link rel="stylesheet" href="{{cssPath}}/ape-ui.css">
-    <link rel="stylesheet" href="{{cssPath}}/claude-style.css">
+    
+    <!-- 핵심 스타일 -->
+    <link rel="stylesheet" href="{{webviewResourceBaseUri}}/css/core/theme-vars.css">
+    <link rel="stylesheet" href="{{webviewResourceBaseUri}}/css/core/chat.css">
+    
+    <!-- 컴포넌트 스타일 -->
     <link rel="stylesheet" href="{{codiconsPath}}/codicon.css">
-    <link rel="stylesheet" href="{{cssPath}}/icons/ape-icons.css">
-    <link rel="stylesheet" href="{{cssPath}}/phosphor-icons.css">
+    <link rel="stylesheet" href="{{phosphorIconsCssUri}}">
+    
     <style>
         :root {
             --primary-color: #5436da;
