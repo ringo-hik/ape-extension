@@ -11,7 +11,8 @@ if exist "README.md" copy /Y README.md dist\README.md
 
 REM Set internal environment
 echo Setting up internal environment...
-copy /Y extension.env.internal.js dist\extension.env.js
+copy /Y extension.env.internal.js extension.env.js
+copy /Y extension.env.js dist\extension.env.js
 copy /Y config\internal\settings.json dist\settings.json
 
 REM Configure environment properly
