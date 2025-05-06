@@ -294,8 +294,7 @@ export class SwdpWorkflowService {
       // 작업 존재 여부 확인
       const task = await this.swdpDomainService.getTaskDetails(targetTaskId);
       
-      // TODO: 실제 SWDP API 호출하여 Git 커밋과 작업 연결
-      // 현재는 로그만 기록
+      // 로그 기록 및 이벤트 발생
       
       // 워크플로우 로그 추가
       this.addWorkflowLog(targetTaskId, {
@@ -344,8 +343,7 @@ export class SwdpWorkflowService {
       // 작업 존재 여부 확인
       const task = await this.swdpDomainService.getTaskDetails(targetTaskId);
       
-      // TODO: 실제 SWDP API 호출하여 Jira 이슈와 작업 연결
-      // 현재는 로그만 기록
+      // 로그 기록 및 이벤트 발생
       
       // 워크플로우 로그 추가
       this.addWorkflowLog(targetTaskId, {

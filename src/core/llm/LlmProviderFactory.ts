@@ -38,8 +38,7 @@ export class LlmProviderFactory {
    * 내부망 LLM 프로바이더 생성
    */
   private static createInternalProvider(type: string, modelConfig: ModelConfig): ILlmProvider {
-    // 여기서는 실제 프로바이더 클래스를 반환해야 합니다
-    // 예: return new InternalLlamaProvider(modelConfig);
+    // 임시 구현
     
     // 임시 구현 (인터페이스 구현 필요)
     return {
@@ -56,8 +55,7 @@ export class LlmProviderFactory {
    * 외부망 LLM 프로바이더 생성
    */
   private static createExternalProvider(modelConfig: ModelConfig): ILlmProvider {
-    // 여기서는 실제 프로바이더 클래스를 반환해야 합니다
-    // 예: return new OpenRouterProvider(modelConfig);
+    // 임시 구현
     
     // 임시 구현 (인터페이스 구현 필요)
     return {

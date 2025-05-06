@@ -62,10 +62,4 @@ export interface ILlmService {
    */
   getModelConfig(modelId: string): ModelConfig | undefined;
   
-  /**
-   * 모델 설정 가져오기 (구현체를 위한 통합 시그니처)
-   * @param modelId 선택적 모델 ID
-   * @returns 모델 ID 제공 시 특정 모델 설정, 그렇지 않으면 모든 모델 배열
-   */
-  // getModelConfig(modelId?: string): ModelConfig[] | ModelConfig | undefined;
 }

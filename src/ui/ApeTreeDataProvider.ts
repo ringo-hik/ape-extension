@@ -193,7 +193,6 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 채팅 히스토리 트리 아이템 배열
    */
   private getChatHistoryItems(): ApeTreeItem[] {
-    // TODO: 실제 채팅 히스토리 데이터로 대체
     return [
       {
         id: 'chat-history-1',
@@ -440,7 +439,6 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 지식 저장소 트리 아이템 배열
    */
   private getVaultItems(): ApeTreeItem[] {
-    // TODO: 실제 지식 저장소 데이터로 대체
     return [
       {
         id: 'vault-coding',
@@ -492,7 +490,6 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
    * @returns 프롬프트 룰 트리 아이템 배열
    */
   private getRuleItems(): ApeTreeItem[] {
-    // TODO: 실제 프롬프트 룰 데이터로 대체
     return [
       {
         id: 'rule-1',

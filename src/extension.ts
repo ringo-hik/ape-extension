@@ -399,8 +399,6 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }),
 
-    // 중복 명령어 제거함 (ape.openHybridChat은 위에서 이미 등록되었음)
-    
     
     // SWDP 연결 테스트 명령
     vscode.commands.registerCommand('ape.testSwdpConnection', async () => {

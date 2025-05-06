@@ -368,10 +368,7 @@ export class ExternalPluginLoader {
         throw new Error(`플러그인 패키지를 찾을 수 없습니다: ${pluginPath}`);
       }
       
-      // TODO: 플러그인 패키지 설치 로직 구현
-      // 1. 패키지 압축 해제
-      // 2. 플러그인 구조 검증
-      // 3. 플러그인 설치
+      // 플러그인 패키지 설치 로직 구현 필요
       
       // 플러그인 리로드
       await this.reloadExternalPlugins();
