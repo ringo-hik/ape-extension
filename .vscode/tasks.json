@@ -1,0 +1,72 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$tsc",
+      "label": "npm: build",
+      "detail": "esbuild 빌드 실행"
+    },
+    {
+      "type": "npm",
+      "script": "watch",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": "$tsc-watch",
+      "label": "npm: watch",
+      "detail": "esbuild 감시 모드"
+    },
+    {
+      "type": "npm",
+      "script": "dev:internal",
+      "group": "build",
+      "problemMatcher": "$tsc",
+      "label": "npm: dev:internal",
+      "detail": "내부망용 개발 빌드 실행"
+    },
+    {
+      "type": "process",
+      "label": "quick-development",
+      "command": "${workspaceFolder}/quick.bat",
+      "windows": {
+        "command": "${workspaceFolder}/quick.bat"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "cp -f extension.env.internal.js extension.env.js && npm run build",
+      "group": "build",
+      "problemMatcher": "$tsc",
+      "label": "build-debug-internal",
+      "detail": "내부망 환경으로 디버그용 빌드 (Linux/macOS)",
+      "windows": {
+        "command": "copy /Y extension.env.internal.js extension.env.js && npm run build"
+      }
+    },
+    {
+      "type": "shell",
+      "command": "cp -f extension.env.external.js extension.env.js && npm run build",
+      "group": "build",
+      "problemMatcher": "$tsc",
+      "label": "build-debug-external",
+      "detail": "외부망 환경으로 디버그용 빌드 (Linux/macOS)",
+      "windows": {
+        "command": "copy /Y extension.env.external.js extension.env.js && npm run build"
+      }
+    }
+  ]
+}
