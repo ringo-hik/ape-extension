@@ -12,6 +12,7 @@ import { ApeChatViewProvider } from './ui/ApeChatViewProvider';
 import { ChatService } from './services/ChatService';
 import { ApeTreeDataProvider } from './ui/ApeTreeDataProvider';
 import { ApeSettingsViewProvider } from './ui/ApeSettingsViewProvider';
+import { ApeTestViewProvider } from './ui/ApeTestViewProvider';
 
 // 확장 프로그램 인스턴스
 let coreService: ICoreService;
@@ -19,6 +20,7 @@ let chatService: ChatService;
 let chatViewProvider: ApeChatViewProvider;
 let treeDataProvider: ApeTreeDataProvider;
 let settingsViewProvider: ApeSettingsViewProvider;
+let testViewProvider: ApeTestViewProvider;
 
 /**
  * 확장 프로그램 활성화
@@ -59,6 +61,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       coreService
     );
     
+    // 테스트 뷰 제공자 생성
+    testViewProvider = new ApeTestViewProvider(
+      context.extensionUri,
+      coreService
+    );
+    
     // 웹뷰 패널 등록
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(
@@ -92,6 +100,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.window.registerWebviewViewProvider(
         'ape.settingsView', // package.json에 정의된 ID와 일치
         settingsViewProvider
+      )
+    );
+    
+    // 테스트 뷰 등록
+    context.subscriptions.push(
+      vscode.window.registerWebviewViewProvider(
+        'ape.testView', // package.json에 정의된 ID와 일치
+        testViewProvider
       )
     );
     
@@ -173,6 +189,17 @@ function registerCommands(context: vscode.ExtensionContext): void {
       await vscode.commands.executeCommand('workbench.view.extension.ape-sidebar');
       // 채팅 뷰로 포커스
       await vscode.commands.executeCommand('ape.chatView.focus');
+    })
+  );
+  
+  // 테스트 뷰 열기 명령 추가
+  context.subscriptions.push(
+    vscode.commands.registerCommand('ape.openTest', async () => {
+      console.log('테스트 뷰 열기 명령 실행');
+      // 사이드바 표시
+      await vscode.commands.executeCommand('workbench.view.extension.ape-sidebar');
+      // 테스트 뷰로 포커스
+      await vscode.commands.executeCommand('ape.testView.focus');
     })
   );
   
