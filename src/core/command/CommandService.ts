@@ -12,6 +12,7 @@ import { IConfigLoader } from '../../types/ConfigTypes';
 import { LoggerService } from '../utils/LoggerService';
 import { EventEmitter } from 'events';
 import { Command, CommandPrefix, CommandType, ParsedCommand } from '../../types/CommandTypes';
+import { PluginRegistryService } from '../plugin-system/PluginRegistryService';
 
 /**
  * 명령어 서비스 클래스
@@ -38,8 +39,13 @@ export class CommandService extends EventEmitter {
   constructor(configLoader: IConfigLoader) {
     super();
     this.logger = new LoggerService();
-    this.registry = new CommandRegistryService(configLoader);
-    this.executor = new CommandExecutorService(this.registry);
+    
+    // PluginRegistryService 인스턴스 생성 (configLoader를 사용)
+    const pluginRegistry = new PluginRegistryService(configLoader);
+    
+    // registry, executor, parser 초기화
+    this.registry = new CommandRegistryService(pluginRegistry);
+    this.executor = new CommandExecutorService(this.registry, pluginRegistry);
     this.parser = new CommandParserService();
     
     this.logger.info('CommandService 초기화됨');
@@ -61,7 +67,10 @@ export class CommandService extends EventEmitter {
    * 초기화
    */
   async initialize(): Promise<void> {
-    await this.registry.initialize();
+    // CommandRegistryService 초기화
+    if (typeof this.registry.initialize === 'function') {
+      await this.registry.initialize();
+    }
     
     // 컨텍스트 초기 로딩
     await this.refreshAllContexts();
@@ -79,7 +88,7 @@ export class CommandService extends EventEmitter {
       this.logger.debug(`명령어 실행: ${command}`);
       
       // 명령어 파싱
-      const parsedCommand = this.parser.parseCommand(command);
+      const parsedCommand = this.parser.parse(command);
       
       if (!parsedCommand) {
         return {
@@ -89,11 +98,7 @@ export class CommandService extends EventEmitter {
       }
       
       // 명령어 실행
-      return await this.executor.executeCommand(
-        parsedCommand.command,
-        parsedCommand.args,
-        { rawInput: command }
-      );
+      return await this.executor.execute(parsedCommand);
     } catch (error) {
       this.logger.error(`명령어 실행 중 오류 발생: ${error instanceof Error ? error.message : String(error)}`);
       return {
@@ -223,8 +228,19 @@ export class CommandService extends EventEmitter {
    */
   async generateContextualCommand(baseCommand: string, context?: any): Promise<string | string[]> {
     try {
+      if (!baseCommand) {
+        return '';
+      }
+      
       // 플러그인 명령어 분리
-      const [pluginPrefix, commandName] = baseCommand.split(':');
+      const parts = baseCommand.split(':');
+      const pluginPrefix = parts.length > 0 ? parts[0] : '';
+      const commandName = parts.length > 1 ? parts[1] : '';
+      
+      if (!pluginPrefix || !commandName) {
+        return baseCommand;
+      }
+      
       const pluginId = pluginPrefix.replace('@', '');
       
       // 명령어 레지스트리에서 플러그인 및 명령어 정보 조회

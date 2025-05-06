@@ -57,7 +57,7 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
   /**
    * 플러그인 레지스트리
    */
-  private _pluginRegistry?: PluginRegistryService;
+  private _pluginRegistry: PluginRegistryService | null = null;
   
   /**
    * 명령어 레지스트리 생성자
@@ -65,7 +65,7 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
    */
   constructor(pluginRegistry?: PluginRegistryService) {
     super();
-    this._pluginRegistry = pluginRegistry;
+    this._pluginRegistry = pluginRegistry ?? null;
     
     // 플러그인 레지스트리가 제공된 경우 이벤트 구독
     if (this._pluginRegistry && typeof this._pluginRegistry.on === 'function') {
@@ -80,6 +80,17 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     
     // 기본 내장 명령어 등록
     this.registerCoreCommands();
+  }
+  
+  /**
+   * 초기화 - 플러그인 레지스트리 초기화 및 명령어 새로고침
+   */
+  public async initialize(): Promise<void> {
+    if (this._pluginRegistry) {
+      await this._pluginRegistry.initialize();
+    }
+    this.refreshCommands();
+    this.emit('initialized');
   }
   
   /**
@@ -100,17 +111,20 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
         if (!pluginGroups.has(groupName)) {
           pluginGroups.set(groupName, []);
         }
-        pluginGroups.get(groupName)!.push(cmd);
+        const cmdGroup = pluginGroups.get(groupName);
+        if (cmdGroup) {
+          cmdGroup.push(cmd);
+        }
       });
       
       // 각 그룹 출력
-      for (const [plugin, cmds] of pluginGroups.entries()) {
+      pluginGroups.forEach((cmds, plugin) => {
         helpText += `[${plugin}]\n`;
         cmds.forEach(cmd => {
           helpText += `  ${cmd.syntax} - ${cmd.description}\n`;
         });
         helpText += '\n';
-      }
+      });
       
       return {
         success: true,
@@ -171,13 +185,13 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
         helpText += '등록된 @ 명령어가 없습니다.\n\n';
         helpText += '각 플러그인은 자체 명령어를 제공합니다. 설정에 플러그인을 추가하면 더 많은 명령어를 사용할 수 있습니다.';
       } else {
-        for (const [plugin, cmds] of pluginGroups.entries()) {
+        pluginGroups.forEach((cmds, plugin) => {
           helpText += `## ${plugin} 플러그인\n\n`;
           cmds.forEach(cmd => {
             helpText += `- \`${cmd.syntax}\` - ${cmd.description}\n`;
           });
           helpText += '\n';
-        }
+        });
       }
       
       return {
@@ -430,14 +444,16 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     const allUsages: CommandUsage[] = [];
     
     // 에이전트 기반 명령어 사용법 추가
-    for (const agentUsages of this._usages.values()) {
-      allUsages.push(...agentUsages.values());
-    }
+    this._usages.forEach(agentUsages => {
+      const usageValues = Array.from(agentUsages.values());
+      allUsages.push(...usageValues);
+    })
     
     // 도메인 기반 명령어 사용법 추가
-    for (const domainUsages of this._domainUsages.values()) {
-      allUsages.push(...domainUsages.values());
-    }
+    this._domainUsages.forEach(domainUsages => {
+      const usageValues = Array.from(domainUsages.values());
+      allUsages.push(...usageValues);
+    });
     
     return allUsages;
   }
@@ -483,21 +499,21 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     const groupedCommands = new Map<string, CommandUsage[]>();
     
     // 에이전트 기반 명령어 그룹화
-    for (const [agentId, usages] of this._usages.entries()) {
+    this._usages.forEach((usages, agentId) => {
       const usagesList = Array.from(usages.values());
       if (usagesList.length > 0) {
         groupedCommands.set(agentId, usagesList);
       }
-    }
+    });
     
     // 도메인 기반 명령어 그룹화
-    for (const [domain, usages] of this._domainUsages.entries()) {
+    this._domainUsages.forEach((usages, domain) => {
       const domainKey = `domain:${domain}`;
       const usagesList = Array.from(usages.values());
       if (usagesList.length > 0) {
         groupedCommands.set(domainKey, usagesList);
       }
-    }
+    });
     
     return groupedCommands;
   }
@@ -512,37 +528,38 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
   public async executeCommand(fullCommand: string, args: any[] = [], flags: Record<string, any> = {}): Promise<CommandResult> {
     // 명령어 분석
     const parts = fullCommand.split(':');
-    let agentId: string;
+    let agentId: string = 'core'; // 기본 에이전트 ID를 'core'로 설정
     let command: string;
     let domain: CommandDomain = CommandDomain.NONE;
     
     if (parts.length === 1) {
       // 내부 명령어 (core 플러그인)
-      agentId = 'core';
-      command = parts[0];
+      command = parts[0] || '';
     } else {
       // 첫 부분 분석 (에이전트 ID 또는 도메인)
-      const firstPart = parts[0];
+      const firstPart = parts[0] || '';
       
       // 도메인 명령어인지 확인 (@ 접두사 제거 후)
-      const domainValue = firstPart.startsWith('@') ? firstPart.substring(1) : firstPart;
+      const domainValue = firstPart && firstPart.startsWith('@') ? firstPart.substring(1) : firstPart;
       
       // 도메인 열거형에 있는지 확인
       try {
-        domain = Object.values(CommandDomain).find(
-          d => d.toString().toLowerCase() === domainValue.toLowerCase()
-        ) as CommandDomain || CommandDomain.NONE;
+        if (domainValue) {
+          domain = Object.values(CommandDomain).find(
+            d => d && d.toString().toLowerCase() === domainValue.toLowerCase()
+          ) as CommandDomain || CommandDomain.NONE;
+        }
       } catch (e) {
         domain = CommandDomain.NONE;
       }
       
       if (domain !== CommandDomain.NONE) {
         // 도메인 기반 명령어
-        command = parts.slice(1).join(':');
+        command = parts.slice(1).join(':') || '';
       } else {
         // 에이전트 기반 명령어
         agentId = firstPart;
-        command = parts.slice(1).join(':');
+        command = parts.slice(1).join(':') || '';
       }
     }
     
@@ -586,7 +603,7 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
         // 제안 명령어에 접두사 추가
         if (domain !== CommandDomain.NONE) {
           suggestions = suggestions.map(s => `@${domain}:${s}`);
-        } else {
+        } else if (agentId) {
           const prefix = command.startsWith('/') ? '/' : '@';
           suggestions = suggestions.map(s => `${agentId}:${s}`);
         }
@@ -606,19 +623,22 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
       
       // 결과 정규화 (문자열인 경우 CommandResult 객체로 변환)
       if (typeof result === 'string') {
+        const stringResult: string = result;
         return {
           success: true,
-          message: result,
-          displayMode: result.includes('#') || result.includes('**') ? 'markdown' : 'text'
+          message: stringResult,
+          displayMode: stringResult.includes('#') || stringResult.includes('**') ? 'markdown' : 'text'
         };
       } else if (result && typeof result === 'object') {
         // 이미 CommandResult 객체이거나 유사한 형태인 경우
         if ('success' in result) {
           return result as CommandResult;
         } else if ('content' in result) {
+          // Type assertion to access the content property
+          const contentResult = result as { content: string };
           return {
             success: true,
-            message: result.content,
+            message: contentResult.content,
             data: result,
             displayMode: 'markdown'
           };
@@ -655,33 +675,41 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
    * @returns 레벤슈타인 거리
    */
   private calculateLevenshteinDistance(a: string, b: string): number {
+    if (!a) return b ? b.length : 0;
+    if (!b) return a.length;
+    
     if (a.length === 0) return b.length;
     if (b.length === 0) return a.length;
     
-    const matrix: number[][] = [];
+    // 간단한 두 행 방식으로 구현 (메모리 최적화)
+    let prev = Array(b.length + 1).fill(0);
+    let curr = Array(b.length + 1).fill(0);
     
-    // 행렬 초기화
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
+    // 첫 번째 행 초기화
+    for (let j = 0; j <= b.length; j++) {
+      prev[j] = j;
     }
     
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0][j] = j;
-    }
-    
-    // 거리 계산
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        const cost = a[j - 1] === b[i - 1] ? 0 : 1;
-        matrix[i][j] = Math.min(
-          matrix[i - 1][j] + 1,        // 삭제
-          matrix[i][j - 1] + 1,        // 삽입
-          matrix[i - 1][j - 1] + cost  // 대체
+    // 계산
+    for (let i = 1; i <= a.length; i++) {
+      // 첫 번째 열 초기화
+      curr[0] = i;
+      
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+        curr[j] = Math.min(
+          prev[j] + 1,        // 삭제
+          curr[j - 1] + 1,     // 삽입
+          prev[j - 1] + cost   // 대체
         );
       }
+      
+      // 행 교체
+      [prev, curr] = [curr, prev];
     }
     
-    return matrix[b.length][a.length];
+    // 주의: 최종 결과는 prev에 있음 (마지막 swap 때문)
+    return prev[b.length];
   }
   
   /**
@@ -879,31 +907,34 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     let domain: CommandDomain = CommandDomain.NONE;
     
     // '@git:' 형식 검사 - 명령어 패턴에서 도메인 추출
-    if (commandPattern.startsWith('@')) {
-      const domainPart = commandPattern.substring(1).split(':')[0];
+    if (commandPattern && commandPattern.startsWith('@')) {
+      const parts = commandPattern.substring(1).split(':');
+      const domainPart = parts.length > 0 ? parts[0] : '';
       
       // 도메인 문자열을 CommandDomain으로 변환
-      switch (domainPart.toLowerCase()) {
-        case 'git':
-          domain = CommandDomain.GIT;
-          break;
-        case 'jira':
-          domain = CommandDomain.JIRA;
-          break;
-        case 'pocket':
-          domain = CommandDomain.POCKET;
-          break;
-        case 'doc':
-          domain = CommandDomain.DOC;
-          break;
-        case 'vault':
-          domain = CommandDomain.VAULT;
-          break;
-        case 'rules':
-          domain = CommandDomain.RULES;
-          break;
-        default:
-          domain = CommandDomain.NONE;
+      if (domainPart) {
+        switch (domainPart.toLowerCase()) {
+          case 'git':
+            domain = CommandDomain.GIT;
+            break;
+          case 'jira':
+            domain = CommandDomain.JIRA;
+            break;
+          case 'pocket':
+            domain = CommandDomain.POCKET;
+            break;
+          case 'doc':
+            domain = CommandDomain.DOC;
+            break;
+          case 'vault':
+            domain = CommandDomain.VAULT;
+            break;
+          case 'rules':
+            domain = CommandDomain.RULES;
+            break;
+          default:
+            domain = CommandDomain.NONE;
+        }
       }
     }
     
@@ -944,42 +975,42 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     switch (command) {
       case 'checkout':
         // 브랜치 정보가 있는 경우 브랜치 추가
-        if (context.currentBranch) {
-          return `@git:checkout ${context.currentBranch}`;
+        if ('currentBranch' in context && context['currentBranch']) {
+          return `@git:checkout ${context['currentBranch']}`;
         }
         
         // 브랜치 목록이 있는 경우 여러 옵션 제시
-        if (context.branches && Array.isArray(context.branches)) {
-          return context.branches.slice(0, 5).map((branch: string) => `@git:checkout ${branch}`);
+        if ('branches' in context && Array.isArray(context['branches'])) {
+          return context['branches'].slice(0, 5).map((branch: string) => `@git:checkout ${branch}`);
         }
         break;
         
       case 'commit':
         // 작업 파일 정보가 있는 경우 커밋 메시지에 활용
-        if (context.changedFiles && Array.isArray(context.changedFiles) && context.changedFiles.length > 0) {
+        if ('changedFiles' in context && Array.isArray(context['changedFiles']) && context['changedFiles'].length > 0) {
           // 변경 파일 중 첫 번째 파일로 커밋 메시지 추정
-          const firstFile = context.changedFiles[0];
+          const firstFile = context['changedFiles'][0];
           return `@git:commit -m "Update ${firstFile}"`;
         }
         
         // 현재 작업 중인 파일이 있는 경우
-        if (context.activeFile) {
-          const fileName = context.activeFile.split('/').pop();
-          return `@git:commit -m "Update ${fileName}"`;
+        if ('activeFile' in context && context['activeFile']) {
+          const fileName = context['activeFile'].split('/').pop();
+          return `@git:commit -m "Update ${fileName || 'file'}"`;
         }
         break;
         
       case 'push':
         // 현재 브랜치 정보가 있는 경우
-        if (context.currentBranch) {
-          return `@git:push origin ${context.currentBranch}`;
+        if ('currentBranch' in context && context['currentBranch']) {
+          return `@git:push origin ${context['currentBranch']}`;
         }
         break;
         
       case 'pull':
         // 현재 브랜치 정보가 있는 경우
-        if (context.currentBranch) {
-          return `@git:pull origin ${context.currentBranch}`;
+        if ('currentBranch' in context && context['currentBranch']) {
+          return `@git:pull origin ${context['currentBranch']}`;
         }
         break;
     }
@@ -1006,23 +1037,23 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
       case 'view':
       case 'issue':
         // 이슈 키가 있는 경우 이슈 조회
-        if (context.issueKey) {
-          return `@jira:view ${context.issueKey}`;
+        if ('issueKey' in context && context['issueKey']) {
+          return `@jira:view ${context['issueKey']}`;
         }
         
         // 최근 이슈 목록이 있는 경우
-        if (context.recentIssues && Array.isArray(context.recentIssues)) {
-          return context.recentIssues.slice(0, 3).map((issue: any) => 
-            `@jira:view ${typeof issue === 'string' ? issue : issue.key}`
+        if ('recentIssues' in context && Array.isArray(context['recentIssues'])) {
+          return context['recentIssues'].slice(0, 3).map((issue: any) => 
+            `@jira:view ${typeof issue === 'string' ? issue : (issue && typeof issue === 'object' && 'key' in issue) ? issue.key : 'unknown'}`
           );
         }
         break;
         
       case 'create':
         // 현재 작업 중인 파일이 있는 경우 제목으로 활용
-        if (context.activeFile) {
-          const fileName = context.activeFile.split('/').pop();
-          return `@jira:create --title "Issue with ${fileName}"`;
+        if ('activeFile' in context && context['activeFile']) {
+          const fileName = context['activeFile'].split('/').pop();
+          return `@jira:create --title "Issue with ${fileName || 'file'}"`;
         }
         break;
     }
@@ -1048,22 +1079,22 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     switch (command) {
       case 'read':
         // 아티클 ID가 있는 경우
-        if (context.articleId) {
-          return `@pocket:read ${context.articleId}`;
+        if ('articleId' in context && context['articleId']) {
+          return `@pocket:read ${context['articleId']}`;
         }
         
         // 최근 아티클 목록이 있는 경우
-        if (context.recentArticles && Array.isArray(context.recentArticles)) {
-          return context.recentArticles.slice(0, 3).map((article: any) => 
-            `@pocket:read ${typeof article === 'string' ? article : article.id}`
+        if ('recentArticles' in context && Array.isArray(context['recentArticles'])) {
+          return context['recentArticles'].slice(0, 3).map((article: any) => 
+            `@pocket:read ${typeof article === 'string' ? article : (article && typeof article === 'object' && 'id' in article) ? article.id : 'unknown'}`
           );
         }
         break;
         
       case 'search':
         // 검색어가 있는 경우
-        if (context.searchQuery) {
-          return `@pocket:search ${context.searchQuery}`;
+        if ('searchQuery' in context && context['searchQuery']) {
+          return `@pocket:search ${context['searchQuery']}`;
         }
         break;
     }
@@ -1089,8 +1120,8 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     switch (command) {
       case 'search':
         // 검색어가 있는 경우
-        if (context.searchQuery) {
-          return `@doc:search ${context.searchQuery}`;
+        if ('searchQuery' in context && context['searchQuery']) {
+          return `@doc:search ${context['searchQuery']}`;
         }
         break;
     }
@@ -1112,8 +1143,10 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     const suggestions: string[] = [];
     
     // 작업 중인 파일이 있는 경우 파일 타입 기반 추천
-    if (context.activeFile) {
-      const fileExtension = context.activeFile.split('.').pop()?.toLowerCase();
+    if ('activeFile' in context && context['activeFile']) {
+      const activeFile = context['activeFile'] as string;
+      const parts = activeFile ? activeFile.split('.') : [];
+      const fileExtension = (parts && parts.length > 1) ? parts[parts.length - 1]?.toLowerCase() || '' : '';
       
       // 파일 타입별 추천
       switch (fileExtension) {
@@ -1135,18 +1168,25 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     }
     
     // Git 정보가 있는 경우 Git 명령어 추천
-    if (context.currentBranch) {
-      suggestions.push(`@git:push origin ${context.currentBranch}`);
-      suggestions.push(`@git:pull origin ${context.currentBranch}`);
+    if ('currentBranch' in context && context['currentBranch']) {
+      suggestions.push(`@git:push origin ${context['currentBranch']}`);
+      suggestions.push(`@git:pull origin ${context['currentBranch']}`);
     }
     
     // 최근 명령어 기록 기반 추천
-    if (context.recentCommands && Array.isArray(context.recentCommands)) {
-      suggestions.push(...context.recentCommands.slice(0, 3));
+    if ('recentCommands' in context && Array.isArray(context['recentCommands'])) {
+      suggestions.push(...context['recentCommands'].slice(0, 3));
     }
     
     // 중복 제거 및 제한
-    return [...new Set(suggestions)].slice(0, limit);
+    const uniqueSuggestions: string[] = [];
+    // Filter out duplicates manually
+    for (const suggestion of suggestions) {
+      if (!uniqueSuggestions.includes(suggestion)) {
+        uniqueSuggestions.push(suggestion);
+      }
+    }
+    return uniqueSuggestions.slice(0, limit);
   }
   
   /**
@@ -1165,12 +1205,16 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     this._domainUsages.clear();
     
     // 활성화된 모든 플러그인에서 명령어 가져오기
-    const plugins = this._pluginRegistry.getEnabledPlugins();
+    const plugins = this._pluginRegistry.getEnabledPlugins() || [];
     let commandCount = 0;
     
     for (const plugin of plugins) {
-      const pluginCommands = plugin.getCommands();
+      if (!plugin) continue;
+      
+      const pluginCommands = plugin.getCommands?.() || [];
       for (const cmd of pluginCommands) {
+        if (!cmd || !cmd.name) continue;
+        
         const fullCommandName = cmd.name;
         
         // 명령어 타입 및 도메인 판별
@@ -1178,12 +1222,17 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
         if (cmd.domain) {
           domain = cmd.domain as CommandDomain;
         } else if (plugin.getDomain) {
-          domain = plugin.getDomain();
+          // Cast the string result to CommandDomain enum
+          const domainStr = plugin.getDomain();
+          domain = Object.values(CommandDomain).find(
+            d => d.toString().toLowerCase() === domainStr.toLowerCase()
+          ) as CommandDomain || CommandDomain.NONE;
         }
         
         // 명령어 핸들러 작성
         const handler: CommandHandler = async (args, flags) => {
-          return await plugin.executeCommand(fullCommandName, args, flags);
+          // 플러그인의 executeCommand 메서드는 args만 받지만, 호환성을 위해 flags를 무시
+          return await plugin.executeCommand(fullCommandName, args);
         };
         
         // 명령어 등록 (도메인 기반 또는 기존 방식)
@@ -1233,6 +1282,66 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
   }
   
   /**
+   * 현재 컨텍스트 캐시 조회
+   * @returns 컨텍스트 캐시 객체
+   */
+  public getContextCache(): any {
+    return this._contextCache;
+  }
+  
+  /**
+   * 플러그인 조회 - PluginRegistryService 프록시 메서드
+   * @param pluginId 플러그인 ID
+   * @returns 플러그인 인스턴스 또는 undefined
+   */
+  public getPlugin(pluginId: string): any {
+    if (!this._pluginRegistry) {
+      return undefined;
+    }
+    return this._pluginRegistry.getPlugin(pluginId);
+  }
+  
+  /**
+   * 명령어 찾기 (ID 또는 이름으로)
+   * @param agentId 에이전트/플러그인 ID
+   * @param commandName 명령어 이름
+   * @returns 명령어 객체 또는 undefined
+   */
+  public findCommand(agentId: string, commandName: string): any {
+    if (!agentId || !commandName) {
+      return undefined;
+    }
+    
+    // 핸들러 조회
+    const handler = this.getHandler(agentId, commandName);
+    if (!handler) {
+      return undefined;
+    }
+    
+    // 사용법 정보 조회
+    const usage = this.getUsage(agentId, commandName);
+    
+    // 기본 명령어 객체 구성
+    const cmdObj: Record<string, any> = {
+      id: `${agentId}:${commandName}`,
+      handler,
+      agentId,
+      command: commandName,
+    };
+    
+    // 사용법 정보가 있으면 병합
+    if (usage) {
+      Object.entries(usage).forEach(([key, value]) => {
+        if (value !== undefined) {
+          cmdObj[key] = value;
+        }
+      });
+    }
+    
+    return cmdObj;
+  }
+  
+  /**
    * 명령어를 등록합니다. (레거시 호환성)
    * @param command 명령어 객체
    * @returns 등록 성공 여부
@@ -1246,17 +1355,25 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
       
       // 명령어 ID 파싱
       const parts = command.id.split(':');
-      let agentId: string;
-      let commandName: string;
+      let agentId = 'core';
+      let commandName = '';
       
       if (parts.length === 1) {
         // 내부 명령어 (core 플러그인)
         agentId = 'core';
-        commandName = parts[0];
-      } else {
+        commandName = parts[0] || '';
+      } else if (parts.length > 1) {
         // 플러그인 명령어 (agentId:command)
-        agentId = parts[0];
-        commandName = parts.slice(1).join(':');
+        agentId = parts[0] || '';
+        commandName = parts.slice(1).join(':') || '';
+      } else {
+        console.error('Invalid command ID format:', command.id);
+        return false;
+      }
+      
+      if (!commandName) {
+        console.error('Command name cannot be empty');
+        return false;
       }
       
       // 레거시 명령어 맵에 저장
@@ -1276,16 +1393,20 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
    * @returns 명령어 존재 여부
    */
   public hasCommand(commandId: string): boolean {
+    if (!commandId) return false;
+    
     const parts = commandId.split(':');
-    let agentId: string;
-    let command: string;
+    let agentId = 'core';
+    let command = '';
     
     if (parts.length === 1) {
       agentId = 'core';
-      command = parts[0];
+      command = parts[0] || '';
+    } else if (parts.length > 1) {
+      agentId = parts[0] || '';
+      command = parts.slice(1).join(':') || '';
     } else {
-      agentId = parts[0];
-      command = parts.slice(1).join(':');
+      return false;
     }
     
     return this.getHandler(agentId, command) !== undefined;
@@ -1300,8 +1421,8 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
     const commands: ICommand[] = [];
     
     // 모든 에이전트에서 명령어 검색
-    for (const [agentId, handlers] of this._handlers.entries()) {
-      for (const [commandName, handler] of handlers.entries()) {
+    this._handlers.forEach((handlers, agentId) => {
+      handlers.forEach((handler, commandName) => {
         // 사용법 정보 가져오기
         const usage = this.getUsage(agentId, commandName);
         
@@ -1324,13 +1445,14 @@ export class CommandRegistryService extends EventEmitter implements ICommandRegi
               id: `${agentId}:${commandName}`,
               type: commandType,
               prefix: prefix,
+              domain: usage.domain || CommandDomain.NONE,
               description: usage.description,
               handler
             });
           }
         }
-      }
-    }
+      });
+    });
     
     return commands;
   }

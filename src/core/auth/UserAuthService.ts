@@ -304,7 +304,7 @@ export class UserAuthService {
     this.checkInitialized();
     
     // 토큰만 제거
-    this.userInfo.token = undefined;
+    delete this.userInfo.token;
     
     await this.saveUserInfo();
     
@@ -342,10 +342,10 @@ export class UserAuthService {
       const gitUsername = usernameMatch?.[1]?.trim();
       const gitEmail = emailMatch?.[1]?.trim();
       
-      return {
-        gitUsername,
-        gitEmail
-      };
+      const result: { gitUsername?: string, gitEmail?: string } = {};
+      if (gitUsername) result.gitUsername = gitUsername;
+      if (gitEmail) result.gitEmail = gitEmail;
+      return result;
     } catch (error) {
       console.warn('Git 사용자 정보 추출 중 오류 발생:', error);
       return {};
@@ -358,12 +358,13 @@ export class UserAuthService {
   private async loadUserInfo(): Promise<void> {
     try {
       const userConfig = this.configService.getUserConfig();
-      if (userConfig && userConfig.auth) {
+      if (userConfig && userConfig['auth']) {
+        const auth = userConfig['auth'];
         this.userInfo = {
-          userId: userConfig.auth.userId,
-          gitUsername: userConfig.auth.gitUsername,
-          gitEmail: userConfig.auth.gitEmail,
-          token: userConfig.auth.token
+          userId: auth['userId'],
+          gitUsername: auth['gitUsername'],
+          gitEmail: auth['gitEmail'],
+          token: auth['token']
         };
       }
     } catch (error) {
@@ -391,8 +392,8 @@ export class UserAuthService {
   private async loadUserSettings(): Promise<void> {
     try {
       const userConfig = this.configService.getUserConfig();
-      if (userConfig && userConfig.settings) {
-        this.userSettings = { ...userConfig.settings };
+      if (userConfig && userConfig['settings']) {
+        this.userSettings = { ...userConfig['settings'] };
       }
     } catch (error) {
       console.warn('사용자 설정 로드 중 오류 발생:', error);

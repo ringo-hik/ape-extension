@@ -21,12 +21,26 @@ type VSCodeExtensionContext = {
  * VS Code 확장 및 CLI 환경 모두 지원
  */
 export class ConfigService implements IConfigLoader {
+  /* === 싱글톤 인스턴스 === */
+  private static instance: ConfigService;
+  
   /* === 설정 로더 부분 === */
   protected config: any = {};
   protected configPath: string;
   
   /* === 설정 검증기 부분 === */
   private schemas: Map<string, any> = new Map();
+  
+  /**
+   * 싱글톤 인스턴스 가져오기
+   * @returns ConfigService 인스턴스
+   */
+  public static getInstance(): ConfigService {
+    if (!ConfigService.instance) {
+      ConfigService.instance = new ConfigService();
+    }
+    return ConfigService.instance;
+  }
 
   /**
    * ConfigService 생성자
@@ -206,6 +220,82 @@ export class ConfigService implements IConfigLoader {
       return this.getSection<PluginConfig>(`plugins.${pluginId}`);
     }
     return this.getSection<Record<string, PluginConfig>>('plugins');
+  }
+  
+  /**
+   * 플러그인 설정 가져오기 (간단한 버전)
+   * @param pluginId 플러그인 ID
+   * @returns 플러그인 설정 객체 또는 null
+   */
+  getPlugin(pluginId: string): Record<string, any> | null {
+    try {
+      const pluginConfig = this.getPluginConfig(pluginId);
+      return pluginConfig as Record<string, any>;
+    } catch (error) {
+      console.error(`플러그인 설정 가져오기 실패 (${pluginId}):`, error);
+      return null;
+    }
+  }
+  
+  /**
+   * 사용자 설정 가져오기
+   * @returns 사용자 설정 객체
+   */
+  getUserConfig(): Record<string, any> {
+    return this.getSection<Record<string, any>>('user');
+  }
+  
+  /**
+   * 사용자 설정 업데이트
+   * @param config 업데이트할 설정 객체
+   * @returns 업데이트 성공 여부
+   */
+  updateUserConfig(config: Record<string, any>): boolean {
+    try {
+      // 기존 사용자 설정 가져오기
+      const userConfig = this.getUserConfig();
+      
+      // 새 설정으로 업데이트
+      const updatedConfig = { ...userConfig, ...config };
+      
+      // 설정 저장
+      this.set('user', updatedConfig);
+      return this.save();
+    } catch (error) {
+      console.error('사용자 설정 업데이트 중 오류 발생:', error);
+      return false;
+    }
+  }
+  
+  /**
+   * 애플리케이션 설정 가져오기
+   * @returns 애플리케이션 설정 객체
+   */
+  getAppConfig(): Record<string, any> {
+    return this.getSection<Record<string, any>>('app');
+  }
+  
+  /**
+   * 설정 업데이트
+   * @param section 설정 섹션
+   * @param config 업데이트할 설정 객체
+   * @returns 업데이트 성공 여부
+   */
+  updateConfig(section: string, config: Record<string, any>): boolean {
+    try {
+      // 기존 설정 가져오기
+      const currentConfig = this.getSection(section);
+      
+      // 새 설정으로 업데이트
+      const updatedConfig = { ...currentConfig, ...config };
+      
+      // 설정 저장
+      this.set(section, updatedConfig);
+      return this.save();
+    } catch (error) {
+      console.error(`설정 업데이트 중 오류 발생 (${section}):`, error);
+      return false;
+    }
   }
   
   /**

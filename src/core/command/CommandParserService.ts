@@ -47,7 +47,7 @@ export class CommandParserService implements ICommandParser {
    * @param input 명령어 입력 문자열
    * @returns 파싱된 명령어 또는 null (명령어가 아닌 경우)
    */
-  parse(input: string): Command | null {
+  parse(input: string | undefined): Command | null {
     if (!input || !input.trim()) {
       return null;
     }
@@ -91,7 +91,7 @@ export class CommandParserService implements ICommandParser {
     }
     
     // 에이전트 및 명령어 추출
-    const [agentId, commandName, subCommand] = this.extractAgentAndCommand(tokens[0], commandType);
+    const [agentId, commandName, subCommand] = this.extractAgentAndCommand(tokens[0] || '', commandType);
     
     // agentId가 없는 경우 명령어로 처리하지 않음
     if (!agentId || !commandName) {
@@ -101,18 +101,24 @@ export class CommandParserService implements ICommandParser {
     // 인자 및 플래그 추출
     const { args, flags, options } = this.extractArgsAndFlags(tokens.slice(1));
     
-    return {
+    const command: Command = {
       prefix,
       type: commandType,
       domain,
       agentId,
       command: commandName,
-      subCommand,
       args,
       flags,
       options,
       rawInput: trimmed
     };
+    
+    // Add optional property only when it has a value
+    if (subCommand !== undefined) {
+      command.subCommand = subCommand;
+    }
+    
+    return command;
   }
   
   /**
@@ -152,6 +158,7 @@ export class CommandParserService implements ICommandParser {
       type: CommandType.NONE,
       domain: CommandDomain.NONE,
       command: '',
+      subCommand: '', // Provide empty string instead of undefined 
       args: [],
       flags: new Map<string, string | boolean>(),
       options: new Map<string, any>(),
@@ -188,7 +195,7 @@ export class CommandParserService implements ICommandParser {
       type: command.type,
       domain: command.domain,
       command: command.command,
-      subCommand: command.subCommand,
+      subCommand: command.subCommand ?? '', // Use nullish coalescing to provide empty string
       args: command.args,
       flags: flagsMap,
       options: optionsMap,
@@ -224,7 +231,7 @@ export class CommandParserService implements ICommandParser {
   /**
    * 입력 문자열에서 도메인 추출
    * @param input 입력 문자열
-   * @returns 도메인 또는 null
+   * @returns 도메인 또는 CommandDomain.NONE
    */
   public extractDomain(input: string): CommandDomain {
     if (!input || !input.includes(':')) {
@@ -233,7 +240,13 @@ export class CommandParserService implements ICommandParser {
     
     // 입력에서 첫 번째 파트 추출 (접두사 제외)
     const cleanInput = input.startsWith('@') ? input.substring(1) : input;
-    const domainPart = cleanInput.split(':')[0].toLowerCase().trim();
+    const parts = cleanInput.split(':');
+    
+    if (!parts || parts.length === 0) {
+      return CommandDomain.NONE;
+    }
+    
+    const domainPart = parts[0] ? parts[0].toLowerCase().trim() : '';
     
     // 도메인 맵에서 찾기
     return this.domainMap.get(domainPart) || CommandDomain.NONE;
@@ -245,25 +258,33 @@ export class CommandParserService implements ICommandParser {
    * @param commandType 명령어 타입
    * @returns [에이전트 ID, 명령어 이름, 하위 명령어] 또는 잘못된 형식이면 [null, null, null]
    */
-  private extractAgentAndCommand(token: string, commandType: CommandType): [string | null, string | null, string | null] {
+  private extractAgentAndCommand(token: string, commandType: CommandType): [string | null, string | null, string | undefined] {
+    if (!token) {
+      return [null, null, undefined];
+    }
+    
     const parts = token.split(':');
     
-    if (parts.length > 1) {
+    if (parts && parts.length > 1) {
       // 도메인 기반 명령어 ('domain:command[:subcommand]' 형식)
-      const agentId = parts[0].trim();
+      const agentId = parts[0] ? parts[0].trim() : '';
       
       // 명령어와 하위 명령어 처리
-      let commandName = parts[1].trim();
-      let subCommand = null;
+      let commandName = (parts.length > 1 && parts[1]) ? parts[1].trim() : '';
+      let subCommand: string | undefined = undefined;
       
       // 하위 명령어가 있는 경우 (domain:command:subcommand)
       if (parts.length > 2) {
-        subCommand = parts.slice(2).join(':').trim();
+        // Safely join parts that exist
+        const subCommandParts = parts.slice(2).filter(part => part !== undefined);
+        if (subCommandParts.length > 0) {
+          subCommand = subCommandParts.join(':').trim();
+        }
       }
       
       // 빈 에이전트 ID 또는 명령어 체크
       if (!agentId || !commandName) {
-        return [null, null, null];
+        return [null, null, undefined];
       }
       
       return [agentId, commandName, subCommand];
@@ -272,10 +293,10 @@ export class CommandParserService implements ICommandParser {
     // @ 명령어는 항상 ':' 형식이어야 함 (이미 상위 메서드에서 처리)
     // / 명령어는 기본 'core' 에이전트에 할당
     if (commandType === CommandType.SLASH) {
-      return ['core', token, null];
+      return ['core', token, undefined];
     }
     
-    return [null, null, null];
+    return [null, null, undefined];
   }
   
   /**
@@ -354,36 +375,56 @@ export class CommandParserService implements ICommandParser {
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
       
+      if (!token) continue; // Skip if token is undefined or empty
+      
       if (token.startsWith('--')) {
         // 플래그 (--key=value 또는 --flag)
         const flagParts = token.substring(2).split('=');
-        const key = flagParts[0];
-        
-        if (flagParts.length > 1) {
-          // --key=value 형식
-          flags[key] = this.parseValue(flagParts.slice(1).join('='));
-        } else {
-          // --flag 형식 (불리언 플래그)
-          flags[key] = true;
+        if (flagParts && flagParts.length > 0) {
+          const key = flagParts[0] || '';
+          
+          if (key) {
+            if (flagParts.length > 1) {
+              // --key=value 형식
+              const valueStr = flagParts.slice(1).join('=');
+              if (valueStr !== undefined) {
+                flags[key] = this.parseValue(valueStr);
+              }
+            } else {
+              // --flag 형식 (불리언 플래그)
+              flags[key] = true;
+            }
+          }
         }
       } else if (token.startsWith('-') && token.length === 2) {
         // 짧은 플래그 처리 (-f 또는 -f value)
         const flagName = token.substring(1);
         
-        // 다음 요소가 있고 플래그나 명령어가 아닌 경우 값으로 처리
-        if (i + 1 < tokens.length && !tokens[i + 1].startsWith('-')) {
-          flags[flagName] = this.parseValue(tokens[i + 1]);
-          i++; // 다음 요소 건너뛰기
-        } else {
-          flags[flagName] = true;
+        if (flagName) {
+          // 다음 요소가 있고 플래그나 명령어가 아닌 경우 값으로 처리
+          const hasNextToken = i + 1 < tokens.length;
+          const nextToken = hasNextToken ? tokens[i + 1] || '' : ''; 
+          const validNextToken = nextToken && nextToken.startsWith && !nextToken.startsWith('-');
+          
+          if (hasNextToken && validNextToken) {
+            flags[flagName] = this.parseValue(nextToken);
+            i++; // 다음 요소 건너뛰기
+          } else {
+            flags[flagName] = true;
+          }
         }
       } else if (token.includes('=') && !token.startsWith('-')) {
         // key=value 형식의 옵션
         const optionParts = token.split('=');
-        const key = optionParts[0].trim();
-        
-        if (key && optionParts.length > 1) {
-          options[key] = this.parseValue(optionParts.slice(1).join('='));
+        if (optionParts && optionParts.length > 0) {
+          const key = optionParts[0] ? optionParts[0].trim() : '';
+          
+          if (key && optionParts.length > 1) {
+            const valueStr = optionParts.slice(1).join('=');
+            if (valueStr !== undefined) {
+              options[key] = this.parseValue(valueStr);
+            }
+          }
         }
       } else {
         // 일반 인자
@@ -447,9 +488,9 @@ export class CommandParserService implements ICommandParser {
       // 에이전트 명령어 (@) 관련 추천
       const parts = trimmedCommand.substring(1).split(':');
       
-      if (parts.length > 0) {
-        const domainPart = parts[0].toLowerCase().trim();
-        const commandPart = parts.length > 1 ? parts[1].toLowerCase().trim() : '';
+      if (parts && parts.length > 0) {
+        const domainPart = parts[0] ? parts[0].toLowerCase().trim() : '';
+        const commandPart = (parts.length > 1 && parts[1]) ? parts[1].toLowerCase().trim() : '';
         
         // 도메인 유사성 확인
         const domain = this.getSimilarDomain(domainPart);
@@ -473,13 +514,15 @@ export class CommandParserService implements ICommandParser {
           }
         } else {
           // 유사한 도메인 없음, 모든 도메인 추천
-          for (const [domain, cmds] of this.commonCommands.entries()) {
-            if (suggestions.length < 3) {
+          this.commonCommands.forEach((cmds, domain) => {
+            if (suggestions.length < 3 && cmds.length > 0) {
               // 대표 명령어 하나만 추천
-              const cmd = cmds[0] || '';
-              suggestions.push(`@${this.getDomainString(domain)}:${cmd}`);
+              const domainStr = this.getDomainString(domain);
+              if (domainStr) { // Check if domain string exists
+                suggestions.push(`@${domainStr}:${cmds[0]}`);
+              }
             }
-          }
+          });
         }
       }
     } else if (trimmedCommand.startsWith('/')) {
@@ -516,21 +559,27 @@ export class CommandParserService implements ICommandParser {
     
     // 정확히 일치하는 경우 바로 반환
     if (this.domainMap.has(input)) {
-      return this.domainMap.get(input)!;
+      const domain = this.domainMap.get(input);
+      return domain !== undefined ? domain : CommandDomain.NONE;
     }
     
     // 유사도 검사
     let bestMatch: [string, number] = ['', 0];
     
-    for (const [domainStr, _] of this.domainMap.entries()) {
+    this.domainMap.forEach((domain, domainStr) => {
       const similarity = this.calculateSimilarity(input, domainStr);
       
       if (similarity > this.SIMILARITY_THRESHOLD && similarity > bestMatch[1]) {
         bestMatch = [domainStr, similarity];
       }
+    });
+    
+    if (bestMatch[0]) {
+      const domain = this.domainMap.get(bestMatch[0]);
+      return domain !== undefined ? domain : CommandDomain.NONE;
     }
     
-    return bestMatch[0] ? this.domainMap.get(bestMatch[0])! : CommandDomain.NONE;
+    return CommandDomain.NONE;
   }
   
   /**
@@ -614,33 +663,45 @@ export class CommandParserService implements ICommandParser {
    * @returns 레벤슈타인 거리
    */
   private levenshteinDistance(str1: string, str2: string): number {
+    if (!str1) return str2 ? str2.length : 0;
+    if (!str2) return str1.length;
+    
     const len1 = str1.length;
     const len2 = str2.length;
     
-    const dp: number[][] = [];
+    // Special case for empty strings
+    if (len1 === 0) return len2;
+    if (len2 === 0) return len1;
     
-    // 초기화
-    for (let i = 0; i <= len1; i++) {
-      dp[i] = [i];
-    }
+    // Simple implementation that avoids array access issues
+    // This is less efficient but type-safe
+    let previous = Array(len2 + 1).fill(0);
+    let current = Array(len2 + 1).fill(0);
     
+    // Initialize the first row
     for (let j = 0; j <= len2; j++) {
-      dp[0][j] = j;
+      previous[j] = j;
     }
     
-    // 동적 프로그래밍 계산
+    // Calculate each row of the matrix
     for (let i = 1; i <= len1; i++) {
+      // First element of the row is just the row number
+      current[0] = i;
+      
       for (let j = 1; j <= len2; j++) {
         const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
-        dp[i][j] = Math.min(
-          dp[i - 1][j] + 1,      // 삭제
-          dp[i][j - 1] + 1,      // 삽입
-          dp[i - 1][j - 1] + cost // 교체
+        current[j] = Math.min(
+          previous[j] + 1,      // 삭제
+          current[j - 1] + 1,   // 삽입
+          previous[j - 1] + cost // 교체
         );
       }
+      
+      // Copy current to previous for the next iteration
+      [previous, current] = [current, previous];
     }
     
-    return dp[len1][len2];
+    return previous[len2];
   }
   
   /**

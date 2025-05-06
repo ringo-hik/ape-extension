@@ -341,6 +341,11 @@ export interface CommandUsage {
   examples: string[];
   
   /**
+   * 명령어 플래그
+   */
+  flags?: Record<string, any>;
+  
+  /**
    * 명령어 인자 설명
    */
   args?: Array<{
@@ -394,9 +399,9 @@ export interface ICommandParser {
   /**
    * 입력 문자열에서 도메인 추출
    * @param input 입력 문자열
-   * @returns 도메인 또는 null
+   * @returns 도메인 또는 CommandDomain.NONE
    */
-  extractDomain(input: string): CommandDomain | null;
+  extractDomain(input: string): CommandDomain;
   
   /**
    * 유사한 명령어 제안
@@ -410,6 +415,11 @@ export interface ICommandParser {
  * 명령어 레지스트리 인터페이스 (확장 버전)
  */
 export interface ICommandRegistry {
+  /**
+   * 초기화 - 플러그인 레지스트리 초기화 및 명령어 새로고침
+   */
+  initialize(): Promise<void>;
+
   /**
    * 명령어 등록
    * @param agentId 에이전트/플러그인 ID
@@ -575,6 +585,21 @@ export interface ICommandRegistry {
    * @returns 컨텍스트 캐시 객체
    */
   getContextCache(): any;
+  
+  /**
+   * 플러그인 조회 - PluginRegistryService 프록시 메서드
+   * @param pluginId 플러그인 ID
+   * @returns 플러그인 인스턴스 또는 undefined
+   */
+  getPlugin(pluginId: string): any;
+  
+  /**
+   * 명령어 찾기 (ID 또는 이름으로)
+   * @param agentId 에이전트/플러그인 ID
+   * @param commandName 명령어 이름
+   * @returns 명령어 객체 또는 undefined
+   */
+  findCommand(agentId: string, commandName: string): any;
 }
 
 /**

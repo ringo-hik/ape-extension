@@ -39,6 +39,11 @@ body {
   align-items: center;
 }
 
+.logo .codicon {
+  font-size: 24px;
+  color: var(--vscode-button-background);
+}
+
 .header-logo {
   width: 20px;
   height: 20px;
@@ -50,6 +55,11 @@ body {
   position: relative;
   display: inline-block;
   min-width: 120px;
+  z-index: 1000; /* 가시성을 위해 z-index 증가 */
+  border: 2px solid var(--vscode-button-background); /* 모델 선택기 경계 강조 */
+  background-color: var(--vscode-dropdown-background);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .model-selector-header {
@@ -74,10 +84,13 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 80%;
+  font-weight: bold; /* 텍스트 강조 */
 }
 
 .model-selector-icon {
   margin-left: 4px;
+  font-weight: bold;
+  font-size: 14px;
 }
 
 .model-selector-dropdown {
@@ -85,12 +98,13 @@ body {
   top: 100%;
   left: 0;
   width: 100%;
-  max-height: 180px;
+  max-height: 300px; /* 드롭다운 높이 증가 */
   overflow-y: auto;
   background-color: var(--vscode-dropdown-background);
   border: 1px solid var(--vscode-input-border);
-  z-index: 10;
+  z-index: 1001;
   display: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
 .model-selector-dropdown.open {
@@ -235,6 +249,29 @@ body {
   color: var(--vscode-button-foreground);
 }
 
+/* 버튼 클릭 효과 */
+.toolbar-button.button-active,
+.toolbar-button:active {
+  transform: scale(0.95);
+}
+
+.toolbar-button.button-clicked {
+  animation: button-pulse 0.3s ease-in-out;
+}
+
+@keyframes button-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* 향상된 버튼 스타일 */
+.enhanced-button {
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
 /* 명령어 패널 */
 .commands-panel-container {
   margin-bottom: 10px;
@@ -267,6 +304,12 @@ body {
   margin-bottom: 10px;
   display: flex;
   justify-content: center;
+}
+
+.empty-state-icon .codicon {
+  font-size: 64px;
+  color: var(--vscode-button-background);
+  opacity: 0.8;
 }
 
 .empty-state-logo {

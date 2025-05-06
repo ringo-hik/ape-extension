@@ -8,12 +8,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ChatService } from '../services/ChatService';
 import { ApeCoreService } from '../core/ApeCoreService';
+import { CommandResult } from '../types/CommandTypes';
 
 /**
  * 채팅 웹뷰 제공자 클래스
  */
 export class ApeChatViewProvider implements vscode.WebviewViewProvider {
-  private _view?: vscode.WebviewView;
+  // Changed from private to allow access from extension.ts
+  public _view?: vscode.WebviewView;
 
   private _coreService?: ApeCoreService;
 
@@ -143,8 +145,8 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
               .then(() => {
                 // 복사 성공 알림
                 console.log('클립보드에 복사됨:', message.text);
-              })
-              .catch(err => {
+              }, (err: Error) => {
+                // 오류 처리
                 console.error('클립보드 복사 오류:', err);
               });
           }
@@ -204,7 +206,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   /**
    * 사용자 메시지 처리
    */
-  private async _handleUserMessage(message: any) {
+  private async _handleUserMessage(message: {text: string; model?: string; embedDevMode?: boolean}): Promise<void> {
     console.log('사용자 메시지 처리 시작:', message);
     
     if (!this._view) {
@@ -263,18 +265,29 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         if (commandResponse) {
           // 응답 형식에 따라 처리
           let responseContent = '';
-          let responseType = 'system';
+          let responseType: 'system' | 'assistant' = 'system';
+          let hasError = false;
           
-          if (typeof commandResponse === 'object') {
+          if (typeof commandResponse === 'object' && commandResponse !== null) {
+            // CommandResult 타입 검사
+            if (commandResponse && 'success' in commandResponse && 'message' in commandResponse) {
+              // CommandResult 형식인 경우
+              const result = commandResponse as CommandResult;
+              responseContent = result.message || JSON.stringify(result, null, 2);
+              responseType = result.error ? 'system' : 'assistant';
+              hasError = !!result.error;
+            }
             // 객체 응답 처리
-            if (commandResponse.content) {
-              responseContent = commandResponse.content;
-              responseType = commandResponse.error ? 'system' : 'assistant';
+            else if (commandResponse && 'content' in commandResponse) {
+              const content = (commandResponse as {content: string}).content;
+              hasError = 'error' in commandResponse && !!(commandResponse as {error?: unknown}).error;
+              responseType = hasError ? 'system' : 'assistant';
+              responseContent = content;
             } else {
               responseContent = JSON.stringify(commandResponse, null, 2);
             }
           } else {
-            responseContent = commandResponse.toString();
+            responseContent = String(commandResponse);
           }
           
           // 스트리밍 종료 및 응답 표시
@@ -292,7 +305,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             this._view.webview.postMessage({
               command: 'commandExecuted',
               commandId: text, // text 변수에는 명령어 전체 문자열이 포함되어 있음
-              success: !commandResponse.error
+              success: !hasError
             });
           }
         }
@@ -351,7 +364,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         };
         
         // 스트리밍 모드로 처리 (심층 분석 모드 정보 전달)
-        await this._chatService.processMessage(text, streamHandler, { embedDevMode });
+        await this._chatService.processMessage(text, streamHandler, { embedDevMode: embedDevMode || false });
         
         // 스트리밍 완료 메시지 전송
         if (this._view && this._view.visible) {
@@ -372,14 +385,14 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         // 응답이 비어있지 않은 경우만 전송
         if (response && this._view && this._view.visible) {
           // 응답 형식에 따라 처리
-          if (typeof response === 'object') {
-            if (response.content) {
-              const responseType = response.error ? 'system' : 'assistant';
-              this._sendResponse(response.content, responseType);
-            } else {
+          if (typeof response === 'object' && response !== null) {
+            if (response && 'content' in response && (response as {content?: string}).content) {
+              const responseType = response && 'error' in response && !!(response as {error?: unknown}).error ? 'system' : 'assistant';
+              this._sendResponse((response as {content: string}).content, responseType);
+            } else if (response) {
               this._sendResponse(JSON.stringify(response, null, 2), 'assistant');
             }
-          } else if (response.trim && response.trim() !== '') {
+          } else if (typeof response === 'string' && response.trim && response.trim() !== '') {
             this._sendResponse(response, 'assistant');
           }
         }
@@ -393,7 +406,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   /**
    * 응답 메시지 전송
    */
-  private _sendResponse(text: string, type: 'assistant' | 'system' = 'assistant') {
+  private _sendResponse(text: string, type: 'assistant' | 'system' = 'assistant'): void {
     if (this._view) {
       this._view.webview.postMessage({
         command: 'addMessage',
@@ -407,37 +420,63 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 모델 목록 전송
    */
   private _sendModelList() {
-    if (!this._view) return;
+    if (!this._view) {
+      console.error('_sendModelList: 뷰가 없어 모델 목록을 전송할 수 없습니다.');
+      return;
+    }
 
     try {
-      console.log('모델 목록 전송 시작');
+      console.log('모델 목록 전송 시작 - DEBUG 버전');
       
       // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
       const coreService = this._coreService || ApeCoreService.getInstance();
       const llmService = coreService.llmService;
       
+      if (!llmService) {
+        console.error('_sendModelList: llmService가 없습니다.');
+        throw new Error('LLM 서비스를 찾을 수 없습니다.');
+      }
+      
+      // 모델 목록 가져오기 전에 디버그 정보 출력
+      console.log('LlmService 정보:');
+      console.log(`- defaultModelId: ${llmService.getDefaultModelId ? llmService.getDefaultModelId() : 'getDefaultModelId 메서드 없음'}`);
+      console.log('- getAvailableModels 메서드 호출 시도...');
+      
       // 모델 목록 가져오기
       const modelsArray = llmService.getAvailableModels();
       console.log(`가져온 모델 수: ${modelsArray.length}`);
       
+      // 모델 목록 상세 로깅
+      modelsArray.forEach((model, idx) => {
+        console.log(`[원본 모델 ${idx + 1}] id=${model.id || '없음'}, modelId=${model.modelId || '없음'}, name=${model.name}, provider=${model.provider || '없음'}, apiModel=${model.apiModel || '없음'}`);
+      });
+      
       if (modelsArray.length === 0) {
-        console.warn('LlmService에서 가져온 모델 목록이 비어 있습니다. 비상 대책 필요');
+        console.warn('LlmService에서 가져온 모델 목록이 비어 있습니다. 비상 대책 시행');
       }
       
       // 모델 정보 매핑 (웹뷰에 전송할 형식으로 변환)
       const models = modelsArray.map((model, index) => {
         // ID 유효성 확인 및 처리
         let modelId = '';
+        const sourceInfo = [];
+        
         if (model.id) {
           modelId = model.id;
+          sourceInfo.push('id');
         } else if (model.modelId) {
           modelId = model.modelId;
+          sourceInfo.push('modelId');
         } else if (model.apiModel) {
           modelId = model.apiModel.replace(/[\/:.]/g, '-');
+          sourceInfo.push('apiModel (변환됨)');
         } else {
           // 이름 + 인덱스로 고유 ID 생성
           modelId = `${model.provider || 'model'}-${model.name.toLowerCase().replace(/\s+/g, '-')}-${index}`;
+          sourceInfo.push('자동 생성');
         }
+        
+        console.log(`[모델 ID 처리] 원본 모델 ${index + 1}: 결정된 ID=${modelId}, 소스=${sourceInfo.join(', ')}`);
         
         // 모델 정보 웹뷰 형식으로 변환
         return {
@@ -457,21 +496,30 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         );
       }
       
-      // 상세 모델 정보 로깅
+      // 최종 모델 정보 로깅
+      console.log('===== 웹뷰로 전송할 최종 모델 목록 =====');
       models.forEach((model, index) => {
         console.log(`모델 ${index + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
       });
       
       // 웹뷰에 모델 목록 전송
       console.log(`웹뷰로 전송할 모델 수: ${models.length}`);
-      this._view.webview.postMessage({
-        command: 'updateModels',
-        models: models
-      });
+      try {
+        this._view.webview.postMessage({
+          command: 'updateModels',
+          models: models
+        });
+        console.log('웹뷰로 모델 목록 메시지 전송 성공');
+      } catch (postError) {
+        console.error('웹뷰로 메시지 전송 중 오류:', postError);
+      }
       
       console.log('모델 목록 전송 완료');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('모델 목록 전송 중 오류 발생:', error);
+      if (error instanceof Error) {
+        console.error('오류 상세:', error.stack);
+      }
       
       // 오류 발생 시 백업 모델 목록 전송
       const fallbackModels = [
@@ -480,10 +528,20 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         { id: 'local-emergency', name: '오프라인 응급 모드', provider: 'local' }
       ];
       
-      this._view.webview.postMessage({
-        command: 'updateModels',
-        models: fallbackModels
+      console.log('백업 모델 목록 전송 시도:');
+      fallbackModels.forEach((model, idx) => {
+        console.log(`백업 모델 ${idx + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
       });
+      
+      try {
+        this._view.webview.postMessage({
+          command: 'updateModels',
+          models: fallbackModels
+        });
+        console.log('백업 모델 목록 전송 성공');
+      } catch (postError) {
+        console.error('백업 모델 목록 전송 중 오류:', postError);
+      }
     }
   }
   
@@ -491,36 +549,86 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 현재 모델 전송
    */
   private _sendCurrentModel() {
-    if (!this._view) return;
+    if (!this._view) {
+      console.error('_sendCurrentModel: 뷰가 없어 현재 모델을 전송할 수 없습니다.');
+      return;
+    }
 
     try {
+      console.log('현재 모델 전송 시작 - DEBUG 버전');
+      
       // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
       const coreService = this._coreService || ApeCoreService.getInstance();
+      if (!coreService) {
+        console.error('_sendCurrentModel: coreService를 찾을 수 없습니다.');
+        throw new Error('Core 서비스를 찾을 수 없습니다.');
+      }
+      
       const llmService = coreService.llmService;
+      if (!llmService) {
+        console.error('_sendCurrentModel: llmService를 찾을 수 없습니다.');
+        throw new Error('LLM 서비스를 찾을 수 없습니다.');
+      }
+      
+      console.log('_sendCurrentModel: getDefaultModelId 메서드 호출 시도...');
       const defaultModelId = llmService.getDefaultModelId();
       
       if (!defaultModelId) {
         console.warn('기본 모델 ID를 가져올 수 없습니다. 대체 모델을 사용합니다.');
-        this._view.webview.postMessage({
-          command: 'setCurrentModel',
-          modelId: 'gemini-2.5-flash' // 폴백 모델
-        });
+        
+        try {
+          console.log('기본값으로 gemini-2.5-flash 모델 전송 시도');
+          this._view.webview.postMessage({
+            command: 'setCurrentModel',
+            modelId: 'gemini-2.5-flash' // 폴백 모델
+          });
+          console.log('폴백 모델 ID 전송 성공');
+        } catch (postError) {
+          console.error('폴백 모델 ID 전송 중 오류:', postError);
+        }
         return;
       }
       
       console.log(`현재 기본 모델: ${defaultModelId}`);
-      this._view.webview.postMessage({
-        command: 'setCurrentModel',
-        modelId: defaultModelId
-      });
-    } catch (error) {
+      
+      // llmService에 해당 모델이 등록되어 있는지 확인
+      const modelConfig = llmService.getModelConfig ? llmService.getModelConfig(defaultModelId) : null;
+      if (modelConfig) {
+        console.log(`모델 구성 확인: ${JSON.stringify({
+          name: modelConfig.name,
+          provider: modelConfig.provider,
+          apiModel: modelConfig.apiModel
+        })}`);
+      } else {
+        console.warn(`모델 ID ${defaultModelId}에 대한 구성을 찾을 수 없습니다.`);
+      }
+      
+      // 메시지 전송
+      try {
+        this._view.webview.postMessage({
+          command: 'setCurrentModel',
+          modelId: defaultModelId
+        });
+        console.log(`현재 모델 ID(${defaultModelId}) 전송 성공`);
+      } catch (postError) {
+        console.error('현재 모델 ID 전송 중 오류:', postError);
+      }
+      
+    } catch (error: unknown) {
       console.error('현재 모델 전송 중 오류 발생:', error);
+      console.error('오류 상세:', error instanceof Error ? error.stack : 'Error stack not available');
       
       // 오류 발생 시 기본 모델 전송
-      this._view.webview.postMessage({
-        command: 'setCurrentModel',
-        modelId: 'gemini-2.5-flash' // 폴백 모델
-      });
+      try {
+        console.log('오류 발생으로 인한 기본값 gemini-2.5-flash 모델 전송 시도');
+        this._view.webview.postMessage({
+          command: 'setCurrentModel',
+          modelId: 'gemini-2.5-flash' // 폴백 모델
+        });
+        console.log('오류 복구 모델 ID 전송 성공');
+      } catch (postError) {
+        console.error('오류 복구 모델 ID 전송 중 추가 오류:', postError);
+      }
     }
   }
   
@@ -590,7 +698,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 동적 데이터 가져오기 (Git 브랜치 및 컨텍스트 기반 명령어)
    * @returns 동적 데이터 객체
    */
-  private async _getDynamicData(): Promise<any> {
+  private async _getDynamicData(): Promise<Record<string, unknown>> {
     try {
       // APE 코어 서비스 접근 (저장된 참조 사용 또는 싱글톤 인스턴스 가져오기)
       const coreService = this._coreService || ApeCoreService.getInstance();
@@ -598,7 +706,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       const commandService = coreService.commandService;
       
       // 동적 데이터 객체 초기화
-      const dynamicData: any = {};
+      const dynamicData: Record<string, unknown> = {};
       
       // Git 플러그인 가져오기
       const gitPlugin = pluginRegistry ? pluginRegistry.getPlugin('git') : null;
@@ -607,7 +715,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         // Git 브랜치 정보 가져오기
         try {
           // gitPlugin에서 client 프로퍼티 접근 (내부 GitClientService)
-          const gitClient = (gitPlugin as any).client;
+          const gitClient = (gitPlugin as {client?: {getBranches?: (showRemote: boolean) => Promise<string[]>}}).client;
           
           if (gitClient && typeof gitClient.getBranches === 'function') {
             // Git 브랜치 목록 가져오기
@@ -615,7 +723,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             
             if (branches && Array.isArray(branches)) {
               // 브랜치 정보 추가
-              dynamicData.gitBranches = branches;
+              dynamicData['gitBranches'] = branches;
               console.log(`Git 브랜치 정보 로드 완료: ${branches.length}개 브랜치`);
             }
           }
@@ -655,7 +763,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           ];
           
           // 컨텍스트 기반 명령어 생성 결과
-          const contextCommands = [];
+          const contextCommands: {id: string; label: string; description: string; type: string; group: string; contextual: boolean}[] = [];
           
           // 각 명령어에 대해 컨텍스트 기반 명령어 생성
           for (const baseCmd of baseCommands) {
@@ -693,7 +801,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           
           // 컨텍스트 명령어 추가
           if (contextCommands.length > 0) {
-            dynamicData.contextCommands = contextCommands;
+            dynamicData['contextCommands'] = contextCommands;
             console.log(`컨텍스트 기반 명령어 ${contextCommands.length}개 생성 완료`);
           }
         } catch (contextError) {
@@ -712,7 +820,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * TreeView 액션 처리
    * @param message 트리뷰 액션 메시지
    */
-  private _handleTreeViewAction(message: any) {
+  private _handleTreeViewAction(message: {actionType: string; item: {id?: string; type: string}}) {
     console.log('TreeView 액션 처리:', message);
     
     const actionType = message.actionType;
@@ -737,8 +845,8 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         
       case 'showDetails':
         // 트리 아이템 세부 정보 표시
-        if (item.type === 'command') {
-          this._showCommandDetails(item);
+        if (item.type === 'command' && item.id) {
+          this._showCommandDetails({id: item.id, type: item.type});
         }
         break;
     }
@@ -748,7 +856,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * TreeView 아이템 선택 처리
    * @param item 선택된 트리 아이템
    */
-  private _handleTreeItemSelection(item: any) {
+  private _handleTreeItemSelection(item: {type: string; id?: string}) {
     console.log('TreeView 아이템 선택:', item);
     
     // 아이템 타입에 따른 처리
@@ -777,7 +885,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * 명령어 세부 정보 표시
    * @param item 명령어 아이템
    */
-  private _showCommandDetails(item: any) {
+  private _showCommandDetails(item: {id: string; type: string}) {
     if (!this._view) {
       return;
     }
@@ -797,7 +905,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    * @param domain 명령어 도메인
    * @returns 아이콘 객체 {icon: string, source: string}
    */
-  private _getIconForCommand(command: string, domain: string): any {
+  private _getIconForCommand(command: string, domain: string): {icon: string; source: string} {
     // 도메인별 기본 아이콘
     const domainIcons: {[key: string]: {icon: string, source: string}} = {
       'system': { icon: 'gear-six', source: 'phosphor' },
@@ -861,7 +969,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   /**
    * 명령어 실행
    */
-  private async _executeCommand(commandId: string) {
+  private async _executeCommand(commandId: string): Promise<void> {
     if (!this._view) {
       return;
     }
@@ -894,26 +1002,29 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
           let isError = false;
           
           // 타입 가드: CommandResult 타입 체크
-          const isCommandResult = (obj: any): obj is CommandResult => {
-            return obj && typeof obj === 'object' && 'success' in obj;
+          const isCommandResult = (obj: unknown): obj is CommandResult => {
+            return obj !== null && typeof obj === 'object' && 'success' in obj;
           };
           
           if (typeof result === 'object' && result !== null) {
             // CommandResult 형식인 경우
-            if (isCommandResult(result)) {
-              // content 속성이 있는 경우 (CommandResult에 message로 정의됨)
-              if (result.message) {
-                const responseType = result.error ? 'system' : 'assistant';
-                isError = !!result.error;
-                this._sendResponse(result.message, responseType);
+            if (result && isCommandResult(result)) {
+              // Now we know it's a CommandResult
+              const typedResult = result as CommandResult;
+              
+              // message 속성이 있는 경우 (CommandResult에 message로 정의됨)
+              if (typedResult.message) {
+                const responseType = typedResult.error ? 'system' : 'assistant';
+                isError = !!typedResult.error;
+                this._sendResponse(typedResult.message, responseType);
               } else {
-                this._sendResponse(JSON.stringify(result, null, 2), 'assistant');
+                this._sendResponse(JSON.stringify(typedResult, null, 2), 'assistant');
               }
             } 
             // 다른 객체 형식인 경우
-            else if ('content' in result) {
-              const content = result.content as string;
-              const hasError = 'error' in result && !!result.error;
+            else if (result && 'content' in result) {
+              const content = (result as {content: string}).content;
+              const hasError = 'error' in result && !!(result as {error?: unknown}).error;
               const responseType = hasError ? 'system' : 'assistant';
               isError = hasError;
               this._sendResponse(content, responseType);
@@ -944,10 +1055,11 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
             console.log('VS Code 명령어 실행 결과:', result);
             // 결과를 웹뷰에 전송
             this._sendResponse(`명령어 '${commandId}' 실행 완료`, 'system');
-          })
-          .catch(err => {
-            console.error('VS Code 명령어 실행 오류:', err);
-            this._sendResponse(`명령어 실행 오류: ${err.message || '알 수 없는 오류'}`, 'system');
+          }, (error: unknown) => {
+            // 타입스크립트 오류 방지를 위해 then의 두 번째 인자로 에러 처리
+            console.error('VS Code 명령어 실행 오류:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this._sendResponse(`명령어 실행 오류: ${errorMessage}`, 'system');
           });
       }
     } catch (error) {
@@ -959,85 +1071,146 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
   /**
    * 모델 변경
    */
-  private _changeModel(modelId: string) {
+  private _changeModel(modelId: string): void {
     if (!modelId) {
-      console.warn('유효하지 않은 모델 ID로 _changeModel 호출됨');
+      console.warn('_changeModel: 유효하지 않은 모델 ID로 호출됨');
       return;
     }
     
     try {
-      console.log(`모델 변경 요청: ${modelId}`);
+      console.log(`모델 변경 요청 - DEBUG 버전: ${modelId}`);
       
       // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
       const coreService = this._coreService || ApeCoreService.getInstance();
+      if (!coreService) {
+        console.error('_changeModel: coreService를 찾을 수 없습니다.');
+        throw new Error('Core 서비스를 찾을 수 없습니다.');
+      }
+      
       const llmService = coreService.llmService;
+      if (!llmService) {
+        console.error('_changeModel: llmService를 찾을 수 없습니다.');
+        throw new Error('LLM 서비스를 찾을 수 없습니다.');
+      }
       
       // 기존 모델과 같은지 확인
       const currentDefaultId = llmService.getDefaultModelId();
-      if (currentDefaultId === modelId) {
+      console.log(`현재 기본 모델: ${currentDefaultId || 'none'}, 변경 요청 모델: ${modelId}`);
+      
+      if (currentDefaultId && currentDefaultId === modelId) {
         console.log(`현재 모델과 동일한 모델(${modelId})로 변경 요청, 무시함`);
+        
+        // 즉시 성공 응답을 보내서 UI 상태 동기화
+        if (this._view && this._view.visible) {
+          this._view.webview.postMessage({
+            command: 'modelChanged',
+            modelId: modelId,
+            success: true,
+            changed: false
+          });
+        }
         return;
       }
       
       // 모델이 유효한지 확인
+      console.log('사용 가능한 모델 목록 조회 중...');
       const models = llmService.getAvailableModels();
-      const validModel = models.find(model => 
-        model.id === modelId || 
-        model.modelId === modelId || 
-        (model.apiModel && model.apiModel.replace(/[\/:.]/g, '-') === modelId)
-      );
+      console.log(`총 ${models.length}개의 모델 조회됨`);
+      
+      // 각 모델 정보 로깅
+      models.forEach((model, idx) => {
+        console.log(`모델 ${idx+1}:`, {
+          id: model.id || '[없음]',
+          modelId: model.modelId || '[없음]',
+          name: model.name,
+          provider: model.provider || '[없음]',
+          apiModel: model.apiModel || '[없음]'
+        });
+      });
+      
+      // 유효성 검사를 위한 모든 가능한 ID 생성
+      const validModel = models.find(model => {
+        const possibleIds = [
+          model.id,
+          model.modelId,
+          model.apiModel ? model.apiModel.replace(/[\/:.]/g, '-') : null,
+          // 이름 기반 ID 생성 (매칭될 가능성 있음)
+          model.name ? `${model.provider || 'model'}-${model.name.toLowerCase().replace(/\s+/g, '-')}` : null
+        ].filter(Boolean); // null/undefined 제거
+        
+        console.log(`모델 ${model.name} 가능한 ID 목록:`, possibleIds);
+        
+        return possibleIds.includes(modelId);
+      });
       
       if (!validModel) {
         console.warn(`요청된 모델 ID '${modelId}'가 유효한 모델 목록에 없습니다.`);
-        console.log('유효한 모델 목록:');
-        models.forEach(model => {
-          console.log(`- ${model.id || model.modelId}: ${model.name}`);
+        console.log('===== 유효한 모델 목록 (ID 기준) =====');
+        models.forEach((model, idx) => {
+          console.log(`${idx+1}. ${model.id || model.modelId || '[ID 없음]'}: ${model.name}`);
         });
+        
+        // 모델 ID가 유효하지 않을 때도 진행 (외부에서 추가된 모델일 수 있음)
+        console.log('모델 유효성 검사 실패했으나 계속 진행합니다. 외부에서 추가된 모델일 수 있습니다.');
+      } else {
+        console.log(`유효한 모델을 찾았습니다: ${validModel.name} (ID: ${validModel.id || validModel.modelId})`);
       }
       
       // VS Code 설정에 모델 ID 저장
+      console.log(`VS Code 설정에 모델 ID(${modelId}) 저장 시도...`);
       const config = vscode.workspace.getConfiguration('ape.llm');
+      
       config.update('defaultModel', modelId, vscode.ConfigurationTarget.Global)
         .then(() => {
           console.log(`모델이 ${modelId}로 변경되었습니다.`);
           
-          // UI에 변경 알림 (필요한 경우)
+          // UI에 변경 알림
           if (this._view && this._view.visible) {
+            console.log('웹뷰에 모델 변경 성공 알림 전송');
             this._view.webview.postMessage({
               command: 'modelChanged',
               modelId: modelId,
-              success: true
+              success: true,
+              changed: true
             });
             
             // 시스템 메시지로 변경 알림
             const modelName = validModel ? validModel.name : modelId;
+            console.log(`시스템 메시지로 모델 변경 알림: ${modelName}`);
             this._sendResponse(`모델이 '${modelName}'(으)로 변경되었습니다.`, 'system');
           }
-        })
-        .catch(err => {
+        }, (err: Error) => {
           console.error('설정 업데이트 중 오류 발생:', err);
+          console.error('오류 상세:', err.stack);
           
           // UI에 오류 알림
           if (this._view && this._view.visible) {
+            console.log('웹뷰에 모델 변경 실패 알림 전송');
             this._view.webview.postMessage({
               command: 'modelChanged',
               modelId: modelId,
               success: false,
-              error: err.message
+              error: err.message || '설정 업데이트 실패'
             });
           }
         });
     } catch (error) {
       console.error('모델 변경 중 오류 발생:', error);
+      console.error('오류 상세:', error instanceof Error ? error.stack : '스택 정보 없음');
       
       // UI에 오류 알림
       if (this._view && this._view.visible) {
-        this._view.webview.postMessage({
-          command: 'modelChanged',
-          modelId: modelId,
-          success: false,
-          error: error instanceof Error ? error.message : '알 수 없는 오류'
-        });
+        try {
+          console.log('웹뷰에 모델 변경 오류 알림 전송');
+          this._view.webview.postMessage({
+            command: 'modelChanged',
+            modelId: modelId,
+            success: false,
+            error: error instanceof Error ? error.message : '알 수 없는 오류'
+          });
+        } catch (postError) {
+          console.error('오류 알림 전송 중 추가 오류:', postError);
+        }
       }
     }
   }

@@ -27,6 +27,14 @@ export class SwdpPluginService extends PluginBaseService {
   name = 'SWDP 포털 통합';
   
   /**
+   * 플러그인 도메인 가져오기
+   * @returns 플러그인 도메인
+   */
+  getDomain(): string {
+    return 'swdp';
+  }
+  
+  /**
    * SWDP 클라이언트 서비스
    */
   private swdpClient?: SwdpClientService;
@@ -60,14 +68,14 @@ export class SwdpPluginService extends PluginBaseService {
   /**
    * 플러그인 초기화
    */
-  async initialize(): Promise<void> {
+  override async initialize(): Promise<void> {
     try {
       // 설정에서 APE Core 및 SWDP 관련 정보 로드
       const pluginConfig = this.configLoader?.getPluginConfig();
       
       // 설정 객체 안전하게 접근
       const swdpConfig = pluginConfig && typeof pluginConfig === 'object' && 'swdp' in pluginConfig 
-        ? (pluginConfig as Record<string, any>).swdp 
+        ? (pluginConfig as Record<string, any>)['swdp'] 
         : null;
       
       // APE Core 엔드포인트 URL
@@ -120,7 +128,7 @@ export class SwdpPluginService extends PluginBaseService {
    * 초기화 상태 확인
    * @returns 초기화 완료 여부
    */
-  isInitialized(): boolean {
+  override isInitialized(): boolean {
     return this.initialized;
   }
   
@@ -141,7 +149,7 @@ export class SwdpPluginService extends PluginBaseService {
    * @param customCommands 외부에서 추가할 명령어 (사용하지 않음)
    * @returns 등록 성공 여부
    */
-  protected registerCommands(customCommands?: PluginCommand[]): boolean {
+  protected override registerCommands(customCommands?: PluginCommand[]): boolean {
     this.commands = [
       // 프로젝트 관련 명령어
       {

@@ -167,7 +167,7 @@ export class ChatService {
    * 웰컴 메시지 가져오기
    */
   public getWelcomeMessage(): string {
-    return this.welcomeMessages[Math.floor(Math.random() * this.welcomeMessages.length)];
+    return this.welcomeMessages[Math.floor(Math.random() * this.welcomeMessages.length)] || '안녕하세요! APE 채팅에 오신 것을 환영합니다.';
   }
   
   /**
@@ -175,5 +175,41 @@ export class ChatService {
    */
   public getConversation(): ChatMessage[] {
     return [...this.conversation];
+  }
+  
+  /**
+   * 특별 명령어 처리 (문서 생성, 코드 분석 등 고급 작업용)
+   */
+  public async processSpecialCommand(request: any): Promise<any> {
+    try {
+      switch (request.command) {
+        case 'generateDoc':
+          // 문서 생성 로직
+          this.addSystemMessage(`${request.type} 문서 생성 중...`);
+          // ApeCoreService를 통해 문서 생성 요청 처리
+          return await this.apeCore.processMessage(
+            `코드에 대한 ${request.type} 문서를 생성해 주세요:\n\n\`\`\`${request.language}\n${request.content}\n\`\`\``, 
+            { embedDevMode: true }
+          );
+          
+        case 'analyzeCode':
+          // 코드 분석 로직
+          this.addSystemMessage(`코드 분석 중 (${request.focus})...`);
+          // ApeCoreService를 통해 코드 분석 요청 처리
+          return await this.apeCore.processMessage(
+            `다음 코드를 분석해 주세요 (중점: ${request.focus}):\n\n\`\`\`${request.language}\n${request.content}\n\`\`\``, 
+            { embedDevMode: true }
+          );
+          
+        default:
+          throw new Error(`지원하지 않는 특별 명령어: ${request.command}`);
+      }
+    } catch (error) {
+      console.error('특별 명령어 처리 중 오류 발생:', error);
+      return {
+        content: `명령어 처리 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`,
+        error: true
+      };
+    }
   }
 }

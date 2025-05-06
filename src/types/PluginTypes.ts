@@ -41,6 +41,11 @@ export interface PluginCommand {
   prefix: CommandPrefix;
   
   /**
+   * 명령어 도메인
+   */
+  domain?: string;
+  
+  /**
    * 명령어 설명
    */
   description?: string;
@@ -100,6 +105,12 @@ export interface IPlugin {
   getCommands(): PluginCommand[];
   
   /**
+   * 플러그인 도메인 가져오기
+   * @returns 플러그인 도메인
+   */
+  getDomain(): string;
+  
+  /**
    * 명령어 실행
    * @param command 명령어 이름
    * @param args 명령어 인자
@@ -146,6 +157,13 @@ export interface IPluginRegistry {
    * @returns 플러그인 또는 undefined
    */
   getPlugin(pluginId: string): IPlugin | undefined;
+  
+  /**
+   * 도메인으로 플러그인 가져오기
+   * @param domain 플러그인 도메인
+   * @returns 플러그인 또는 undefined
+   */
+  getPluginByDomain(domain: string): IPlugin | undefined;
   
   /**
    * 모든 플러그인 가져오기

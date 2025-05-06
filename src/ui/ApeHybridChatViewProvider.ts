@@ -135,7 +135,9 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
                 // 복사 성공 알림
                 console.log('클립보드에 복사됨:', message.text);
               })
-              .catch(err => {
+              .then(() => {
+                // 복사 성공
+              }, (err: Error) => {
                 console.error('클립보드 복사 오류:', err);
               });
           }
@@ -262,13 +264,13 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
         if (commandResponse) {
           // 응답 형식에 따라 처리
           let responseContent = '';
-          let responseType = 'system';
+          let responseType: 'system' | 'assistant' = 'system';
           
-          if (typeof commandResponse === 'object') {
+          if (typeof commandResponse === 'object' && commandResponse !== null) {
             // 객체 응답 처리
-            if (commandResponse.content) {
+            if ('content' in commandResponse && typeof commandResponse.content === 'string') {
               responseContent = commandResponse.content;
-              responseType = commandResponse.error ? 'system' : 'assistant';
+              responseType = 'error' in commandResponse && commandResponse.error ? 'system' : 'assistant';
             } else {
               responseContent = JSON.stringify(commandResponse, null, 2);
             }
@@ -382,9 +384,9 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
         // 응답이 비어있지 않은 경우만 전송
         if (response && this._view && this._view.visible) {
           // 응답 형식에 따라 처리
-          if (typeof response === 'object') {
-            if (response.content) {
-              const responseType = response.error ? 'system' : 'assistant';
+          if (typeof response === 'object' && response !== null) {
+            if ('content' in response && typeof response.content === 'string') {
+              const responseType: 'system' | 'assistant' = 'error' in response && response.error ? 'system' : 'assistant';
               this._sendResponse(response.content, responseType);
             } else {
               this._sendResponse(JSON.stringify(response, null, 2), 'assistant');
@@ -938,7 +940,7 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
     const response = await this._chatService.processSpecialCommand(request);
     
     // 응답 처리
-    if (typeof response === 'object' && response.content) {
+    if (typeof response === 'object' && response !== null && 'content' in response && typeof response.content === 'string') {
       // 생성된 문서 내용
       const docContent = response.content;
       
@@ -978,7 +980,7 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
     const response = await this._chatService.processSpecialCommand(request);
     
     // 응답 처리
-    if (typeof response === 'object' && response.content) {
+    if (typeof response === 'object' && response !== null && 'content' in response && typeof response.content === 'string') {
       // 분석 결과
       const analysisResult = response.content;
       
@@ -1645,10 +1647,10 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
           
           // 결과 형식에 따른 처리
           let isError = false;
-          if (typeof result === 'object') {
-            if (result.content) {
-              const responseType = result.error ? 'system' : 'assistant';
-              isError = !!result.error;
+          if (typeof result === 'object' && result !== null) {
+            if ('content' in result && typeof result.content === 'string') {
+              const responseType: 'system' | 'assistant' = 'error' in result && result.error ? 'system' : 'assistant';
+              isError = 'error' in result && !!result.error;
               this._sendResponse(result.content, responseType);
             } else {
               this._sendResponse(JSON.stringify(result, null, 2), 'assistant');
@@ -1678,8 +1680,7 @@ export class ApeHybridChatViewProvider implements vscode.WebviewViewProvider {
             console.log('VS Code 명령어 실행 결과:', result);
             // 결과를 웹뷰에 전송
             this._sendResponse(`명령어 '${commandId}' 실행 완료`, 'system');
-          })
-          .catch(err => {
+          }, (err: Error) => {
             console.error('VS Code 명령어 실행 오류:', err);
             this._sendResponse(`명령어 실행 오류: ${err.message || '알 수 없는 오류'}`, 'system');
           });

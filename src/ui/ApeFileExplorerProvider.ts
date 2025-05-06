@@ -62,7 +62,7 @@ export class ApeFileExplorerProvider implements vscode.TreeDataProvider<FileItem
    */
   constructor(private context: vscode.ExtensionContext) {
     // 워크스페이스 루트 경로 설정
-    this._workspaceRoot = vscode.workspace.workspaceFolders 
+    this._workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
       ? vscode.workspace.workspaceFolders[0].uri.fsPath 
       : undefined;
     

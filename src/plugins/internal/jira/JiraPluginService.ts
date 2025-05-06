@@ -28,6 +28,14 @@ export class JiraPluginService extends PluginBaseService {
   name = 'Jira 이슈 관리';
   
   /**
+   * 플러그인 도메인 가져오기
+   * @returns 플러그인 도메인
+   */
+  getDomain(): string {
+    return 'jira';
+  }
+  
+  /**
    * Jira API 클라이언트
    */
   private client: JiraClientService;

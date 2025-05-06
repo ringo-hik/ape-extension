@@ -57,6 +57,14 @@ export class PocketPluginService extends PluginBaseService {
   name = 'S3 호환 스토리지 관리';
   
   /**
+   * 플러그인 도메인 가져오기
+   * @returns 플러그인 도메인
+   */
+  getDomain(): string {
+    return 'pocket';
+  }
+  
+  /**
    * S3 클라이언트
    */
   private client: PocketClientService;

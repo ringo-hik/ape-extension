@@ -35,9 +35,6 @@ export class ConfigMigrationService {
         { from: 'ape.core.embedDevMode', to: 'ape.core.embedDevMode' },
         { from: 'ape.llm.defaultModel', to: 'ape.llm.defaultModel' },
         { from: 'ape.llm.supportsStreaming', to: 'ape.llm.supportsStreaming' },
-        { from: 'ape.llm.openaiApiKey', to: 'ape.llm.openaiApiKey' },
-        { from: 'ape.llm.anthropicApiKey', to: 'ape.llm.anthropicApiKey' },
-        { from: 'ape.llm.azureApiKey', to: 'ape.llm.azureApiKey' },
         { from: 'ape.llm.openrouterApiKey', to: 'ape.llm.openrouterApiKey' },
         { from: 'ape.llm.models', to: 'ape.llm.models' }
       ];

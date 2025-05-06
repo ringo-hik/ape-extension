@@ -393,7 +393,8 @@
     "build:dev": "node esbuild.config.js --clean --build",
     "prebuild": "rimraf dist",
     "dev": "npm run watch",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.3",

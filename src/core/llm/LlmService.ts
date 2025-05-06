@@ -1078,8 +1078,133 @@ export class LlmService {
   }
   
   /**
+   * 기본 모델 ID 가져오기
+   * 1. configService에 설정된 기본 모델
+  /* 중복된 getDefaultModelId 메서드가 제거되었습니다. */
+  public getDefaultModelId(): string {
+    // 모델이 실제로 등록되어 있는지 확인
+    if (!this.models.has(this.defaultModel)) {
+      console.warn(`주의: 기본 모델 ID '${this.defaultModel}'가 등록된 모델 목록에 없습니다.`);
+      console.log(`등록된 모델 목록: ${Array.from(this.models.keys()).join(', ')}`);
+      
+      // 대체 모델 사용: 등록된 첫 번째 모델 또는 'local'
+      if (this.models.size > 0) {
+        const fallbackModel = Array.from(this.models.keys())[0];
+        console.log(`대체 모델 ID로 '${fallbackModel}'를 사용합니다.`);
+        return fallbackModel;
+      } else {
+        console.log(`등록된 모델이 없어 'local' 모델을 사용합니다.`);
+        // 최후의 수단: local 모델 등록 및 사용
+        this.models.set('local', {
+          name: '로컬 시뮬레이션 (오프라인)',
+          provider: 'local',
+          temperature: 0.7,
+          maxTokens: 500
+        });
+        return 'local';
+      }
+    }
+    
+    return this.defaultModel;
+  }
+
+  /**
    * 사용 가능한 모델 목록 가져오기
+   * 1. configService에 설정된 모델
+   * 2. OpenRouter API를 통해 동적으로 가져온 모델
+   * 3. 내부망 모델 목록
    */
+  public getAvailableModels(): ModelConfig[] {
+    try {
+      console.log('getAvailableModels 호출됨 - 모델 목록 수집 시작');
+      
+      // 1. 먼저 설정에서 모델 가져오기
+      const configModels = this.getModelsFromConfig();
+      console.log(`설정에서 ${configModels.length}개의 모델 로드됨`);
+      
+      // 2. models 맵에 있는 모든 모델 수집
+      let allModels = new Map<string, ModelConfig>(this.models);
+      
+      // 3. 설정에서 가져온 모델 추가
+      for (const model of configModels) {
+        if (model.id) {
+          allModels.set(model.id, model);
+        }
+      }
+      
+      // 4. 모델이 충분히 있는지 확인
+      if (allModels.size < 2) {
+        // 부족하면 package.json에서 모델 로드
+        console.log('모델이 부족하여 package.json에서 추가 모델 로드');
+        const packageModels = this.loadModelsFromPackageJson();
+        
+        // package.json 모델 추가
+        for (const model of packageModels) {
+          if (model.id && !allModels.has(model.id)) {
+            allModels.set(model.id, model);
+          }
+        }
+        
+        console.log(`package.json에서 ${packageModels.length}개의 모델 추가됨, 현재 총 ${allModels.size}개 모델`);
+      }
+      
+      // 5. 여전히 부족하면 기본 모델 추가
+      if (allModels.size < 2) {
+        console.log('여전히 모델이 부족하여 하드코딩된 기본 모델 추가');
+        
+        const defaultModels = [
+          {
+            id: 'gemini-2.5-flash',
+            modelId: 'gemini-2.5-flash',
+            name: 'Google Gemini 2.5 Flash',
+            provider: 'openrouter' as ModelProvider,
+            apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
+            contextWindow: 32000,
+            maxTokens: 8192,
+            temperature: 0.7,
+            apiModel: 'google/gemini-2.5-flash-preview',
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          },
+          {
+            id: 'narrans',
+            modelId: 'narrans',
+            name: 'NARRANS (내부망)',
+            provider: 'custom' as ModelProvider,
+            apiUrl: 'https://api-se-dev.narrans.samsungds.net/v1/chat/completions',
+            contextWindow: 10000,
+            maxTokens: 10000,
+            temperature: 0,
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          }
+        ];
+        
+        // 하드코딩된 모델 추가
+        for (const model of defaultModels) {
+          if (!allModels.has(model.id)) {
+            allModels.set(model.id, model);
+          }
+        }
+      }
+      
+      // 6. 모델 로그 및 반환
+      const modelArray = Array.from(allModels.values());
+      console.log(`총 ${modelArray.length}개의 모델 수집 완료`);
+      
+      // 모델 목록 상세 로깅
+      const modelSummary = modelArray.map(model => 
+        `${model.id}: ${model.name} (${model.provider || 'unknown'})`
+      ).join('\n- ');
+      console.log(`모델 목록 요약:\n- ${modelSummary}`);
+      
+      return modelArray;
+    } catch (error) {
+      console.error('getAvailableModels 실행 중 오류 발생:', error);
+      
+      // 오류 발생 시 비상 폴백 모델 반환
+      return this.getFallbackModels();
+    }
+  }
+
   /**
    * 예비용 폴백 모델 생성
    * 모델 맵이 비어있을 때 사용
@@ -1285,177 +1410,12 @@ export class LlmService {
     return modelConfigs;
   }
   
-  /**
-   * 모든 모델 가져오기
-   * 우선순위: 
-   * 1. 설정에 저장된 모델 (vscode.workspace.getConfiguration)
-   * 2. package.json에 정의된 기본 모델
-   * 3. 하드코딩된 비상용 모델
-   */
-  public getAvailableModels(): ModelConfig[] {
-    try {
-      console.log('getAvailableModels 호출됨 - 모델 목록 수집 시작');
-      
-      // 1. 먼저 설정에서 모델 가져오기
-      const configModels = this.getModelsFromConfig();
-      console.log(`설정에서 ${configModels.length}개의 모델 로드됨`);
-      
-      // 2. models 맵에 있는 모든 모델 수집
-      let allModels = new Map<string, ModelConfig>(this.models);
-      
-      // 3. 설정에서 가져온 모델 추가
-      for (const model of configModels) {
-        if (model.id) {
-          allModels.set(model.id, model);
-        }
-      }
-      
-      // 4. 모델이 충분히 있는지 확인
-      if (allModels.size < 2) {
-        // 부족하면 package.json에서 모델 로드
-        console.log('모델이 부족하여 package.json에서 추가 모델 로드');
-        const packageModels = this.loadModelsFromPackageJson();
-        
-        // package.json 모델 추가
-        for (const model of packageModels) {
-          if (model.id && !allModels.has(model.id)) {
-            allModels.set(model.id, model);
-          }
-        }
-        
-        console.log(`package.json에서 ${packageModels.length}개의 모델 추가됨, 현재 총 ${allModels.size}개 모델`);
-      }
-      
-      // 5. 여전히 부족하면 기본 모델 추가
-      if (allModels.size < 2) {
-        console.log('여전히 모델이 부족하여 하드코딩된 기본 모델 추가');
-        
-        const defaultModels = [
-          {
-            id: 'gemini-2.5-flash',
-            modelId: 'gemini-2.5-flash',
-            name: 'Google Gemini 2.5 Flash',
-            provider: 'openrouter',
-            apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-            contextWindow: 32000,
-            maxTokens: 8192,
-            temperature: 0.7,
-            apiModel: 'google/gemini-2.5-flash-preview',
-            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-          },
-          {
-            id: 'narrans',
-            modelId: 'narrans',
-            name: 'NARRANS (내부망)',
-            provider: 'custom',
-            apiUrl: 'https://api-se-dev.narrans.samsungds.net/v1/chat/completions',
-            contextWindow: 10000,
-            maxTokens: 10000,
-            temperature: 0,
-            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-          }
-        ];
-        
-        // 하드코딩된 모델 추가
-        for (const model of defaultModels) {
-          if (!allModels.has(model.id)) {
-            allModels.set(model.id, model);
-          }
-        }
-      }
-      
-      // 6. 모델 로그 및 반환
-      const modelArray = Array.from(allModels.values());
-      console.log(`총 ${modelArray.length}개의 모델 수집 완료`);
-      
-      // 모델 목록 상세 로깅
-      const modelSummary = modelArray.map(model => 
-        `${model.id}: ${model.name} (${model.provider || 'unknown'})`
-      ).join('\n- ');
-      console.log(`모델 목록 요약:\n- ${modelSummary}`);
-      
-      return modelArray;
-    } catch (error) {
-      console.error('getAvailableModels 실행 중 오류 발생:', error);
-      
-      // 오류 발생 시 비상 폴백 모델 반환
-      return this.getFallbackModels();
-    }
-  }
-  
-  /**
-   * 설정에서 모델 정보 가져오기
-   */
-  private getModelsFromConfig(): ModelConfig[] {
-    try {
-      const config = vscode.workspace.getConfiguration('ape.llm');
-      const modelsRaw = config.get<Record<string, any>>('models', {});
-      const models: ModelConfig[] = [];
-      
-      for (const [id, modelData] of Object.entries(modelsRaw)) {
-        // null이나 undefined인 경우 방어 코드
-        if (!modelData || typeof modelData !== 'object') continue;
-        
-        // 필수 필드 있는지 검증
-        if (!modelData.name) continue;
-        
-        // ModelConfig 형식으로 변환
-        models.push({
-          id: id,
-          modelId: id,
-          name: modelData.name,
-          provider: modelData.provider || 'local',
-          apiUrl: modelData.apiUrl,
-          contextWindow: modelData.contextWindow,
-          maxTokens: modelData.maxTokens,
-          temperature: modelData.temperature || 0.7,
-          apiModel: modelData.apiModel,
-          systemPrompt: modelData.systemPrompt || '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-        });
-      }
-      
-      return models;
-    } catch (error) {
-      console.error('설정에서 모델 로드 중 오류:', error);
-      return [];
-    }
-  }
+  // 이전 메서드 getAvailableModels() 구현과 중복된 메서드를 제거함
   
   /**
    * 모델 설정 가져오기
    */
   public getModelConfig(modelId: string): ModelConfig | undefined {
     return this.models.get(modelId);
-  }
-  
-  /**
-   * 기본 모델 ID 가져오기
-   */
-  public getDefaultModelId(): string {
-    // 모델이 실제로 등록되어 있는지 확인
-    if (!this.models.has(this.defaultModel)) {
-      console.warn(`주의: 기본 모델 ID '${this.defaultModel}'가 등록된 모델 목록에 없습니다.`);
-      console.log(`등록된 모델 목록: ${Array.from(this.models.keys()).join(', ')}`);
-      
-      // 대체 모델 사용: 등록된 첫 번째 모델 또는 'local'
-      if (this.models.size > 0) {
-        const fallbackModel = Array.from(this.models.keys())[0];
-        console.log(`대체 모델 ID로 '${fallbackModel}'를 사용합니다.`);
-        return fallbackModel;
-      } else {
-        console.log(`등록된 모델이 없어 'local' 모델을 사용합니다.`);
-        // 최후의 수단: local 모델 등록 및 사용
-        this.models.set('local', {
-          name: '로컬 시뮬레이션 (오프라인)',
-          provider: 'local',
-          temperature: 0.7,
-          systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
-        });
-        return 'local';
-      }
-    }
-    
-    console.log(`현재 기본 모델 ID: ${this.defaultModel}`);
-    return this.defaultModel;
   }
 }

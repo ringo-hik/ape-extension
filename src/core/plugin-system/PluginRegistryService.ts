@@ -33,6 +33,15 @@ export class PluginRegistryService implements IPluginRegistry {
   public off(event: string, listener: (...args: any[]) => void): void {
     this.eventEmitter.off(event, listener);
   }
+  
+  /**
+   * 도메인으로 플러그인 가져오기
+   * @param domain 플러그인 도메인
+   * @returns 플러그인 또는 undefined
+   */
+  getPluginByDomain(domain: string): IPlugin | undefined {
+    return this.getAllPlugins().find(plugin => plugin.getDomain() === domain);
+  }
   /**
    * 내부 플러그인 맵
    */

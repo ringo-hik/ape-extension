@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
   const settingsViewProvider = new ApeSettingsViewProvider(
     context.extensionUri,
     apeCore.configService,
-    apeCore.vscodeService
+    apeCore.vsCodeService // Fix: correct property name is vsCodeService
   );
   
   // TreeView 제공자를 등록
@@ -126,20 +126,22 @@ export function activate(context: vscode.ExtensionContext) {
       await config.update('uiMode', 'hybrid', vscode.ConfigurationTarget.Global);
       
       // 채팅 사이드바 열기
-      await vscode.commands.executeCommand('workbench.view.extension.ape-sidebar')
-        .then(() => vscode.commands.executeCommand('ape.chatView.focus'))
-        .then(() => {
-          console.log('APE 모드 채팅 열기 성공');
-          
-          // 이미 열려있는 채팅뷰에 모드 변경 메시지 전송
-          if (chatProvider && chatProvider._view) {
-            chatProvider._view.webview.postMessage({
-              command: 'changeUiMode',
-              mode: 'hybrid'
-            });
-          }
-        })
-        .catch(err => console.error('APE 모드 채팅 열기 실패:', err));
+      try {
+        await vscode.commands.executeCommand('workbench.view.extension.ape-sidebar');
+        await vscode.commands.executeCommand('ape.chatView.focus');
+        
+        console.log('APE 모드 채팅 열기 성공');
+        
+        // 이미 열려있는 채팅뷰에 모드 변경 메시지 전송
+        if (chatProvider && chatProvider._view) {
+          chatProvider._view.webview.postMessage({
+            command: 'changeUiMode',
+            mode: 'hybrid'
+          });
+        }
+      } catch (err: unknown) {
+        console.error('APE 모드 채팅 열기 실패:', err);
+      }
     }),
     
     // 설정 열기 명령

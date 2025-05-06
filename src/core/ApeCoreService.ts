@@ -44,6 +44,7 @@ import { LoggerService } from './utils';
 
 // 타입 임포트
 import { Command } from '../types/CommandTypes';
+import { ChatMessage, MessageRole } from '../types/LlmTypes';
 
 /**
  * APE 코어 서비스 클래스
@@ -305,7 +306,7 @@ export class ApeCoreService extends EventEmitter {
       // 설정 로드 및 검증
       try {
         this._logger.info('설정 로드 시작');
-        const loadSuccess = await this._configService.load();
+        const loadSuccess = await this._configService.load(true);
         if (!loadSuccess) {
           this._logger.warn('설정 로드 실패, 기본 설정 사용');
         } else {
@@ -316,7 +317,7 @@ export class ApeCoreService extends EventEmitter {
         try {
           // 메서드 존재 여부 확인 후 호출
           if (typeof this._configService.validate === 'function') {
-            const configValid = await this._configService.validate(this._configService.getCoreConfig());
+            const configValid = await this._configService.validate(this._configService.getCoreConfig(), true);
             if (!configValid) {
               this._logger.error('설정 검증 실패');
               this._logger.info('설정 오류 무시하고 진행 (개발 모드)');
@@ -420,7 +421,7 @@ export class ApeCoreService extends EventEmitter {
   public async processMessage(text: string, options?: {
     stream?: boolean;
     onUpdate?: (chunk: string) => void;
-    conversationHistory?: Array<{role: string, content: string}>;
+    conversationHistory?: ChatMessage[];
     embedDevMode?: boolean;
     deepAnalysis?: boolean;
     internalDataAccess?: boolean;
@@ -500,7 +501,7 @@ export class ApeCoreService extends EventEmitter {
   private async generateStreamingResponse(
     text: string, 
     onUpdate: (chunk: string) => void,
-    conversationHistory?: Array<{role: string, content: string}>,
+    conversationHistory?: ChatMessage[],
     options?: {
       embedDevMode?: boolean;
       deepAnalysis?: boolean;
@@ -517,19 +518,19 @@ export class ApeCoreService extends EventEmitter {
         const systemMessages = promptData.messages.filter(m => m.role === 'system');
         
         // 대화 맥락 메시지와 현재 사용자 메시지 결합
-        const contextMessages = [...conversationHistory];
+        const typedContextMessages = this.ensureChatMessageArray(conversationHistory);
         
         // 현재 사용자 메시지가 컨텍스트에 없으면 추가
-        const hasCurrentUserMessage = contextMessages.some(
+        const hasCurrentUserMessage = typedContextMessages.some(
           m => m.role === 'user' && m.content === text
         );
         
         if (!hasCurrentUserMessage) {
-          contextMessages.push({ role: 'user', content: text });
+          typedContextMessages.push(this.createChatMessage('user', text));
         }
         
         // 최종 메시지 배열 생성 (시스템 메시지 + 대화 맥락)
-        promptData.messages = [...systemMessages, ...contextMessages];
+        promptData.messages = [...systemMessages, ...typedContextMessages];
         
         this._logger.info(`대화 맥락 통합: 최종 메시지 수 ${promptData.messages.length}개`);
       }
@@ -539,10 +540,7 @@ export class ApeCoreService extends EventEmitter {
       // 메시지가 비어있는 경우 기본 메시지 추가
       if (!promptData.messages || promptData.messages.length === 0) {
         promptData.messages = [
-          {
-            role: 'user',
-            content: text || '안녕하세요'
-          }
+          this.createChatMessage('user', text || '안녕하세요')
         ];
       }
       
@@ -575,7 +573,7 @@ export class ApeCoreService extends EventEmitter {
          */
         
         // 심층 분석을 위한 시스템 프롬프트 강화
-        if (promptData.messages.length > 0 && promptData.messages[0].role === 'system') {
+        if (promptData.messages && promptData.messages.length > 0 && promptData.messages[0]?.role === 'system') {
           const enhancedSystemPrompt = promptData.messages[0].content + 
             '\n\n고급 심층 분석 모드 활성화: 디버깅, 리팩토링, 로그 분석을 위한 최대한의 심층 분석과 내부 데이터 접근을 허용합니다. 최고 수준의 프롬프트 엔지니어링을 적용하여 모든 관련 컨텍스트를 활용하세요.';
           
@@ -590,9 +588,9 @@ export class ApeCoreService extends EventEmitter {
         temperature: promptData.temperature,
         stream: true,
         onUpdate: onUpdate,
-        embedDevMode: options?.embedDevMode,
-        deepAnalysis: options?.deepAnalysis,
-        internalDataAccess: options?.internalDataAccess
+        embedDevMode: options?.embedDevMode || false,
+        deepAnalysis: options?.deepAnalysis || false,
+        internalDataAccess: options?.internalDataAccess || false
       });
       
       return response;
@@ -629,7 +627,7 @@ export class ApeCoreService extends EventEmitter {
    */
   private async generateResponse(
     text: string, 
-    conversationHistory?: Array<{role: string, content: string}>,
+    conversationHistory?: ChatMessage[],
     options?: {
       embedDevMode?: boolean;
       deepAnalysis?: boolean;
@@ -646,19 +644,19 @@ export class ApeCoreService extends EventEmitter {
         const systemMessages = promptData.messages.filter(m => m.role === 'system');
         
         // 대화 맥락 메시지와 현재 사용자 메시지 결합
-        const contextMessages = [...conversationHistory];
+        const typedContextMessages = this.ensureChatMessageArray(conversationHistory);
         
         // 현재 사용자 메시지가 컨텍스트에 없으면 추가
-        const hasCurrentUserMessage = contextMessages.some(
+        const hasCurrentUserMessage = typedContextMessages.some(
           m => m.role === 'user' && m.content === text
         );
         
         if (!hasCurrentUserMessage) {
-          contextMessages.push({ role: 'user', content: text });
+          typedContextMessages.push(this.createChatMessage('user', text));
         }
         
         // 최종 메시지 배열 생성 (시스템 메시지 + 대화 맥락)
-        promptData.messages = [...systemMessages, ...contextMessages];
+        promptData.messages = [...systemMessages, ...typedContextMessages];
         
         this._logger.info(`대화 맥락 통합: 최종 메시지 수 ${promptData.messages.length}개`);
       }
@@ -668,10 +666,7 @@ export class ApeCoreService extends EventEmitter {
       // 메시지가 비어있는 경우 기본 메시지 추가
       if (!promptData.messages || promptData.messages.length === 0) {
         promptData.messages = [
-          {
-            role: 'user',
-            content: text || '안녕하세요'
-          }
+          this.createChatMessage('user', text || '안녕하세요')
         ];
       }
       
@@ -700,7 +695,7 @@ export class ApeCoreService extends EventEmitter {
          */
         
         // 심층 분석을 위한 시스템 프롬프트 강화
-        if (promptData.messages.length > 0 && promptData.messages[0].role === 'system') {
+        if (promptData.messages && promptData.messages.length > 0 && promptData.messages[0]?.role === 'system') {
           const enhancedSystemPrompt = promptData.messages[0].content + 
             '\n\n고급 심층 분석 모드 활성화: 디버깅, 리팩토링, 로그 분석을 위한 최대한의 심층 분석과 내부 데이터 접근을 허용합니다. 최고 수준의 프롬프트 엔지니어링을 적용하여 모든 관련 컨텍스트를 활용하세요.';
           
@@ -713,9 +708,9 @@ export class ApeCoreService extends EventEmitter {
         model: this._llmService.getDefaultModelId(),
         messages: promptData.messages,
         temperature: promptData.temperature,
-        embedDevMode: options?.embedDevMode,
-        deepAnalysis: options?.deepAnalysis,
-        internalDataAccess: options?.internalDataAccess
+        embedDevMode: options?.embedDevMode || false,
+        deepAnalysis: options?.deepAnalysis || false,
+        internalDataAccess: options?.internalDataAccess || false
       });
       
       return response;
@@ -787,6 +782,44 @@ export class ApeCoreService extends EventEmitter {
   
   get logger(): LoggerService {
     return this._logger;
+  }
+  
+  /**
+   * 메시지 역할 캐스팅 유틸리티 메서드
+   * LLM 메시지 역할을 적절한 형식으로 변환
+   * @param role 메시지 역할 문자열
+   * @returns MessageRole 타입으로 변환된 역할
+   */
+  private ensureMessageRole(role: string): MessageRole {
+    if (role === 'system' || role === 'user' || role === 'assistant') {
+      return role as MessageRole;
+    }
+    return 'user' as MessageRole;
+  }
+  
+  /**
+   * 안전한 채팅 메시지 생성
+   * @param role 메시지 역할
+   * @param content 메시지 내용
+   * @returns 타입 안전 채팅 메시지
+   */
+  private createChatMessage(role: string, content: string): ChatMessage {
+    return { 
+      role: this.ensureMessageRole(role), 
+      content 
+    };
+  }
+  
+  /**
+   * 안전한 메시지 배열 변환
+   * @param messages 변환할 메시지 배열
+   * @returns 타입 안전 메시지 배열
+   */
+  private ensureChatMessageArray(messages: ChatMessage[] | undefined): ChatMessage[] {
+    if (!messages) {
+      return [];
+    }
+    return messages.map(msg => this.createChatMessage(msg.role, msg.content));
   }
   
   /**

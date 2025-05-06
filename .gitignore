@@ -32,3 +32,4 @@ Thumbs.db
 # Temporary files
 renamed-resources/
 resources-new/
+**/.claude/settings.local.json

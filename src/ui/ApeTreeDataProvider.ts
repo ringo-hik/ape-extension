@@ -633,9 +633,9 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
     );
     
     // 기본 속성 설정
-    treeItem.description = element.description;
+    treeItem.description = element.description || '';
     treeItem.tooltip = element.tooltip || element.description || element.label;
-    treeItem.contextValue = element.contextValue;
+    treeItem.contextValue = element.contextValue || '';
     
     // 아이콘 설정
     if (element.iconPath) {
@@ -730,7 +730,7 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
           type: TreeNodeType.SWDP_PROJECT,
           iconPath: new vscode.ThemeIcon('project'),
           contextValue: 'swdpProject',
-          description: project.description,
+          description: project.description || '',
           metadata: {
             projectId: project.code,
             projectKey: project.code // code 사용
@@ -770,17 +770,18 @@ export class ApeTreeDataProvider implements vscode.TreeDataProvider<ApeTreeItem>
           type: TreeNodeType.SWDP_ROOT,
           iconPath: new vscode.ThemeIcon('error'),
           contextValue: 'swdpError',
-          description: error.message || '알 수 없는 오류'
+          description: error instanceof Error ? error.message : '알 수 없는 오류'
         }];
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('SWDP 트리 구성 중 오류 발생:', error);
       return [{
         id: 'swdp-error',
         label: 'SWDP 데이터 로드 오류',
         type: TreeNodeType.SWDP_ROOT,
         iconPath: new vscode.ThemeIcon('error'),
-        contextValue: 'swdpError'
+        contextValue: 'swdpError',
+        description: error instanceof Error ? error.message : '알 수 없는 오류'
       }];
     }
   }

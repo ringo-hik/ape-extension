@@ -153,7 +153,7 @@ export interface IPromptAssembler {
    * @param text 사용자 입력 텍스트
    * @returns 프롬프트 데이터 (메시지 배열 및 설정)
    */
-  assemblePrompt(text: string): Promise<{ messages: Array<{role: string, content: string}>, temperature: number }>;
+  assemblePrompt(text: string): Promise<{ messages: Array<import('../../types/LlmTypes').ChatMessage>, temperature: number }>;
   
   /**
    * 프롬프트 생성 (legacy)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' {{codiconsPath}} {{mediaDirPath}}; font-src {{codiconsPath}} {{mediaDirPath}}; script-src 'unsafe-inline'; img-src {{mediaDirPath}};">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' {{codiconsPath}} {{mediaDirPath}}; font-src {{codiconsPath}} {{mediaDirPath}}; script-src 'unsafe-inline'; img-src {{mediaDirPath}} vscode-resource:;">
     <title>APE 확장 프로그램 시작하기</title>
     <link rel="stylesheet" href="{{cssPath}}/ape-ui.css">
     <link rel="stylesheet" href="{{cssPath}}/claude-style.css">
@@ -240,7 +240,7 @@
     <div class="welcome-container">
         <div class="welcome-header">
             <div class="mascot-container">
-                <img src="{{mediaDirPath}}/ape_logo.svg" alt="APE 로고" class="mascot">
+                <i class="codicon codicon-robot" style="font-size: 120px; color: var(--primary-light); display: block; text-align: center;"></i>
             </div>
             <h1>Agentic Pipeline Engine</h1>
             <p class="version">v0.0.1</p>
@@ -306,33 +306,26 @@
             <li>명령어 패널(명령어 버튼)을 사용하여 사용 가능한 모든 명령어를 탐색하세요.</li>
             <li>자동완성 기능을 활용하여 명령어를 빠르게 입력하세요. (@, / 입력 시 자동으로 표시)</li>
             <li>심층 분석 모드를 통해 더 자세한 데이터 분석과 프롬프트 엔지니어링을 사용할 수 있습니다.</li>
-            <li><strong>하이브리드 UI 모드</strong>를 사용하여 자연어 인터페이스와 명령어 기반 도구를 동시에 활용하세요.</li>
         </ul>
 
-        <h3><i class="ph ph-layout"></i> UI 모드</h3>
+        <h3><i class="ph ph-layout"></i> 채팅 인터페이스</h3>
         <p>
-            APE는 두 가지 UI 모드를 제공합니다:
+            APE는 강력한 채팅 인터페이스를 제공합니다:
         </p>
         <ul>
-            <li><strong>표준 모드</strong>: 기본 채팅 인터페이스와 명령어 패널을 제공합니다.</li>
-            <li><strong>하이브리드 모드</strong>: 자연어 인터페이스와 명령어 기반 도구가 통합된 향상된 UI를 제공합니다.
+            <li><strong>자연어 처리</strong>: 일상 언어로 AI와 대화하고 코드 작업을 수행할 수 있습니다.</li>
+            <li><strong>명령어 시스템</strong>: 다양한 명령어를 통해 정확한 작업을 지시할 수 있습니다.
               <ul>
-                <li>컨텍스트 패널: 현재 작업 환경에 맞는 추천 명령어와 정보 제공</li>
-                <li>제안 바: 현재 대화에 관련된 명령어 제안</li>
-                <li>도메인 도구바: 도메인별 도구 빠른 접근</li>
+                <li>컨텍스트 인식: 현재 작업 환경에 맞는 추천 기능 제공</li>
+                <li>자동완성: 명령어 입력 시 자동완성 지원</li>
+                <li>도구 통합: 개발 도구와의 원활한 통합</li>
               </ul>
             </li>
         </ul>
-        <p>
-            UI 모드는 <code>ape.toggleUIMode</code> 명령 또는 채팅 뷰 상단의 전환 버튼을 통해 언제든지 변경할 수 있습니다.
-        </p>
         
         <div class="welcome-actions">
             <button class="welcome-button" id="startButton">
-                <i class="ph ph-chat-text"></i> 시작하기 (표준 모드)
-            </button>
-            <button class="welcome-button" id="startHybridButton">
-                <i class="ph ph-chat-dots"></i> 시작하기 (하이브리드 모드)
+                <i class="ph ph-chat-text"></i> 시작하기
             </button>
             <button class="welcome-button secondary" id="docsButton">
                 <i class="ph ph-book-open"></i> 문서 보기
@@ -354,13 +347,6 @@
         document.getElementById('startButton').addEventListener('click', () => {
             vscode.postMessage({
                 command: 'openChat'
-            });
-        });
-        
-        document.getElementById('startHybridButton').addEventListener('click', () => {
-            vscode.postMessage({
-                command: 'setHybridMode',
-                command2: 'openHybridChat'
             });
         });
         

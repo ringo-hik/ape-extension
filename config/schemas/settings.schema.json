@@ -181,18 +181,6 @@
           "type": "string",
           "description": "OpenRouter API 키"
         },
-        "openaiApiKey": {
-          "type": "string",
-          "description": "OpenAI API 키"
-        },
-        "anthropicApiKey": {
-          "type": "string",
-          "description": "Anthropic API 키"
-        },
-        "azureApiKey": {
-          "type": "string",
-          "description": "Azure OpenAI API 키"
-        },
         "models": {
           "type": "object",
           "additionalProperties": {
@@ -204,7 +192,7 @@
               },
               "provider": {
                 "type": "string",
-                "enum": ["openai", "anthropic", "ollama", "azure", "openrouter", "local", "custom"],
+                "enum": ["openrouter", "local", "custom"],
                 "description": "모델 제공자"
               },
               "apiKey": {

@@ -12,6 +12,7 @@ import {
   PromptTemplateType
 } from './PromptTypes';
 import { IConfigLoader } from '../../types/ConfigTypes';
+import { ChatMessage, MessageRole } from '../../types/LlmTypes';
 import { RulesEngineService } from './RulesEngineService';
 
 /**
@@ -176,16 +177,16 @@ export class PromptAssemblerService implements IPromptAssembler {
   /**
    * 텍스트를 기반으로 프롬프트 데이터 생성
    */
-  async assemblePrompt(text: string): Promise<{ messages: Array<{role: string, content: string}>, temperature: number }> {
+  async assemblePrompt(text: string): Promise<{ messages: ChatMessage[], temperature: number }> {
     try {
       // 기본 메시지 구성
-      const messages = [
+      const messages: ChatMessage[] = [
         {
-          role: 'system',
+          role: 'system' as MessageRole,
           content: this.defaultSystemPrompt
         },
         {
-          role: 'user',
+          role: 'user' as MessageRole,
           content: text
         }
       ];
@@ -203,7 +204,7 @@ export class PromptAssemblerService implements IPromptAssembler {
       return {
         messages: [
           {
-            role: 'user',
+            role: 'user' as MessageRole,
             content: text || '안녕하세요'
           }
         ],

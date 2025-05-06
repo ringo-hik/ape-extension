@@ -67,6 +67,14 @@ export class GitPluginService extends PluginBaseService {
   name = 'Git 저장소 관리';
   
   /**
+   * 플러그인 도메인 가져오기
+   * @returns 플러그인 도메인
+   */
+  getDomain(): string {
+    return 'git';
+  }
+  
+  /**
    * Git 클라이언트
    */
   private client: GitClientService;

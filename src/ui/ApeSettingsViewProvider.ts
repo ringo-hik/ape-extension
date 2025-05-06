@@ -114,28 +114,28 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
     this._vsCodeConfig = vscode.workspace.getConfiguration('ape');
     
     // Get current settings from configService for any additional non-VS Code settings
-    const config = this._configService.getConfig();
+    const config = this._configService.getAppConfig();
     
     // Create the user section
     const userInfo = {
-      displayName: config.user?.displayName || '',
-      email: config.user?.email || '',
-      gitUsername: config.git?.username || '', 
-      gitEmail: config.git?.email || '',
-      swdpUsername: config.swdp?.username || '',
-      swdpTeam: config.swdp?.team || ''
+      displayName: config['user'] ? config['user']['displayName'] || '' : '',
+      email: config['user'] ? config['user']['email'] || '' : '',
+      gitUsername: config['git'] ? config['git']['username'] || '' : '', 
+      gitEmail: config['git'] ? config['git']['email'] || '' : '',
+      swdpUsername: config['swdp'] ? config['swdp']['username'] || '' : '',
+      swdpTeam: config['swdp'] ? config['swdp']['team'] || '' : ''
     };
     
     // Get plugin settings 
-    const plugins = config.plugins || [];
+    const plugins = config['plugins'] || [];
     
     // Get API endpoints
     const apiEndpoints = {
-      llmEndpoint: config.endpoints?.llm || '',
-      gitApiEndpoint: config.endpoints?.git || '',
-      jiraApiEndpoint: config.endpoints?.jira || '',
+      llmEndpoint: config['endpoints'] ? config['endpoints']['llm'] || '' : '',
+      gitApiEndpoint: config['endpoints'] ? config['endpoints']['git'] || '' : '',
+      jiraApiEndpoint: config['endpoints'] ? config['endpoints']['jira'] || '' : '',
       swdpApiEndpoint: this._vsCodeConfig.get('swdp.baseUrl') || 'http://localhost:8001',
-      pocketApiEndpoint: config.endpoints?.pocket || ''
+      pocketApiEndpoint: config['endpoints'] ? config['endpoints']['pocket'] || '' : ''
     };
     
     // Get LLM settings from VS Code configuration
@@ -181,7 +181,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    */
   private async _handleSaveUserInfo(userInfo: any) {
     // Update configuration
-    await this._configService.updateConfig({
+    await this._configService.updateConfig('app', {
       user: {
         displayName: userInfo.displayName,
         email: userInfo.email
@@ -207,7 +207,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    */
   private async _handleSavePluginSettings(pluginSettings: any) {
     // Update configuration
-    await this._configService.updateConfig({
+    await this._configService.updateConfig('app', {
       plugins: pluginSettings
     });
 
@@ -226,7 +226,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
       await this._vsCodeConfig.update('swdp.baseUrl', apiEndpoints.swdpApiEndpoint, vscode.ConfigurationTarget.Global);
       
       // Update other endpoints via ConfigService
-      await this._configService.updateConfig({
+      await this._configService.updateConfig('app', {
         endpoints: {
           llm: apiEndpoints.llmEndpoint,
           git: apiEndpoints.gitApiEndpoint,
@@ -256,7 +256,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
       await this._vsCodeConfig.update('llm.supportsStreaming', llmSettings.supportsStreaming, vscode.ConfigurationTarget.Global);
       
       // Update non-VS Code settings via ConfigService if needed
-      await this._configService.updateConfig({
+      await this._configService.updateConfig('app', {
         llm: {
           temperature: llmSettings.temperature,
           maxTokens: llmSettings.maxTokens
@@ -298,7 +298,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    * @param pluginInfo The plugin information
    */
   private async _handleAddPlugin(pluginInfo: any) {
-    const config = this._configService.getConfig();
+    const config = this._configService.getAppConfig();
     const currentPlugins = config.plugins || [];
     
     // Add new plugin
@@ -311,7 +311,7 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
     });
     
     // Update configuration
-    await this._configService.updateConfig({
+    await this._configService.updateConfig('app', {
       plugins: currentPlugins
     });
     
@@ -328,14 +328,14 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
    * @param pluginId The ID of the plugin to remove
    */
   private async _handleRemovePlugin(pluginId: string) {
-    const config = this._configService.getConfig();
+    const config = this._configService.getAppConfig();
     let currentPlugins = config.plugins || [];
     
     // Filter out the plugin to remove
     currentPlugins = currentPlugins.filter(plugin => plugin.id !== pluginId);
     
     // Update configuration
-    await this._configService.updateConfig({
+    await this._configService.updateConfig('app', {
       plugins: currentPlugins
     });
     
@@ -1191,11 +1191,16 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                 
                 // Save LLM settings
                 document.getElementById('saveLlmSettings').addEventListener('click', () => {
+                    // OpenRouter 키가 있는지 확인
+                    const openRouterKeyElement = document.getElementById('openRouterApiKey');
+                    const openRouterKey = openRouterKeyElement ? openRouterKeyElement.value : '';
+
                     vscode.postMessage({
                         command: 'saveLlmSettings',
                         llmSettings: {
                             defaultModel: document.getElementById('defaultModel').value,
-                            openRouterApiKey: document.getElementById('openRouterApiKey').value,
+                            // 테스트용 OpenRouter 키
+                            openRouterApiKey: openRouterKey,
                             supportsStreaming: document.getElementById('supportsStreaming').checked,
                             temperature: parseFloat(document.getElementById('temperature').value),
                             maxTokens: parseInt(document.getElementById('maxTokens').value)
@@ -1511,7 +1516,10 @@ export class ApeSettingsViewProvider implements vscode.WebviewViewProvider {
                             renderModelsList(availableModels);
                             
                             // OpenRouter API Key
-                            document.getElementById('openRouterApiKey').value = llmSettings.openRouterApiKey || '';
+                            // OpenRouter API Key (테스트용) - 주석 처리하여 노출 방지
+                            if (document.getElementById('openRouterApiKey')) {
+                              document.getElementById('openRouterApiKey').value = llmSettings.openRouterApiKey || '';
+                            }
                             
                             // 스트리밍 지원 여부
                             document.getElementById('supportsStreaming').checked = llmSettings.supportsStreaming || false;

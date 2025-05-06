@@ -50,7 +50,7 @@ export class CommandExecutorService implements ICommandExecutor {
     private commandRegistry: ICommandRegistry,
     private pluginRegistry: IPluginRegistry
   ) {
-    this.parser = new CommandParserService(commandRegistry);
+    this.parser = new CommandParserService();
   }
   
   /**
@@ -202,11 +202,12 @@ export class CommandExecutorService implements ICommandExecutor {
     
     // content 키가 있는 객체인 경우 (레거시 형식)
     if (typeof result === 'object' && 'content' in result) {
+      const hasError = 'error' in result && result.error === true;
       return {
-        success: !('error' in result && result.error === true),
+        success: !hasError,
         message: result.content,
         data: result,
-        error: result.error === true ? '명령 실행 중 오류가 발생했습니다.' : undefined,
+        error: hasError ? '명령 실행 중 오류가 발생했습니다.' : '',
         displayMode: 'markdown'
       };
     }
@@ -470,7 +471,7 @@ export class CommandExecutorService implements ICommandExecutor {
         domain: parsedCommand.domain,
         agentId: parsedCommand.domain !== CommandDomain.NONE ? parsedCommand.domain : 'core',
         command: parsedCommand.command,
-        subCommand: parsedCommand.subCommand,
+        subCommand: parsedCommand.subCommand || '',
         args: args.length > 0 ? args : parsedCommand.args,
         flags: flags && Object.keys(flags).length > 0 ? flags : Object.fromEntries(parsedCommand.flags),
         options: Object.fromEntries(parsedCommand.options),
@@ -542,7 +543,7 @@ export class CommandExecutorService implements ICommandExecutor {
   public cancelAll(): number {
     let cancelCount = 0;
     
-    for (const [commandId, pendingCommand] of this.pendingCommands.entries()) {
+    this.pendingCommands.forEach((pendingCommand, commandId) => {
       try {
         pendingCommand.cancel();
         this.pendingCommands.delete(commandId);
@@ -550,7 +551,7 @@ export class CommandExecutorService implements ICommandExecutor {
       } catch (error) {
         console.error(`명령어 취소 중 오류 발생 (${commandId}):`, error);
       }
-    }
+    });
     
     return cancelCount;
   }
