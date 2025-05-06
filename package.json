@@ -312,6 +312,8 @@
     "build:dev": "node esbuild.config.js --clean --build",
     "prebuild": "rimraf dist",
     "dev": "npm run watch",
+    "dev:internal": "node esbuild.config.js --clean --build && echo Internal mode ready - Press F5 to debug",
+    "quick": "copy /Y extension.env.internal.js dist\\extension.env.js && copy /Y config\\internal\\settings.json dist\\settings.json && npm run build",
     "pretest": "npm run build",
     "typecheck": "tsc --noEmit"
   },
