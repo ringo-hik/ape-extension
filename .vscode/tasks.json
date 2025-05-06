@@ -30,7 +30,7 @@
       "detail": "내부망용 개발 빌드 실행"
     },
     {
-      "type": "process",
+      "type": "shell",
       "label": "quick-development",
       "command": "${workspaceFolder}/quick.bat",
       "windows": {
