@@ -421,128 +421,244 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
    */
   private _sendModelList() {
     if (!this._view) {
-      console.error('_sendModelList: 뷰가 없어 모델 목록을 전송할 수 없습니다.');
+      console.error('[UI<-EXT] _sendModelList: 뷰가 없어 모델 목록을 전송할 수 없습니다.');
       return;
     }
 
     try {
-      console.log('모델 목록 전송 시작 - DEBUG 버전');
+      console.log('[UI<-EXT] 모델 목록 전송 시작');
       
       // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
       const coreService = this._coreService || ApeCoreService.getInstance();
       const llmService = coreService.llmService;
       
       if (!llmService) {
-        console.error('_sendModelList: llmService가 없습니다.');
+        console.error('[UI<-EXT] LLM 서비스를 찾을 수 없습니다.');
         throw new Error('LLM 서비스를 찾을 수 없습니다.');
       }
       
-      // 모델 목록 가져오기 전에 디버그 정보 출력
-      console.log('LlmService 정보:');
-      console.log(`- defaultModelId: ${llmService.getDefaultModelId ? llmService.getDefaultModelId() : 'getDefaultModelId 메서드 없음'}`);
-      console.log('- getAvailableModels 메서드 호출 시도...');
+      // 디버그 정보 출력
+      console.log('[UI<-EXT] 기본 모델 ID:', llmService.getDefaultModelId());
       
       // 모델 목록 가져오기
-      const modelsArray = llmService.getAvailableModels();
-      console.log(`가져온 모델 수: ${modelsArray.length}`);
+      let modelsArray = llmService.getAvailableModels();
+      console.log(`[UI<-EXT] 가져온 모델 수: ${modelsArray.length}`);
       
-      // 모델 목록 상세 로깅
-      modelsArray.forEach((model, idx) => {
-        console.log(`[원본 모델 ${idx + 1}] id=${model.id || '없음'}, modelId=${model.modelId || '없음'}, name=${model.name}, provider=${model.provider || '없음'}, apiModel=${model.apiModel || '없음'}`);
-      });
+      // 모델 배열 초기화 및 유효성 검사
+      if (!Array.isArray(modelsArray)) {
+        console.warn('[UI<-EXT] 유효하지 않은 모델 배열 반환됨. 빈 배열로 초기화.');
+        modelsArray = [];
+      }
       
-      if (modelsArray.length === 0) {
-        console.warn('LlmService에서 가져온 모델 목록이 비어 있습니다. 비상 대책 시행');
+      // 모델 목록이 비어있는 경우 필수 모델 추가
+      // 항상 최소 3개 이상의 모델 보장 (내부망, 외부망, 로컬)
+      if (modelsArray.length < 3) {
+        console.log('[UI<-EXT] 모델 목록이 불충분하여 필수 모델 추가');
+        
+        // 내부망 모델 추가 (항상 포함)
+        if (!modelsArray.some(m => m.provider === 'custom' || m.name?.includes('NARRANS'))) {
+          modelsArray.push({
+            id: 'narrans-default',
+            name: 'NARRANS (내부망)',
+            provider: 'custom',
+            temperature: 0.7,
+            apiUrl: 'https://api-se-dev.narrans/v1/chat/completions',
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          });
+          console.log('[UI<-EXT] 내부망 모델(NARRANS) 추가됨');
+        }
+        
+        // OpenRouter 모델 추가 (외부 테스트용)
+        if (!modelsArray.some(m => m.provider === 'openrouter')) {
+          // 다양한 모델 옵션 추가
+          modelsArray.push({
+            id: 'openrouter-claude-3-opus',
+            name: 'Claude 3 Opus',
+            provider: 'openrouter',
+            temperature: 0.7,
+            apiModel: 'anthropic/claude-3-opus',
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          });
+          
+          modelsArray.push({
+            id: 'openrouter-claude-3-sonnet',
+            name: 'Claude 3 Sonnet',
+            provider: 'openrouter',
+            temperature: 0.7,
+            apiModel: 'anthropic/claude-3-sonnet',
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          });
+          
+          modelsArray.push({
+            id: 'openrouter-claude-3-haiku',
+            name: 'Claude 3 Haiku',
+            provider: 'openrouter',
+            temperature: 0.7,
+            apiModel: 'anthropic/claude-3-haiku',
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          });
+          
+          console.log('[UI<-EXT] OpenRouter 모델 3개 추가됨');
+        }
+        
+        // 로컬 모델 추가 (오프라인 작업용)
+        if (!modelsArray.some(m => m.provider === 'local')) {
+          modelsArray.push({
+            id: 'local-fallback',
+            name: '로컬 시뮬레이션 모델',
+            provider: 'local',
+            temperature: 0.7,
+            systemPrompt: '당신은 코딩과 개발을 도와주는 유능한 AI 어시스턴트입니다.'
+          });
+          console.log('[UI<-EXT] 로컬 모델 추가됨');
+        }
+        
+        console.log(`[UI<-EXT] 필수 모델 추가 후 모델 수: ${modelsArray.length}`);
       }
       
       // 모델 정보 매핑 (웹뷰에 전송할 형식으로 변환)
       const models = modelsArray.map((model, index) => {
-        // ID 유효성 확인 및 처리
-        let modelId = '';
-        const sourceInfo = [];
-        
-        if (model.id) {
-          modelId = model.id;
-          sourceInfo.push('id');
-        } else if (model.modelId) {
-          modelId = model.modelId;
-          sourceInfo.push('modelId');
-        } else if (model.apiModel) {
-          modelId = model.apiModel.replace(/[\/:.]/g, '-');
-          sourceInfo.push('apiModel (변환됨)');
-        } else {
-          // 이름 + 인덱스로 고유 ID 생성
-          modelId = `${model.provider || 'model'}-${model.name.toLowerCase().replace(/\s+/g, '-')}-${index}`;
-          sourceInfo.push('자동 생성');
+        try {
+          // ID 유효성 확인 및 처리
+          let modelId = model.id || model.modelId || `model-${index}`;
+          
+          // ID에 특수문자가 있으면 제거
+          if (modelId.includes('/') || modelId.includes(':')) {
+            modelId = modelId.replace(/[\/:.]/g, '-');
+          }
+          
+          // 모델명 없는 경우 기본값 설정
+          const modelName = model.name || `모델 ${index + 1}`;
+          
+          // 단순화된 모델 정보 반환
+          return {
+            id: modelId,
+            name: modelName,
+            provider: model.provider || 'unknown'
+          };
+        } catch (err) {
+          console.error(`[UI<-EXT] 모델 변환 중 오류 (인덱스 ${index}):`, err);
+          // 오류 발생 시 기본 모델 정보 반환
+          return {
+            id: `model-${index}`,
+            name: `모델 ${index + 1}`,
+            provider: 'unknown'
+          };
         }
-        
-        console.log(`[모델 ID 처리] 원본 모델 ${index + 1}: 결정된 ID=${modelId}, 소스=${sourceInfo.join(', ')}`);
-        
-        // 모델 정보 웹뷰 형식으로 변환
-        return {
-          id: modelId,
-          name: model.name,
-          provider: model.provider || 'unknown'
-        };
       });
       
-      // 빈 모델 리스트 방지 (백업 모델 추가)
-      if (models.length === 0) {
-        console.warn('모델 목록이 비어있습니다. 백업 모델을 추가합니다.');
-        models.push(
-          { id: 'gemini-2.5-flash', name: 'Google Gemini 2.5 Flash', provider: 'openrouter' },
-          { id: 'narrans', name: 'NARRANS (Default)', provider: 'custom' },
-          { id: 'local-emergency', name: '오프라인 응급 모드', provider: 'local' }
-        );
-      }
+      // 모델 중복 제거 및 정렬
+      const uniqueModels = this._removeDuplicateModels(models);
       
-      // 최종 모델 정보 로깅
-      console.log('===== 웹뷰로 전송할 최종 모델 목록 =====');
-      models.forEach((model, index) => {
-        console.log(`모델 ${index + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
+      // 모델 정보 로깅
+      console.log(`[UI<-EXT] 전송할 모델 목록: ${uniqueModels.length}개 (중복 제거 후)`);
+      uniqueModels.forEach((model, index) => {
+        console.log(`[UI<-EXT] 모델 ${index + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
       });
       
       // 웹뷰에 모델 목록 전송
-      console.log(`웹뷰로 전송할 모델 수: ${models.length}`);
-      try {
-        this._view.webview.postMessage({
-          command: 'updateModels',
-          models: models
-        });
-        console.log('웹뷰로 모델 목록 메시지 전송 성공');
-      } catch (postError) {
-        console.error('웹뷰로 메시지 전송 중 오류:', postError);
-      }
+      this._view.webview.postMessage({
+        command: 'updateModels',
+        models: uniqueModels
+      });
       
-      console.log('모델 목록 전송 완료');
+      console.log('[UI<-EXT] 모델 목록 전송 완료');
+      
+      // 추가 안정성을 위해 현재 모델도 전송
+      setTimeout(() => {
+        if (this._view && this._view.visible) {
+          // 기본 모델 ID 가져오기
+          let defaultModelId = llmService.getDefaultModelId();
+          
+          // 기본 모델 ID가 없으면 목록에서 첫 번째 모델 사용
+          if (!defaultModelId && uniqueModels.length > 0) {
+            defaultModelId = uniqueModels[0].id;
+            console.log(`[UI<-EXT] 기본 모델 ID 미설정, 첫 번째 모델로 설정: ${defaultModelId}`);
+          }
+          
+          if (defaultModelId) {
+            this._view.webview.postMessage({
+              command: 'setCurrentModel',
+              modelId: defaultModelId
+            });
+            
+            console.log(`[UI<-EXT] 현재 모델 ID 전송: ${defaultModelId}`);
+          }
+        }
+      }, 500);
     } catch (error: unknown) {
-      console.error('모델 목록 전송 중 오류 발생:', error);
-      if (error instanceof Error) {
-        console.error('오류 상세:', error.stack);
-      }
+      console.error('[UI<-EXT] 모델 목록 전송 오류:', error);
       
-      // 오류 발생 시 백업 모델 목록 전송
+      // 오류 발생 시 다양한 백업 모델 목록 전송
       const fallbackModels = [
-        { id: 'gemini-2.5-flash', name: 'Google Gemini 2.5 Flash', provider: 'openrouter' },
-        { id: 'narrans', name: 'NARRANS', provider: 'custom' },
+        { id: 'narrans-emergency', name: 'NARRANS (내부망)', provider: 'custom' },
+        { id: 'openrouter-emergency', name: 'Claude 3 Haiku', provider: 'openrouter' },
         { id: 'local-emergency', name: '오프라인 응급 모드', provider: 'local' }
       ];
       
-      console.log('백업 모델 목록 전송 시도:');
-      fallbackModels.forEach((model, idx) => {
-        console.log(`백업 모델 ${idx + 1}: ID=${model.id}, 이름=${model.name}, 제공자=${model.provider}`);
-      });
+      console.log('[UI<-EXT] 백업 모델 목록 전송:');
       
       try {
         this._view.webview.postMessage({
           command: 'updateModels',
           models: fallbackModels
         });
-        console.log('백업 모델 목록 전송 성공');
+        
+        // 첫 번째 백업 모델을 기본값으로 설정
+        this._view.webview.postMessage({
+          command: 'setCurrentModel',
+          modelId: 'narrans-emergency'
+        });
+        
+        console.log('[UI<-EXT] 백업 모델 목록 및 기본 모델 전송 성공');
       } catch (postError) {
-        console.error('백업 모델 목록 전송 중 오류:', postError);
+        console.error('[UI<-EXT] 백업 모델 목록 전송 실패:', postError);
       }
     }
+  }
+  
+  /**
+   * 모델 목록에서 중복 제거 및 정렬
+   * @param models 모델 목록
+   * @returns 중복이 제거된 모델 목록
+   */
+  private _removeDuplicateModels(models: Array<{id: string; name: string; provider: string}>) {
+    // ID 기준으로 중복 제거
+    const uniqueIds = new Set<string>();
+    const uniqueModels: Array<{id: string; name: string; provider: string}> = [];
+    
+    // 제공자 우선순위 (내부망 > OpenRouter > 로컬 > 기타)
+    const providerPriority: Record<string, number> = {
+      'custom': 0,   // 내부망 (최우선)
+      'openrouter': 1,  // OpenRouter
+      'local': 2,    // 로컬
+      'unknown': 3   // 기타
+    };
+    
+    // 중복 제거
+    for (const model of models) {
+      if (!uniqueIds.has(model.id)) {
+        uniqueIds.add(model.id);
+        uniqueModels.push(model);
+      }
+    }
+    
+    // 제공자 우선순위에 따라 정렬
+    uniqueModels.sort((a, b) => {
+      // 제공자 우선순위 비교
+      const priorityA = providerPriority[a.provider] ?? 999;
+      const priorityB = providerPriority[b.provider] ?? 999;
+      
+      // 우선순위가 다르면 우선순위 기준으로 정렬
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+      
+      // 우선순위가 같으면 이름 기준으로 정렬
+      return a.name.localeCompare(b.name);
+    });
+    
+    return uniqueModels;
   }
   
   /**
@@ -555,7 +671,7 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     try {
-      console.log('현재 모델 전송 시작 - DEBUG 버전');
+      console.log('현재 모델 전송 시작');
       
       // 저장된 _coreService 참조 사용 또는 싱글톤 인스턴스 가져오기
       const coreService = this._coreService || ApeCoreService.getInstance();
@@ -570,62 +686,122 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
         throw new Error('LLM 서비스를 찾을 수 없습니다.');
       }
       
-      console.log('_sendCurrentModel: getDefaultModelId 메서드 호출 시도...');
-      const defaultModelId = llmService.getDefaultModelId();
+      // 사용 가능한 모델 목록 가져오기
+      const availableModels = llmService.getAvailableModels();
+      const modelIds = availableModels.map(m => m.id || m.modelId).filter(Boolean);
+      console.log(`사용 가능한 모델 ID: ${JSON.stringify(modelIds)}`);
       
-      if (!defaultModelId) {
-        console.warn('기본 모델 ID를 가져올 수 없습니다. 대체 모델을 사용합니다.');
+      // 기본 모델 ID 가져오기
+      console.log('getDefaultModelId 메서드 호출 시도...');
+      let defaultModelId = llmService.getDefaultModelId();
+      
+      // 기본 모델 ID가 없거나 유효하지 않은 경우 적절한 폴백 처리
+      if (!defaultModelId || !modelIds.includes(defaultModelId)) {
+        console.warn(`기본 모델 ID(${defaultModelId || 'undefined'})가 없거나 유효하지 않습니다. 폴백 모델 선택...`);
         
+        // 우선순위에 따라 폴백 모델 선택
+        // 1. 내부망 모델 (custom)
+        const internalModel = availableModels.find(m => m.provider === 'custom');
+        // 2. OpenRouter 모델
+        const openRouterModel = availableModels.find(m => m.provider === 'openrouter');
+        // 3. 로컬 모델
+        const localModel = availableModels.find(m => m.provider === 'local');
+        // 4. 첫 번째 가용 모델
+        const firstAvailableModel = availableModels[0];
+        
+        // 우선순위에 따라 폴백 모델 ID 설정
+        defaultModelId = (
+          (internalModel && (internalModel.id || internalModel.modelId)) ||
+          (openRouterModel && (openRouterModel.id || openRouterModel.modelId)) ||
+          (localModel && (localModel.id || localModel.modelId)) ||
+          (firstAvailableModel && (firstAvailableModel.id || firstAvailableModel.modelId)) ||
+          'openrouter-claude-3-haiku' // 최후의 폴백
+        );
+        
+        console.log(`폴백 모델 ID로 설정됨: ${defaultModelId}`);
+      } else {
+        console.log(`현재 기본 모델: ${defaultModelId}`);
+      }
+      
+      // 모델 ID가 특수 문자를 포함하는 경우 정리
+      if (defaultModelId && (defaultModelId.includes('/') || defaultModelId.includes(':'))) {
+        const cleanModelId = defaultModelId.replace(/[\/:.]/g, '-');
+        console.log(`모델 ID에 특수 문자 포함, 정리됨: ${defaultModelId} -> ${cleanModelId}`);
+        defaultModelId = cleanModelId;
+      }
+      
+      // 선택된 모델에 대한 정보 로깅
+      if (defaultModelId) {
+        const selectedModel = availableModels.find(m => 
+          (m.id === defaultModelId) || (m.modelId === defaultModelId)
+        );
+        
+        if (selectedModel) {
+          console.log(`선택된 모델 정보: ${JSON.stringify({
+            id: selectedModel.id || selectedModel.modelId,
+            name: selectedModel.name,
+            provider: selectedModel.provider
+          })}`);
+        }
+      }
+      
+      // 웹뷰에 모델 ID 전송
+      if (this._view && this._view.visible && defaultModelId) {
         try {
-          console.log('기본값으로 gemini-2.5-flash 모델 전송 시도');
           this._view.webview.postMessage({
             command: 'setCurrentModel',
-            modelId: 'gemini-2.5-flash' // 폴백 모델
+            modelId: defaultModelId
           });
-          console.log('폴백 모델 ID 전송 성공');
+          console.log(`현재 모델 ID(${defaultModelId}) 전송 성공`);
+          
+          // VS Code 설정에도 저장 (지속성 보장)
+          vscode.workspace.getConfiguration('ape.llm').update(
+            'defaultModel', 
+            defaultModelId, 
+            vscode.ConfigurationTarget.Global
+          ).then(() => {
+            console.log(`모델 ID가 설정에 저장됨: ${defaultModelId}`);
+          }).catch(err => {
+            console.error('설정 저장 중 오류:', err);
+          });
         } catch (postError) {
-          console.error('폴백 모델 ID 전송 중 오류:', postError);
+          console.error('현재 모델 ID 전송 중 오류:', postError);
         }
-        return;
       }
-      
-      console.log(`현재 기본 모델: ${defaultModelId}`);
-      
-      // llmService에 해당 모델이 등록되어 있는지 확인
-      const modelConfig = llmService.getModelConfig ? llmService.getModelConfig(defaultModelId) : null;
-      if (modelConfig) {
-        console.log(`모델 구성 확인: ${JSON.stringify({
-          name: modelConfig.name,
-          provider: modelConfig.provider,
-          apiModel: modelConfig.apiModel
-        })}`);
-      } else {
-        console.warn(`모델 ID ${defaultModelId}에 대한 구성을 찾을 수 없습니다.`);
-      }
-      
-      // 메시지 전송
-      try {
-        this._view.webview.postMessage({
-          command: 'setCurrentModel',
-          modelId: defaultModelId
-        });
-        console.log(`현재 모델 ID(${defaultModelId}) 전송 성공`);
-      } catch (postError) {
-        console.error('현재 모델 ID 전송 중 오류:', postError);
-      }
-      
     } catch (error: unknown) {
       console.error('현재 모델 전송 중 오류 발생:', error);
       console.error('오류 상세:', error instanceof Error ? error.stack : 'Error stack not available');
       
-      // 오류 발생 시 기본 모델 전송
+      // 오류 발생 시 상황에 따른 적절한 폴백 모델 선택
       try {
-        console.log('오류 발생으로 인한 기본값 gemini-2.5-flash 모델 전송 시도');
-        this._view.webview.postMessage({
-          command: 'setCurrentModel',
-          modelId: 'gemini-2.5-flash' // 폴백 모델
-        });
-        console.log('오류 복구 모델 ID 전송 성공');
+        // 순차적으로 사용 가능한 모델 ID 시도
+        const fallbackModelIds = [
+          'narrans-emergency',        // 내부망 응급 모델
+          'openrouter-claude-3-haiku', // OpenRouter 모델
+          'local-emergency'           // 로컬 응급 모델
+        ];
+        
+        let selectedFallback = fallbackModelIds[0]; // 기본값
+        
+        // 현재 시간에 따라 다른 폴백 모델 선택 (여러 모델을 고르게 사용하기 위함)
+        const currentHour = new Date().getHours();
+        if (currentHour % 3 === 0) {
+          selectedFallback = fallbackModelIds[0];
+        } else if (currentHour % 3 === 1) {
+          selectedFallback = fallbackModelIds[1];
+        } else {
+          selectedFallback = fallbackModelIds[2];
+        }
+        
+        console.log(`오류 발생으로 인한 폴백 모델 ID 선택: ${selectedFallback}`);
+        
+        if (this._view && this._view.visible) {
+          this._view.webview.postMessage({
+            command: 'setCurrentModel',
+            modelId: selectedFallback
+          });
+          console.log('오류 복구 모델 ID 전송 성공');
+        }
       } catch (postError) {
         console.error('오류 복구 모델 ID 전송 중 추가 오류:', postError);
       }
@@ -1250,39 +1426,15 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
     // 웹뷰 리소스 기본 URI (아이콘, 폰트 등의 기본 경로)
     const webviewResourceBaseUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources'));
     
-    // CSS 및 JS 경로 설정
-    const cssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'chat.css'));
-    const claudeStyleCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'claude-style.css'));
-    const codeBlocksCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'code-blocks.css'));
-    const commandAutocompleteCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'command-autocomplete.css'));
-    const contextSuggestionsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'context-suggestions.css'));
-    const modelDropdownCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'model-dropdown.css'));
-    const apeIconsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'icons', 'ape-icons.css'));
-    const phosphorIconsCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'css', 'phosphor-icons.css'));
-    const codiconsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'codicons', 'codicon.css'));
-    
-    // JS 파일 경로
-    const modelSelectorUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'model-selector.js'));
-    const codeBlocksJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'code-blocks.js'));
-    const commandIconsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'command-icons.js'));
-    const commandAutocompleteJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'command-autocomplete.js'));
-    const iconManagerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'icon-manager.js'));
-    const commandButtonsJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'command-buttons.js'));
-    const improvedApeUiJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'improved-ape-ui.js'));
-    const improvedContextHandlerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'improved-context-handler.js'));
-    const workflowAnalyzerJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'workflow-analyzer.js'));
-    const hybridApeUiJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'hybrid-ape-ui.js'));
-    const apeUiEventFixJsUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'js', 'ape-ui-event-fix.js'));
-    
-    // HTML 리소스
-    const commandsHtmlUri = webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, 'resources', 'html', 'command-buttons.html'));
-    
     try {
       // HTML 파일이 존재하는지 확인
       if (!fs.existsSync(htmlPath.fsPath)) {
         console.error(`HTML 파일을 찾을 수 없습니다: ${htmlPath.fsPath}`);
         throw new Error('HTML 파일을 찾을 수 없습니다.');
       }
+      
+      // 리소스 URI 매핑 생성
+      const resourceMap = this._createResourceMap(webview);
       
       // HTML 파일 읽기
       let htmlContent = fs.readFileSync(htmlPath.fsPath, 'utf8');
@@ -1291,30 +1443,16 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       const cspSource = webview.cspSource;
       htmlContent = htmlContent.replace(/\$\{cspSource\}/g, cspSource);
       htmlContent = htmlContent.replace(/\$\{webviewResourceBaseUri\}/g, webviewResourceBaseUri.toString());
-      htmlContent = htmlContent.replace(/\$\{cssUri\}/g, cssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{claudeStyleCssUri\}/g, claudeStyleCssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{codeBlocksCssUri\}/g, codeBlocksCssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{commandAutocompleteCssUri\}/g, commandAutocompleteCssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{contextSuggestionsCssUri\}/g, contextSuggestionsCssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{modelDropdownCssUri\}/g, modelDropdownCssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{apeIconsCssUri\}/g, apeIconsCssUri.toString());
-      htmlContent = htmlContent.replace(/\$\{codiconsUri\}/g, codiconsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{modelSelectorUri\}/g, modelSelectorUri.toString());
-      htmlContent = htmlContent.replace(/\$\{codeBlocksJsUri\}/g, codeBlocksJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{commandIconsJsUri\}/g, commandIconsJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{commandAutocompleteJsUri\}/g, commandAutocompleteJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{commandsHtmlUri\}/g, commandsHtmlUri.toString());
-      htmlContent = htmlContent.replace(/\$\{commandButtonsJsUri\}/g, commandButtonsJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{improvedApeUiJsUri\}/g, improvedApeUiJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{improvedContextHandlerJsUri\}/g, improvedContextHandlerJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{workflowAnalyzerJsUri\}/g, workflowAnalyzerJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{hybridApeUiJsUri\}/g, hybridApeUiJsUri.toString());
-      htmlContent = htmlContent.replace(/\$\{apeUiEventFixJsUri\}/g, apeUiEventFixJsUri.toString());
+      
+      // 모든 리소스 URI 매핑 적용
+      for (const [key, uri] of Object.entries(resourceMap)) {
+        const placeholder = `\$\{${key}\}`;
+        const regex = new RegExp(placeholder, 'g');
+        htmlContent = htmlContent.replace(regex, uri.toString());
+      }
       
       console.log('HTML 파일 로드 성공:', htmlPath.fsPath);
       console.log('기본 리소스 경로:', webviewResourceBaseUri.toString());
-      console.log('CSS URI:', cssUri.toString());
-      console.log('JS URI:', modelSelectorUri.toString());
       
       return htmlContent;
     } catch (error) {
@@ -1353,5 +1491,60 @@ export class ApeChatViewProvider implements vscode.WebviewViewProvider {
       </body>
       </html>`;
     }
+  }
+
+  /**
+   * 리소스 URI 매핑 생성
+   * @param webview VS Code 웹뷰 인스턴스
+   * @returns 리소스 키와 URI 매핑 객체
+   */
+  private _createResourceMap(webview: vscode.Webview): Record<string, vscode.Uri> {
+    // CSS 리소스 매핑
+    const cssResources = {
+      cssUri: this._getUri(webview, 'resources', 'css', 'chat.css'),
+      claudeStyleCssUri: this._getUri(webview, 'resources', 'css', 'claude-style.css'),
+      codeBlocksCssUri: this._getUri(webview, 'resources', 'css', 'code-blocks.css'),
+      commandAutocompleteCssUri: this._getUri(webview, 'resources', 'css', 'command-autocomplete.css'),
+      contextSuggestionsCssUri: this._getUri(webview, 'resources', 'css', 'context-suggestions.css'),
+      modelSelectorCssUri: this._getUri(webview, 'resources', 'css', 'model-selector.css'),
+      apeIconsCssUri: this._getUri(webview, 'resources', 'css', 'icons', 'ape-icons.css'),
+      phosphorIconsCssUri: this._getUri(webview, 'resources', 'css', 'phosphor-icons.css'),
+      codiconsUri: this._getUri(webview, 'resources', 'codicons', 'codicon.css')
+    };
+    
+    // JS 리소스 매핑
+    const jsResources = {
+      modelSelectorUri: this._getUri(webview, 'resources', 'js', 'model-selector.js'),
+      codeBlocksJsUri: this._getUri(webview, 'resources', 'js', 'code-blocks.js'),
+      commandIconsJsUri: this._getUri(webview, 'resources', 'js', 'command-icons.js'),
+      commandAutocompleteJsUri: this._getUri(webview, 'resources', 'js', 'command-autocomplete.js'),
+      iconManagerJsUri: this._getUri(webview, 'resources', 'js', 'icon-manager.js'),
+      commandButtonsJsUri: this._getUri(webview, 'resources', 'js', 'command-buttons.js'),
+      improvedApeUiJsUri: this._getUri(webview, 'resources', 'js', 'improved-ape-ui.js'),
+      improvedContextHandlerJsUri: this._getUri(webview, 'resources', 'js', 'improved-context-handler.js'),
+      workflowAnalyzerJsUri: this._getUri(webview, 'resources', 'js', 'workflow-analyzer.js'),
+      hybridApeUiJsUri: this._getUri(webview, 'resources', 'js', 'hybrid-ape-ui.js'),
+      apeUiEventFixJsUri: this._getUri(webview, 'resources', 'js', 'ape-ui-event-fix.js')
+    };
+    
+    // HTML 리소스 매핑
+    const htmlResources = {
+      commandsHtmlUri: this._getUri(webview, 'resources', 'html', 'command-buttons.html')
+    };
+    
+    // 모든 리소스 병합
+    return {
+      ...cssResources,
+      ...jsResources,
+      ...htmlResources
+    };
+  }
+  
+  /**
+   * 안전한 URI 생성 헬퍼 메소드
+   * 파일이 존재하지 않아도 URI는 항상 생성
+   */
+  private _getUri(webview: vscode.Webview, ...pathSegments: string[]): vscode.Uri {
+    return webview.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, ...pathSegments));
   }
 }
